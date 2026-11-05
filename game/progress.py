@@ -257,9 +257,11 @@ class ProgressStore:
     def skip_lesson(self, chapter_id: str, lesson_id: str) -> None:
         self.set_lesson_state(chapter_id, lesson_id, TUTORIAL_SKIPPED)
 
-    def skip_chapter(self, chapter_id: str) -> None:
+    def skip_chapter(self, chapter_id: str, lesson_ids: Iterable[str] = ()) -> None:
         chapter = self._chapter(chapter_id)
         chapter["skipped"] = True
+        for lesson_id in lesson_ids:
+            chapter["lessons"].setdefault(lesson_id, {"state": TUTORIAL_NOT_STARTED})
         for lesson in chapter["lessons"].values():
             if lesson.get("state") != TUTORIAL_COMPLETED:
                 lesson["state"] = TUTORIAL_SKIPPED

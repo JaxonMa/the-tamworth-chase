@@ -7,6 +7,7 @@ ENV/
 # Python caches
 __pycache__/
 *.py[cod]
+*.pyc
 *.pyo
 *$py.class
 .pytest_cache/
@@ -35,3 +36,6 @@ Thumbs.db
 
 # Local tooling scratch
 *.log
+
+# Task notes kept outside version control
+prompt.md

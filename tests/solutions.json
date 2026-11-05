@@ -1,0 +1,150 @@
+{
+ "level_01": {
+  "obstacles": [
+   [
+    1,
+    2
+   ]
+  ],
+  "steps": 8,
+  "status": "won"
+ },
+ "level_02": {
+  "obstacles": [
+   [
+    4,
+    8
+   ]
+  ],
+  "steps": 11,
+  "status": "won"
+ },
+ "level_03": {
+  "obstacles": [
+   [
+    1,
+    6
+   ],
+   [
+    2,
+    7
+   ]
+  ],
+  "steps": 8,
+  "status": "won"
+ },
+ "level_04": {
+  "obstacles": [
+   [
+    1,
+    4
+   ],
+   [
+    3,
+    3
+   ]
+  ],
+  "steps": 10,
+  "status": "won"
+ },
+ "level_05": {
+  "obstacles": [
+   [
+    2,
+    2
+   ],
+   [
+    7,
+    8
+   ]
+  ],
+  "steps": 12,
+  "status": "won"
+ },
+ "level_06": {
+  "obstacles": [
+   [
+    1,
+    5
+   ],
+   [
+    7,
+    2
+   ],
+   [
+    8,
+    8
+   ]
+  ],
+  "steps": 16,
+  "status": "won"
+ },
+ "level_07": {
+  "obstacles": [
+   [
+    2,
+    5
+   ],
+   [
+    3,
+    4
+   ]
+  ],
+  "steps": 13,
+  "status": "won"
+ },
+ "level_08": {
+  "obstacles": [
+   [
+    4,
+    2
+   ],
+   [
+    5,
+    1
+   ],
+   [
+    6,
+    3
+   ]
+  ],
+  "steps": 16,
+  "status": "won"
+ },
+ "level_09": {
+  "obstacles": [
+   [
+    1,
+    8
+   ],
+   [
+    5,
+    1
+   ],
+   [
+    8,
+    7
+   ]
+  ],
+  "steps": 15,
+  "status": "won"
+ },
+ "level_10": {
+  "obstacles": [
+   [
+    6,
+    5
+   ],
+   [
+    7,
+    8
+   ],
+   [
+    8,
+    6
+   ]
+  ],
+  "steps": 13,
+  "status": "won"
+ }
+}

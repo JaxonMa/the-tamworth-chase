@@ -60,6 +60,8 @@ BERRY_LIGHT = (214, 138, 132)
 PINK = (233, 183, 178)
 PINK_DEEP = (214, 148, 143)
 COW_WHITE = (250, 244, 232)
+DENIM = (122, 157, 176)
+DENIM_DARK = (98, 130, 148)
 COW_BROWN = (139, 104, 78)
 COW_PINK = (232, 174, 168)
 
@@ -110,6 +112,16 @@ FONT_TINY = 18
 
 FONT_RELATIVE_PATH = ("fonts", "CEFFontsCJK-Regular.ttf")
 
+# CEF Fonts CJK draws "1" as a bare slash, so digits come from a rounded
+# system face while Chinese and Latin letters keep the hand-written look.
+DIGIT_FONT_NAMES: Sequence[str] = (
+    "sfnsrounded",
+    "avenirnext",
+    "helveticaneue",
+    "dejavusans",
+    "arial",
+)
+
 FALLBACK_FONT_NAMES: Sequence[str] = (
     "pingfangsc",
     "hiraginosansgb",
@@ -135,13 +147,23 @@ class FontBook:
         if not self.font_path.exists():
             self.font_path = self._find_fallback()
             self.source = "system" if self.font_path else "default"
+        self.digit_path: Optional[Path] = self._find_digit_font()
         self._fonts: Dict[int, pygame.font.Font] = {}
+        self._digit_fonts: Dict[int, pygame.font.Font] = {}
         self._text_cache: Dict[Tuple[str, int, Tuple[int, int, int], bool], pygame.Surface] = {}
         self._wrapped_cache: Dict[Tuple[str, int, int, bool], pygame.Surface] = {}
 
     @staticmethod
     def _find_fallback() -> Optional[Path]:
         for name in FALLBACK_FONT_NAMES:
+            match = pygame.font.match_font(name)
+            if match:
+                return Path(match)
+        return None
+
+    @staticmethod
+    def _find_digit_font() -> Optional[Path]:
+        for name in DIGIT_FONT_NAMES:
             match = pygame.font.match_font(name)
             if match:
                 return Path(match)
@@ -165,7 +187,46 @@ class FontBook:
             self._fonts[size] = font
         return font
 
+    def get_digit_font(self, size: int) -> pygame.font.Font:
+        font = self._digit_fonts.get(size)
+        if font is None:
+            if self.digit_path is not None:
+                font = pygame.font.Font(str(self.digit_path), size)
+            else:
+                font = self.get(size)
+            self._digit_fonts[size] = font
+        return font
+
     # -- text rendering ------------------------------------------------
+    @staticmethod
+    def _split_runs(text: str):
+        runs = []
+        current = ""
+        current_digit: Optional[bool] = None
+        for char in text:
+            is_digit = char.isdigit() or char in ".,:%/"
+            if current_digit is None or is_digit == current_digit:
+                current += char
+                current_digit = is_digit
+            else:
+                runs.append((current_digit, current))
+                current = char
+                current_digit = is_digit
+        if current:
+            runs.append((bool(current_digit), current))
+        return runs
+
+    def _render_run(self, text: str, size: int, color, bold: bool, digit: bool) -> pygame.Surface:
+        font = self.get_digit_font(size) if digit else self.get(size)
+        base = font.render(text, True, color)
+        if bold and digit:
+            width = base.get_width() + _BOLD_OFFSET
+            layered = pygame.Surface((width, base.get_height()), pygame.SRCALPHA)
+            layered.blit(base, (0, 0))
+            layered.blit(base, (_BOLD_OFFSET, 0))
+            return layered
+        return base
+
     def render(
         self,
         text: str,
@@ -177,14 +238,27 @@ class FontBook:
         cached = self._text_cache.get(key)
         if cached is not None:
             return cached
-        font = self.get(size)
-        base = font.render(text, True, color)
-        if bold:
-            shaded = font.render(text, True, color)
-            width = base.get_width() + _BOLD_OFFSET
-            base = pygame.Surface((width, base.get_height()), pygame.SRCALPHA)
-            base.blit(shaded, (0, 0))
-            base.blit(shaded, (_BOLD_OFFSET, 0))
+        has_digits = self.digit_path is not None and any(char.isdigit() for char in text)
+        if not has_digits:
+            font = self.get(size)
+            base = font.render(text, True, color)
+            if bold:
+                width = base.get_width() + _BOLD_OFFSET
+                layered = pygame.Surface((width, base.get_height()), pygame.SRCALPHA)
+                layered.blit(base, (0, 0))
+                layered.blit(base, (_BOLD_OFFSET, 0))
+                base = layered
+        else:
+            runs = self._split_runs(text)
+            rendered = [self._render_run(run, size, color, bold, digit) for digit, run in runs]
+            width = sum(surface.get_width() for surface in rendered)
+            height = max(surface.get_height() for surface in rendered)
+            base = pygame.Surface((max(1, width), max(1, height)), pygame.SRCALPHA)
+            ascent = self.get_digit_font(size).get_ascent()
+            x = 0
+            for surface in rendered:
+                base.blit(surface, (x, 0))
+                x += surface.get_width()
         if len(self._text_cache) > 900:
             self._text_cache.clear()
         self._text_cache[key] = base
@@ -192,6 +266,18 @@ class FontBook:
 
     def size_of(self, text: str, size: int, bold: bool = False) -> Tuple[int, int]:
         return self.render(text, size, INK, bold).get_size()
+
+    def ellipsize(self, text: str, size: int, max_width: int) -> str:
+        """Shorten ``text`` with an ellipsis so it fits ``max_width``."""
+        if self.size_of(text, size)[0] <= max_width:
+            return text
+        ellipsis = "…"
+        accumulated = ""
+        for char in text:
+            if self.size_of(accumulated + char + ellipsis, size)[0] > max_width:
+                break
+            accumulated += char
+        return (accumulated + ellipsis) if accumulated else ellipsis
 
     def wrap(self, text: str, size: int, max_width: int, color=INK, bold=False) -> pygame.Surface:
         """Render text with word wrapping.  CJK falls back to per-character wrapping."""
@@ -205,7 +291,7 @@ class FontBook:
             current = ""
             for char in paragraph:
                 candidate = current + char
-                if font.size(candidate)[0] > max_width and current:
+                if self.size_of(candidate, size, bold)[0] > max_width and current:
                     lines.append(current)
                     current = char
                 else:

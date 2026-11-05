@@ -272,7 +272,8 @@ class TutorialBook:
         self.store.skip_lesson(chapter_id, lesson_id)
 
     def skip_chapter(self, chapter_id: str) -> None:
-        self.store.skip_chapter(chapter_id)
+        chapter = self.catalog.require(chapter_id)
+        self.store.skip_chapter(chapter_id, chapter.lesson_ids)
 
     def reset_chapter(self, chapter_id: str) -> None:
         self.store.reset_chapter(chapter_id)
