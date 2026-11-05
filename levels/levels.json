@@ -1,0 +1,309 @@
+{
+  "version": 1,
+  "game": "The Tamworth Two",
+  "levels": [
+    {
+      "id": "level_01",
+      "name": "晨露草坪",
+      "description": "新的一天从一片开阔的草地开始。",
+      "hint": "把障碍放在牛的正前方，它会向右转身。",
+      "tags": [
+        "入门"
+      ],
+      "obstacle_limit": 1,
+      "farmer_facing": "north",
+      "cow_facings": [
+        "north"
+      ],
+      "grid": [
+        "##########",
+        "#........#",
+        "#........#",
+        "#.F......#",
+        "#........#",
+        "#........#",
+        "#.....##C#",
+        "#.TT.###.#",
+        "#.TT..##.#",
+        "##########"
+      ],
+      "step_limit": 30,
+      "s_threshold": 10,
+      "a_threshold": 15,
+      "b_threshold": 22
+    },
+    {
+      "id": "level_02",
+      "name": "牧场小径",
+      "description": "狭长的小径上，谁先拐弯？",
+      "hint": "挡住农夫，让他提前转向也是好办法。",
+      "tags": [
+        "入门"
+      ],
+      "obstacle_limit": 1,
+      "farmer_facing": "south",
+      "cow_facings": [
+        "east"
+      ],
+      "grid": [
+        "##########",
+        "#.......C#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#....F...#",
+        "#........#",
+        "#....HHHH#",
+        "##########"
+      ],
+      "step_limit": 33,
+      "s_threshold": 13,
+      "a_threshold": 18,
+      "b_threshold": 25
+    },
+    {
+      "id": "level_03",
+      "name": "老屋后院",
+      "description": "屋后的岔路不少，别让他们绕远。",
+      "hint": "先预测三步，再决定石头放在哪里。",
+      "tags": [
+        "入门",
+        "转角"
+      ],
+      "obstacle_limit": 2,
+      "farmer_facing": "south",
+      "cow_facings": [
+        "north"
+      ],
+      "grid": [
+        "##########",
+        "#........#",
+        "#.....C..#",
+        "#..TT.####",
+        "#..TT.#.##",
+        "#..TT.#.##",
+        "#..#######",
+        "#..##.#..#",
+        "#F.......#",
+        "##########"
+      ],
+      "step_limit": 30,
+      "s_threshold": 10,
+      "a_threshold": 15,
+      "b_threshold": 22
+    },
+    {
+      "id": "level_04",
+      "name": "石堆迷宫",
+      "description": "两块石头，能改变两段路线。",
+      "hint": "一块挡住牛，一块留给农夫。",
+      "tags": [
+        "节奏"
+      ],
+      "obstacle_limit": 2,
+      "farmer_facing": "south",
+      "cow_facings": [
+        "west"
+      ],
+      "grid": [
+        "##########",
+        "#....F...#",
+        "#.#####..#",
+        "###..##..#",
+        "##.......#",
+        "##T.C.#..#",
+        "##T...#..#",
+        "##TTTT#..#",
+        "##TTTT#..#",
+        "##########"
+      ],
+      "step_limit": 32,
+      "s_threshold": 12,
+      "a_threshold": 17,
+      "b_threshold": 24
+    },
+    {
+      "id": "level_05",
+      "name": "对称牧场",
+      "description": "左右对称的围栏，藏着不对称的时机。",
+      "hint": "注意两位主角的朝向，先让谁转身？",
+      "tags": [
+        "对称",
+        "节奏"
+      ],
+      "obstacle_limit": 2,
+      "farmer_facing": "west",
+      "cow_facings": [
+        "north"
+      ],
+      "grid": [
+        "##########",
+        "#..HHHH..#",
+        "#....#...#",
+        "#........#",
+        "#..~~~~..#",
+        "#.C.##...#",
+        "#.#....#.#",
+        "#........#",
+        "#...TTF..#",
+        "##########"
+      ],
+      "step_limit": 34,
+      "s_threshold": 14,
+      "a_threshold": 19,
+      "b_threshold": 26
+    },
+    {
+      "id": "level_06",
+      "name": "蜿蜒沟渠",
+      "description": "沟渠之间，只差几步的时间。",
+      "hint": "有时需要让牛多绕一圈。",
+      "tags": [
+        "长路"
+      ],
+      "obstacle_limit": 3,
+      "farmer_facing": "south",
+      "cow_facings": [
+        "west"
+      ],
+      "grid": [
+        "##########",
+        "#........#",
+        "#...C....#",
+        "#....HHHH#",
+        "##HH..HH##",
+        "#........#",
+        "#...TTTT.#",
+        "#........#",
+        "#...TTF..#",
+        "##########"
+      ],
+      "step_limit": 38,
+      "s_threshold": 18,
+      "a_threshold": 23,
+      "b_threshold": 30
+    },
+    {
+      "id": "level_07",
+      "name": "双屋之间",
+      "description": "两间小屋，一条窄缝。",
+      "hint": "窄缝是唯一的近路，也可能是陷阱。",
+      "tags": [
+        "窄道"
+      ],
+      "obstacle_limit": 3,
+      "farmer_facing": "north",
+      "cow_facings": [
+        "west"
+      ],
+      "grid": [
+        "##########",
+        "#.#.HHH..#",
+        "#.#...#..#",
+        "#F#..C#..#",
+        "#.#...#..#",
+        "#.HHH.#..#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "##########"
+      ],
+      "step_limit": 35,
+      "s_threshold": 15,
+      "a_threshold": 20,
+      "b_threshold": 27
+    },
+    {
+      "id": "level_08",
+      "name": "苔藓高地",
+      "description": "三块苔石，三条岔路。",
+      "hint": "把三块石头用在关键的两个转角上。",
+      "tags": [
+        "三石"
+      ],
+      "obstacle_limit": 3,
+      "farmer_facing": "north",
+      "cow_facings": [
+        "east"
+      ],
+      "grid": [
+        "##########",
+        "#........#",
+        "#.#....#.#",
+        "#...TT...#",
+        "##.CTT..##",
+        "#........#",
+        "#.#....#.#",
+        "#.HHHHHH.#",
+        "#..#..#F.#",
+        "##########"
+      ],
+      "step_limit": 38,
+      "s_threshold": 18,
+      "a_threshold": 23,
+      "b_threshold": 30
+    },
+    {
+      "id": "level_09",
+      "name": "荆棘窄门",
+      "description": "门只有一扇，时机只有一次。",
+      "hint": "先看牛会绕到哪里，再决定农夫的路线。",
+      "tags": [
+        "精算"
+      ],
+      "obstacle_limit": 3,
+      "farmer_facing": "north",
+      "cow_facings": [
+        "north"
+      ],
+      "grid": [
+        "##########",
+        "##.T.#.C.#",
+        "##.T.#...#",
+        "#.T.#....#",
+        "#.#.#....#",
+        "#..#..#.##",
+        "#F.#.....#",
+        "#........#",
+        "#.##..T..#",
+        "##########"
+      ],
+      "step_limit": 37,
+      "s_threshold": 17,
+      "a_threshold": 22,
+      "b_threshold": 29
+    },
+    {
+      "id": "level_10",
+      "name": "最后的围栏",
+      "description": "最后的牧场，慢慢来。",
+      "hint": "三步预测看不出结果时，试着先放两块石头。",
+      "tags": [
+        "终章",
+        "精算"
+      ],
+      "obstacle_limit": 3,
+      "farmer_facing": "east",
+      "cow_facings": [
+        "north"
+      ],
+      "grid": [
+        "##########",
+        "#........#",
+        "#......#.#",
+        "#......#.#",
+        "#..T..#..#",
+        "#F.....###",
+        "#........#",
+        "#....##..#",
+        "#....T..C#",
+        "##########"
+      ],
+      "step_limit": 35,
+      "s_threshold": 15,
+      "a_threshold": 20,
+      "b_threshold": 27
+    }
+  ]
+}
