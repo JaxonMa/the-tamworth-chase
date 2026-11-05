@@ -2,16 +2,28 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 import pygame
 
 from .. import theme, ui
 from ..core import Simulation
-from ..models import GameStatus, Level, Pos, Rank
+from ..models import Direction, GameStatus, Item, ItemKind, Level, Pos, Rank
 from ..playback import Playback
 from ..render import BoardRenderer, BoardView, EffectSystem
 from .base import Scene, draw_footer
+
+OBSTACLE_TOOL = "obstacle"
+
+
+@dataclass
+class Placement:
+    """One thing the player put on the board before starting."""
+
+    tool: str
+    pos: Pos
+    facing: Direction = Direction.EAST
 
 RESULT_DELAYS = {
     GameStatus.WON: 1.55,
@@ -58,7 +70,10 @@ class PlayScene(Scene):
         self.phase = "place"
         self.hover: Optional[Pos] = None
         self.hover_valid = True
-        self.placed_order: List[Pos] = []
+        self.tool: str = OBSTACLE_TOOL
+        self.sign_facing: Direction = Direction.EAST
+        self.placements: List[Placement] = []
+        self.tool_buttons: List[ui.Button] = []
         self.result_timer = 0.0
         self.result_shown = False
         self.rank: Optional[Rank] = None
@@ -67,6 +82,7 @@ class PlayScene(Scene):
         self.toast_text = ""
         self.toast_timer = 0.0
         self.loop_events = 0
+        self.undo_performed = False
         self.tutorial = None
         self._prediction_cache: Tuple = ()
         self._prediction_key = None
@@ -78,23 +94,23 @@ class PlayScene(Scene):
     # ------------------------------------------------------------------
     def _build_buttons(self) -> None:
         self.start_button = ui.Button(
-            pygame.Rect(764, 540, 210, 56), "开始游戏", "start", style="primary", font_size=theme.FONT_H3
+            pygame.Rect(764, 548, 210, 54), "开始游戏", "start", style="primary", font_size=theme.FONT_H3
         )
         self.secondary_button = ui.Button(
-            pygame.Rect(990, 540, 218, 56), "撤销一步", "undo", style="default", font_size=theme.FONT_H3
+            pygame.Rect(990, 548, 218, 54), "撤销一步", "undo", style="default", font_size=theme.FONT_H3
         )
         self.restart_button = ui.Button(
-            pygame.Rect(764, 606, 210, 48), "重开", "restart", style="ghost"
+            pygame.Rect(764, 612, 210, 46), "重开", "restart", style="ghost"
         )
         self.predict_button = ui.Button(
-            pygame.Rect(990, 606, 218, 48), "预测：开", "predict", style="ghost"
+            pygame.Rect(990, 612, 218, 46), "预测：开", "predict", style="ghost"
         )
         self.speed_buttons = [
-            ui.Button(pygame.Rect(764 + index * 152, 668, 140, 40), label, f"speed:{value}", style="ghost", font_size=theme.FONT_SMALL)
+            ui.Button(pygame.Rect(764 + index * 152, 668, 140, 38), label, f"speed:{value}", style="ghost", font_size=theme.FONT_SMALL)
             for index, (label, value) in enumerate((("0.5x", 0.5), ("1x", 1.0), ("2x", 2.0)))
         ]
         self.skip_button = ui.Button(
-            pygame.Rect(764, 720, 444, 44), "跳过本课", "skip", style="ghost", font_size=theme.FONT_SMALL
+            pygame.Rect(764, 714, 444, 40), "跳过本课", "skip", style="ghost", font_size=theme.FONT_SMALL
         )
         self.buttons = [
             self.start_button,
@@ -108,6 +124,36 @@ class PlayScene(Scene):
         self.back_button = ui.Button(
             pygame.Rect(theme.WINDOW_WIDTH - 190, 36, 130, 52), "返回", "back", style="ghost"
         )
+        self._build_tool_buttons()
+
+    def _tools(self) -> List[Tuple[str, str]]:
+        tools: List[Tuple[str, str]] = []
+        if self.level.obstacle_limit > 0:
+            tools.append((OBSTACLE_TOOL, "干草垛"))
+        for kind in ItemKind:
+            if self.level.item_counts.get(kind.value, 0) > 0:
+                tools.append((kind.value, kind.short_label))
+        return tools
+
+    def _build_tool_buttons(self) -> None:
+        self.tool_buttons = []
+        tools = self._tools()
+        if len(tools) <= 1:
+            return
+        count = len(tools)
+        gap = 8
+        width = (444 - gap * (count - 1)) // count
+        for index, (tool, label) in enumerate(tools):
+            self.tool_buttons.append(
+                ui.Button(
+                    pygame.Rect(764 + index * (width + gap), 456, width, 52),
+                    label,
+                    f"tool:{tool}",
+                    style="ghost",
+                    font_size=theme.FONT_TINY,
+                )
+            )
+        self.buttons.extend(self.tool_buttons)
 
     def on_enter(self) -> None:
         if self.mode == "tutorial" and self.app.book is not None:
@@ -132,7 +178,7 @@ class PlayScene(Scene):
             self.start_button.text = "开始游戏"
             self.start_button.enabled = True
             self.secondary_button.text = "撤销一步"
-            self.secondary_button.enabled = bool(self.placed_order)
+            self.secondary_button.enabled = bool(self.placements)
         elif self.playback.running:
             self.start_button.text = "暂停"
             self.secondary_button.text = "单步"
@@ -143,6 +189,8 @@ class PlayScene(Scene):
             self.secondary_button.enabled = True
         self.restart_button.enabled = True
         self.predict_button.text = "预测：开" if self.show_prediction else "预测：关"
+        for button in self.tool_buttons:
+            button.style = "primary" if button.key == f"tool:{self.tool}" else "ghost"
         for button in self.speed_buttons:
             value = float(button.key.split(":")[1])
             button.style = "primary" if abs(value - self.playback.speed) < 0.01 else "ghost"
@@ -155,6 +203,20 @@ class PlayScene(Scene):
         if not (0 <= local_y < theme.CELL_SIZE * self.level.height):
             return None
         return (local_y // theme.CELL_SIZE, local_x // theme.CELL_SIZE)
+
+    def _hover_sprite(self) -> Optional[pygame.Surface]:
+        if self.tool == OBSTACLE_TOOL:
+            return None
+        kind = ItemKind(self.tool)
+        if kind is ItemKind.SIGNPOST:
+            angle = {
+                Direction.EAST: 0,
+                Direction.NORTH: 90,
+                Direction.WEST: 180,
+                Direction.SOUTH: 270,
+            }[self.sign_facing]
+            return self.cache.rotated("signpost", angle)
+        return self.cache.slot_sprite(kind.value, theme.CELL_SIZE)
 
     def _prediction(self):
         key = (self.sim.state_key(), self.show_prediction)
@@ -195,7 +257,12 @@ class PlayScene(Scene):
             cell = self._cell_at(event.pos)
             self.hover = cell
             if cell is not None and self.phase == "place" and self.sim.status is GameStatus.READY:
-                self.hover_valid = self.sim.can_place_obstacle(cell).ok or cell in self.sim.obstacles
+                if cell in self.sim.obstacles or cell in self.sim.items:
+                    self.hover_valid = True
+                elif self.tool == OBSTACLE_TOOL:
+                    self.hover_valid = self.sim.can_place_obstacle(cell).ok
+                else:
+                    self.hover_valid = self.sim.can_place_item(ItemKind(self.tool), cell).ok
             else:
                 self.hover_valid = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -203,12 +270,12 @@ class PlayScene(Scene):
             if cell is None or self.sim.status is not GameStatus.READY:
                 return
             if event.button == 1:
-                if cell in self.sim.obstacles:
-                    self._remove_obstacle(cell)
+                if cell in self.sim.obstacles or cell in self.sim.items:
+                    self._remove_at(cell)
                 else:
-                    self._place_obstacle(cell)
+                    self._place_at(cell)
             elif event.button == 3:
-                self._remove_obstacle(cell)
+                self._remove_at(cell)
 
     def _handle_key(self, event: pygame.event.Event) -> None:
         if event.key == pygame.K_ESCAPE:
@@ -251,6 +318,14 @@ class PlayScene(Scene):
             self._set_speed(float(action.split(":")[1]))
         elif action == "skip":
             self._skip_tutorial()
+        elif action.startswith("tool:"):
+            self._select_tool(action.split(":", 1)[1])
+
+    def _select_tool(self, tool: str) -> None:
+        if self.tool == tool and tool == ItemKind.SIGNPOST.value:
+            self.sign_facing = self.sign_facing.clockwise()
+        self.tool = tool
+        self.app.sound.play("click")
 
     def _handle_start(self) -> None:
         if self.sim.status.is_finished:
@@ -260,6 +335,10 @@ class PlayScene(Scene):
             required = int(self.level.extra.get("require_obstacle", 0) or 0)
             if self.sim.obstacle_count < required:
                 self._toast(f"试着先放 {required} 个干草垛，再开始吧。")
+                self.app.sound.play("error")
+                return
+            if self.level.extra.get("require_undo") and not self.undo_performed:
+                self._toast("先放一捆干草，再把它收回来试试。")
                 self.app.sound.play("error")
                 return
             self.phase = "run"
@@ -290,10 +369,16 @@ class PlayScene(Scene):
         self.store.set_setting("speed", speed)
         self._refresh_buttons()
 
-    def _place_obstacle(self, cell: Pos) -> None:
-        result = self.sim.place_obstacle(cell)
+    def _place_at(self, cell: Pos) -> None:
+        if self.tool == OBSTACLE_TOOL:
+            result = self.sim.place_obstacle(cell)
+            placement = Placement(OBSTACLE_TOOL, cell)
+        else:
+            kind = ItemKind(self.tool)
+            result = self.sim.place_item(kind, cell, self.sign_facing)
+            placement = Placement(kind.value, cell, self.sign_facing)
         if result.ok:
-            self.placed_order.append(cell)
+            self.placements.append(placement)
             self.app.sound.play("place")
             if self.tutorial is not None:
                 self.tutorial.notify("place")
@@ -302,10 +387,17 @@ class PlayScene(Scene):
             self.app.sound.play("error")
         self._refresh_buttons()
 
-    def _remove_obstacle(self, cell: Pos) -> None:
-        if self.sim.remove_obstacle(cell):
-            if cell in self.placed_order:
-                self.placed_order.remove(cell)
+    def _remove_at(self, cell: Pos) -> None:
+        removed = False
+        if cell in self.sim.obstacles:
+            removed = self.sim.remove_obstacle(cell)
+        elif cell in self.sim.items:
+            removed = self.sim.remove_item(cell)
+        if removed:
+            self.placements = [
+                placement for placement in self.placements if placement.pos != cell
+            ]
+            self.undo_performed = True
             self.app.sound.play("undo")
             if self.tutorial is not None:
                 self.tutorial.notify("remove")
@@ -314,28 +406,43 @@ class PlayScene(Scene):
     def _undo(self) -> None:
         if self.phase != "place" or self.sim.status is not GameStatus.READY:
             return
-        while self.placed_order:
-            cell = self.placed_order.pop()
-            if self.sim.remove_obstacle(cell):
+        while self.placements:
+            placement = self.placements.pop()
+            removed = False
+            if placement.tool == OBSTACLE_TOOL:
+                removed = self.sim.remove_obstacle(placement.pos)
+            else:
+                removed = self.sim.remove_item(placement.pos)
+            if removed:
+                self.undo_performed = True
                 self.app.sound.play("undo")
                 if self.tutorial is not None:
                     self.tutorial.notify("remove")
                 break
         self._refresh_buttons()
 
-    def _restart(self, clear_obstacles: bool = False) -> None:
-        obstacles = set() if clear_obstacles else self.sim.obstacles
+    def _rebuild(self, placements: List[Placement]) -> None:
         speed = self.playback.speed
-        self.sim = Simulation(self.level, obstacles)
+        self.sim = Simulation(self.level)
+        for placement in placements:
+            if placement.tool == OBSTACLE_TOOL:
+                self.sim.place_obstacle(placement.pos)
+            else:
+                self.sim.place_item(ItemKind(placement.tool), placement.pos, placement.facing)
         self.playback = Playback(self.sim, speed)
+
+    def _restart(self, clear_obstacles: bool = False) -> None:
+        placements = [] if clear_obstacles else list(self.placements)
+        self._rebuild(placements)
+        self.placements = [p for p in placements if p.pos in self.sim.obstacles or p.pos in self.sim.items]
         self.effects = EffectSystem(bool(self.store.get_setting("low_effects", False)))
         self.phase = "place"
-        self.placed_order = [pos for pos in self.placed_order if pos in obstacles]
         self.result_timer = 0.0
         self.result_shown = False
         self.modal = None
         self.rank = None
         self.new_record = False
+        self.undo_performed = False
         self._prediction_key = None
         if self.mode == "tutorial":
             from ..tutorial import TutorialSession
@@ -431,14 +538,18 @@ class PlayScene(Scene):
             self.new_record = self.store.record_main_clear(
                 self.level.level_id, steps, rank, obstacles_used
             )
-            self.app.on_level_cleared(self.level, self.sim, rank)
+            self.app.on_level_cleared(
+                self.level, self.sim, rank, loops=self.loop_events, mode="main"
+            )
         elif self.mode == "tutorial" and self.app.book is not None:
             self.new_record = self.app.book.complete_lesson(
                 self.chapter, self.level.tutorial_id or self.level.level_id
             )
         elif self.mode == "challenge":
             self.new_record = self.store.record_challenge_best(self.challenge_key, steps)
-            self.app.on_level_cleared(self.level, self.sim, rank)
+            self.app.on_level_cleared(
+                self.level, self.sim, rank, loops=self.loop_events, mode="challenge"
+            )
         elif self.mode == "daily" and self.daily_key:
             self.new_record = self.store.record_daily(
                 self.daily_key,
@@ -573,8 +684,14 @@ class PlayScene(Scene):
             else self.level.name
         )
         theme.draw_text(surface, self.fonts, title, (62, 34), theme.FONT_H1, theme.INK, bold=True)
-        badge = "教程" if self.mode == "tutorial" else "主线"
-        badge_color = theme.SKY_DEEP if self.mode == "tutorial" else theme.LEAF
+        badge_map = {
+            "main": ("主线", theme.LEAF),
+            "tutorial": ("教程", theme.SKY_DEEP),
+            "challenge": ("挑战", theme.CLAY),
+            "daily": ("每日", theme.SKY_DEEP),
+            "editor": ("试玩", theme.SUN),
+        }
+        badge, badge_color = badge_map.get(self.mode, ("主线", theme.LEAF))
         width = self.fonts.size_of(title, theme.FONT_H1, True)[0]
         ui.draw_pill(surface, self.fonts, badge, (62 + width + 62, 58), badge_color)
         status_text = {
@@ -598,6 +715,7 @@ class PlayScene(Scene):
             effects=self.effects,
             pulse=self.time,
             highlight=self._highlight_cell(),
+            hover_sprite=self._hover_sprite(),
         )
         self.renderer.draw(surface, view)
 
@@ -616,9 +734,14 @@ class PlayScene(Scene):
         inner_width = theme.PANEL_RECT.width - 48
         y = theme.PANEL_RECT.top + 20
 
-        label = (
-            f"第 {self.level_number:02d} 关" if self.mode == "main" else "本课目标"
-        )
+        label_map = {
+            "main": f"第 {self.level_number:02d} 关",
+            "tutorial": "本课目标",
+            "challenge": "挑战目标",
+            "daily": "今日牧场",
+            "editor": "自建关卡",
+        }
+        label = label_map.get(self.mode, "本关目标")
         theme.draw_text(surface, self.fonts, label, (inner_left, y), theme.FONT_SMALL, theme.INK_LIGHT)
         y += 26
         theme.draw_text(surface, self.fonts, self.level.name, (inner_left, y), theme.FONT_H2, theme.INK, bold=True)
@@ -675,12 +798,54 @@ class PlayScene(Scene):
         for button in self.buttons:
             if button is self.skip_button:
                 continue
+            if button in self.tool_buttons:
+                continue
             button.draw(surface, self.fonts)
+        self._draw_tool_palette(surface)
         if self.mode == "tutorial":
             self.skip_button.draw(surface, self.fonts)
 
+    def _draw_tool_palette(self, surface: pygame.Surface) -> None:
+        if not self.tool_buttons:
+            return
+        theme.draw_text(
+            surface,
+            self.fonts,
+            "选择要放下的东西",
+            (764, 430),
+            theme.FONT_TINY,
+            theme.INK_LIGHT,
+        )
+        for button in self.tool_buttons:
+            tool = button.key.split(":", 1)[1]
+            selected = tool == self.tool
+            rect = button.rect
+            background = theme.PRIMARY_BG if selected else theme.BUTTON_BG
+            border = theme.PRIMARY_BORDER if selected else theme.BUTTON_BORDER
+            theme.rounded_rect(surface, rect, background, radius=12)
+            theme.rounded_rect(surface, rect, border, radius=12, width=2)
+            label_color = theme.WHITE_WARM if selected else theme.INK_SOFT
+            if tool == OBSTACLE_TOOL:
+                icon = self.cache.slot_sprite("obstacle", 30)
+                remaining = self.sim.obstacles_left
+                name = "干草垛"
+            else:
+                kind = ItemKind(tool)
+                icon = self.cache.slot_sprite(kind.value, 30)
+                remaining = self.sim.item_left(kind)
+                name = kind.short_label
+            surface.blit(icon, icon.get_rect(midleft=(rect.left + 8, rect.centery)))
+            label = self.fonts.render(name, theme.FONT_TINY, label_color)
+            surface.blit(label, (rect.left + 42, rect.centery - 14))
+            count = self.fonts.render(f"×{remaining}", theme.FONT_TINY, label_color)
+            surface.blit(count, (rect.left + 42, rect.centery + 2))
+            if selected and tool == ItemKind.SIGNPOST.value:
+                arrows = {Direction.EAST: "→", Direction.NORTH: "↑", Direction.WEST: "←", Direction.SOUTH: "↓"}
+                arrow = self.fonts.render(arrows[self.sign_facing], theme.FONT_TINY, label_color)
+                surface.blit(arrow, arrow.get_rect(topright=(rect.right - 6, rect.top + 4)))
+
     def _draw_tutorial_box(self, surface: pygame.Surface, x: int, y: int, width: int) -> None:
-        box = pygame.Rect(x, y, width, 148)
+        box = pygame.Rect(x, y, width, 128)
         theme.rounded_rect(surface, box, theme.SKY_PALE, radius=16)
         theme.rounded_rect(surface, box, theme.SKY_DEEP, radius=16, width=2)
         ui.draw_pill(surface, self.fonts, "提示", (box.left + 44, box.top + 22), theme.SKY_DEEP)

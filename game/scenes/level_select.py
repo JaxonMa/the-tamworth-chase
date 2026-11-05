@@ -9,7 +9,7 @@ import pygame
 
 from .. import theme, ui
 from ..models import Level
-from .base import Scene, draw_background, draw_footer, draw_header, make_back_button
+from .base import Scene, draw_background, draw_footer, draw_header, make_back_button, make_thumbnail
 
 
 @dataclass
@@ -70,23 +70,7 @@ class LevelSelectScene(Scene):
         return cards
 
     def _thumbnail(self, level: Level) -> pygame.Surface:
-        cell = 9
-        surface = pygame.Surface((level.width * cell, level.height * cell))
-        surface.fill(theme.GRASS)
-        for r in range(level.height):
-            for c in range(level.width):
-                tile = self.cache.tile(level.tile_at((r, c)), (r * 7 + c * 13) % 4)
-                surface.blit(pygame.transform.smoothscale(tile, (cell, cell)), (c * cell, r * cell))
-        # actor dots
-        fr, fc = level.farmer_start
-        pygame.draw.circle(
-            surface, (98, 130, 148), (fc * cell + cell // 2, fr * cell + cell // 2), max(2, cell // 3)
-        )
-        for (cr, cc) in level.cow_positions:
-            pygame.draw.circle(
-                surface, theme.COW_BROWN, (cc * cell + cell // 2, cr * cell + cell // 2), max(2, cell // 3)
-            )
-        return surface
+        return make_thumbnail(self.cache, level)
 
     # ------------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event) -> None:

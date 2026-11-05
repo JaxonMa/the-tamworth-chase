@@ -16,6 +16,7 @@ from .models import (
     CowPersonality,
     Direction,
     GameStatus,
+    ItemKind,
     Level,
     Pos,
     PredictionFrame,
@@ -238,6 +239,7 @@ class BoardView:
     effects: Optional[EffectSystem] = None
     show_facing_marks: bool = True
     pulse: float = 0.0
+    hover_sprite: Optional[pygame.Surface] = None
 
 
 class BoardRenderer:
@@ -269,7 +271,7 @@ class BoardRenderer:
         if view.show_prediction and view.prediction:
             self._draw_prediction(surface, view)
         self._draw_highlight(surface, view)
-        self._draw_obstacles(surface, view)
+        self._draw_placeables(surface, view)
         self._draw_hover(surface, view)
         self._draw_actors(surface, view)
         if view.effects is not None:
@@ -289,17 +291,11 @@ class BoardRenderer:
 
     def _draw_tiles(self, surface: pygame.Surface, view: BoardView) -> None:
         level = view.level
-        for row in range(level.height):
-            for col in range(level.width):
-                kind = level.tile_at((row, col))
-                variant = (row * 7 + col * 13) % 4
-                mask = None
-                if kind is TileKind.FENCE:
-                    mask = self._fence_variant(level, row, col, TileKind.FENCE)
-                elif kind is TileKind.POND:
-                    mask = self._fence_variant(level, row, col, TileKind.POND)
-                tile = self.cache.tile(kind, variant, fence_mask=mask)
-                surface.blit(tile, (ORIGIN[0] + col * CELL, ORIGIN[1] + row * CELL))
+
+        def kind_at(row: int, col: int) -> TileKind:
+            return level.tile_at((row, col))
+
+        draw_grid(surface, self.cache, level.width, level.height, kind_at)
 
     @staticmethod
     def _fence_variant(level: Level, row: int, col: int, kind: TileKind = TileKind.FENCE) -> int:
@@ -381,10 +377,40 @@ class BoardRenderer:
                     3,
                 )
 
-    def _draw_obstacles(self, surface: pygame.Surface, view: BoardView) -> None:
+    def _draw_placeables(self, surface: pygame.Surface, view: BoardView) -> None:
         sprite = self.cache.prop("obstacle")
         for pos in view.sim.obstacles:
             surface.blit(sprite, self.cell_rect(pos).topleft)
+
+        portal_index = 0
+        for pos, item in sorted(view.sim.items.items(), key=lambda pair: (pair[0][0], pair[0][1])):
+            kind = item.kind
+            if kind is ItemKind.SIGNPOST:
+                angle = {Direction.EAST: 0, Direction.NORTH: 90, Direction.WEST: 180, Direction.SOUTH: 270}[
+                    item.facing
+                ]
+                image = self.cache.rotated("signpost", angle)
+                surface.blit(
+                    image,
+                    image.get_rect(center=self.cell_rect(pos).center),
+                )
+                continue
+            if kind is ItemKind.PORTAL:
+                name = "portal_a" if portal_index % 2 == 0 else "portal_b"
+                portal_index += 1
+                surface.blit(self.cache.prop(name), self.cell_rect(pos).topleft)
+                continue
+            if kind is ItemKind.CRATE:
+                surface.blit(self.cache.prop("crate"), self.cell_rect(pos).topleft)
+                continue
+            if kind is ItemKind.APPLE:
+                surface.blit(self.cache.prop("apple"), self.cell_rect(pos).topleft)
+                continue
+            if kind is ItemKind.MUD:
+                surface.blit(self.cache.prop("mud"), self.cell_rect(pos).topleft)
+                continue
+            if kind is ItemKind.HORN:
+                surface.blit(self.cache.prop("horn"), self.cell_rect(pos).topleft)
 
     def _draw_hover(self, surface: pygame.Surface, view: BoardView) -> None:
         if view.hover is None or not view.placement_mode:
@@ -396,8 +422,8 @@ class BoardRenderer:
         pygame.draw.rect(layer, (*color, 200), layer.get_rect().inflate(-4, -4), width=3, border_radius=14)
         surface.blit(layer, rect.topleft)
         if view.hover_valid:
-            ghost = self.cache.prop("obstacle").copy()
-            ghost.set_alpha(140)
+            ghost = (view.hover_sprite or self.cache.prop("obstacle")).copy()
+            ghost.set_alpha(150)
             surface.blit(ghost, rect.topleft)
 
     def _draw_actors(self, surface: pygame.Surface, view: BoardView) -> None:
@@ -449,6 +475,36 @@ class BoardRenderer:
         right = (base[0] + dy * 5 + dx * 3, base[1] + dx * 5 + dy * 3)
         shade = tuple(int(c * 0.82) for c in color)
         pygame.draw.polygon(surface, shade, [tip, left, right])
+
+
+def draw_grid(
+    surface: pygame.Surface,
+    cache: art.ArtCache,
+    width: int,
+    height: int,
+    kind_at,
+    origin: Tuple[int, int] = ORIGIN,
+    cell: int = CELL,
+) -> None:
+    """Draw a grid of tiles, connecting fences and ponds to their neighbours."""
+
+    def mask_for(row: int, col: int, kind: TileKind) -> int:
+        mask = 0
+        for bit, (dr, dc) in ((1, (0, -1)), (2, (0, 1)), (4, (-1, 0)), (8, (1, 0))):
+            r, c = row + dr, col + dc
+            if 0 <= r < height and 0 <= c < width and kind_at(r, c) is kind:
+                mask |= bit
+        return mask
+
+    for row in range(height):
+        for col in range(width):
+            kind = kind_at(row, col)
+            variant = (row * 7 + col * 13) % 4
+            mask = None
+            if kind in (TileKind.FENCE, TileKind.POND):
+                mask = mask_for(row, col, kind)
+            tile = cache.tile(kind, variant, fence_mask=mask)
+            surface.blit(tile, (origin[0] + col * cell, origin[1] + row * cell))
 
 
 # ---------------------------------------------------------------------------

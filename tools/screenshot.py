@@ -62,7 +62,7 @@ def scenario_play_run(app: App, path: Path) -> None:
     app.start_level(app.levels[3])
     scene = app.scene
     for pos in ((1, 4), (3, 3)):
-        scene._place_obstacle(pos)
+        scene._place_at(pos)
     scene._handle_start()
     frames(app, 22)
     draw(app, path)
@@ -71,13 +71,63 @@ def scenario_play_run(app: App, path: Path) -> None:
 def scenario_play_win(app: App, path: Path) -> None:
     app.start_level(app.levels[0])
     scene = app.scene
-    scene._place_obstacle((1, 2))
+    scene._place_at((1, 2))
     scene._handle_start()
     for _ in range(400):
         app.update(1 / 60)
         if scene.phase == "result" and scene.result_shown:
             break
     frames(app, 2)
+    draw(app, path)
+
+
+def scenario_tutorial(app: App, path: Path) -> None:
+    app.open_scene("tutorial")
+    frames(app, 5)
+    draw(app, path)
+
+
+def scenario_tutorial_chapter(app: App, path: Path) -> None:
+    app.open_tutorial_chapter("basics")
+    frames(app, 5)
+    draw(app, path)
+
+
+def scenario_play_tutorial(app: App, path: Path) -> None:
+    app.start_tutorial_lesson("basics", "basics_02")
+    scene = app.scene
+    scene._place_at((2, 7))
+    frames(app, 5)
+    draw(app, path)
+
+
+def scenario_challenge(app: App, path: Path) -> None:
+    app.open_scene("challenge")
+    frames(app, 5)
+    draw(app, path)
+
+
+def scenario_daily(app: App, path: Path) -> None:
+    app.open_scene("daily")
+    frames(app, 5)
+    draw(app, path)
+
+
+def scenario_achievements(app: App, path: Path) -> None:
+    app.open_scene("achievement")
+    frames(app, 5)
+    draw(app, path)
+
+
+def scenario_editor(app: App, path: Path) -> None:
+    app.open_scene("editor")
+    scene = app.scene
+    scene._action("paint:fence")
+    for cell in ((4, 3), (4, 4), (4, 5), (5, 3), (3, 6)):
+        scene._paint(cell)
+    scene._action("actor:cow")
+    scene._paint((6, 6))
+    frames(app, 5)
     draw(app, path)
 
 
@@ -102,6 +152,13 @@ SCENARIOS = {
     "play_run": scenario_play_run,
     "play_win": scenario_play_win,
     "play_loop": scenario_play_loop,
+    "tutorial": scenario_tutorial,
+    "tutorial_chapter": scenario_tutorial_chapter,
+    "play_tutorial": scenario_play_tutorial,
+    "challenge": scenario_challenge,
+    "daily": scenario_daily,
+    "achievements": scenario_achievements,
+    "editor": scenario_editor,
 }
 
 

@@ -129,6 +129,88 @@ PERSONALITY_BY_CHAR: Mapping[str, CowPersonality] = {
 }
 
 
+class ItemKind(str, Enum):
+    """Placeable tools that modify the chase."""
+
+    APPLE = "apple"
+    MUD = "mud"
+    CRATE = "crate"
+    SIGNPOST = "signpost"
+    HORN = "horn"
+    PORTAL = "portal"
+
+    @property
+    def label(self) -> str:
+        return _ITEM_LABELS[self]
+
+    @property
+    def short_label(self) -> str:
+        return _ITEM_SHORT_LABELS[self]
+
+    @property
+    def description(self) -> str:
+        return _ITEM_TEXT[self]
+
+
+_ITEM_LABELS = {
+    ItemKind.APPLE: "苹果",
+    ItemKind.MUD: "泥地",
+    ItemKind.CRATE: "临时木墙",
+    ItemKind.SIGNPOST: "路标",
+    ItemKind.HORN: "喇叭",
+    ItemKind.PORTAL: "成对传送门",
+}
+
+_ITEM_SHORT_LABELS = {
+    ItemKind.APPLE: "苹果",
+    ItemKind.MUD: "泥地",
+    ItemKind.CRATE: "木墙",
+    ItemKind.SIGNPOST: "路标",
+    ItemKind.HORN: "喇叭",
+    ItemKind.PORTAL: "传送门",
+}
+
+_ITEM_TEXT = {
+    ItemKind.APPLE: "贪吃牛会优先走向苹果，任何角色经过都会吃掉它。",
+    ItemKind.MUD: "踩进泥地的角色下一回合会陷住，只能原地转身。",
+    ItemKind.CRATE: "临时木墙会阻挡 8 个回合，然后自己散开。",
+    ItemKind.SIGNPOST: "角色踩上路标后会立刻转向箭头方向。",
+    ItemKind.HORN: "踩到喇叭时所有牛掉头，胆小牛还会后退一步。",
+    ItemKind.PORTAL: "成对出现，角色踩进去会从另一扇门出来。",
+}
+
+PORTAL_LIFETIME = 8
+CRATE_LIFETIME = 8
+
+
+@dataclass(frozen=True)
+class Item:
+    """An item on the board.  Instances are replaced, never mutated in place."""
+
+    kind: ItemKind
+    pos: Pos
+    facing: Direction = Direction.EAST
+    ticks_left: Optional[int] = None
+    pair: Optional[Pos] = None
+
+    def ticked(self) -> Optional["Item"]:
+        if self.ticks_left is None:
+            return self
+        remaining = self.ticks_left - 1
+        if remaining <= 0:
+            return None
+        return Item(self.kind, self.pos, self.facing, remaining, self.pair)
+
+    def key(self) -> Tuple[str, int, int, int, int]:
+        return (
+            self.kind.value,
+            self.pos[0],
+            self.pos[1],
+            int(self.facing),
+            -1 if self.ticks_left is None else int(self.ticks_left),
+        )
+
+
 @dataclass(frozen=True)
 class Actor:
     """A farmer or cow occupying a tile and facing a direction."""
@@ -229,6 +311,7 @@ class Level:
     tips: Tuple[Tip, ...] = ()
     practice_text: str = ""
     apple_positions: Tuple[Pos, ...] = ()
+    items: Tuple[Item, ...] = ()
     item_counts: Mapping[str, int] = field(default_factory=dict)
     extra: Mapping[str, object] = field(default_factory=dict)
 

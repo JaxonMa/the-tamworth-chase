@@ -1,0 +1,285 @@
+{
+  "version": 1,
+  "chapter": "advanced",
+  "title": "进阶教程",
+  "subtitle": "新的牛与新的道具",
+  "intro": "学会和性格各异的牛打交道，并用苹果、喇叭、泥地和路标改变追逐的节奏。",
+  "badge": "进阶",
+  "accent": "clay",
+  "lessons": [
+    {
+      "id": "advanced_01",
+      "name": "牧场来了第二头牛",
+      "brief": "抓住任意一头牛就算赢。",
+      "goal": "同时盯着两头牛的路线，抓住其中一头。",
+      "practice": "用两捆干草制造一次相遇。",
+      "tips": [
+        {
+          "trigger": "start",
+          "text": "牧场上有两头牛，抓住任意一头就算胜利。"
+        },
+        {
+          "trigger": "place",
+          "text": "两捆干草可以分别影响两条路线。"
+        },
+        {
+          "trigger": "run",
+          "text": "注意两束预测虚线，找到最早的交点。"
+        },
+        {
+          "trigger": "win",
+          "text": "面对多头牛时，先解决离农夫最近的那一头。"
+        }
+      ],
+      "level": {
+        "id": "advanced_01",
+        "name": "牧场来了第二头牛",
+        "grid": [
+          "##########",
+          "#F.......#",
+          "#........#",
+          "#..###...#",
+          "#........#",
+          "#.......C#",
+          "#........#",
+          "#..C.....#",
+          "#........#",
+          "##########"
+        ],
+        "farmer_facing": "east",
+        "cow_facings": [
+          "north",
+          "west"
+        ],
+        "obstacle_limit": 2,
+        "step_limit": 25,
+        "s_threshold": 5,
+        "a_threshold": 9,
+        "b_threshold": 15
+      }
+    },
+    {
+      "id": "advanced_02",
+      "name": "倔脾气的牛",
+      "brief": "倔牛被挡住时会逆时针转身。",
+      "goal": "利用倔牛与众不同的转身方向。",
+      "practice": "先挡住倔牛，再让农夫绕过去。",
+      "tips": [
+        {
+          "trigger": "start",
+          "text": "这头牛被挡住时会逆时针转身，和普通牛正好相反。"
+        },
+        {
+          "trigger": "place",
+          "text": "挡在它前面，它会转向左边。"
+        },
+        {
+          "trigger": "run",
+          "text": "倔牛会往反方向拐，路线会比你想的更绕。"
+        },
+        {
+          "trigger": "win",
+          "text": "记住它的转向，下一次就能提前预判。"
+        }
+      ],
+      "level": {
+        "id": "advanced_02",
+        "name": "倔脾气的牛",
+        "grid": [
+          "##########",
+          "#F.......#",
+          "#....#...#",
+          "#........#",
+          "#....#..D#",
+          "#........#",
+          "#........#",
+          "#........#",
+          "#........#",
+          "##########"
+        ],
+        "farmer_facing": "east",
+        "cow_facings": [
+          "north"
+        ],
+        "obstacle_limit": 2,
+        "step_limit": 34,
+        "s_threshold": 14,
+        "a_threshold": 18,
+        "b_threshold": 24
+      }
+    },
+    {
+      "id": "advanced_03",
+      "name": "贪吃的牛",
+      "brief": "贪吃牛被挡住时会优先走向旁边的苹果。",
+      "goal": "用一颗苹果把贪吃牛引到农夫面前。",
+      "practice": "选择苹果工具，点在牛身边；再补一捆干草。",
+      "tips": [
+        {
+          "trigger": "start",
+          "text": "贪吃牛被挡住时，会优先走向旁边的苹果。"
+        },
+        {
+          "trigger": "place",
+          "text": "把苹果放在它转向后能碰到的地方。"
+        },
+        {
+          "trigger": "run",
+          "text": "苹果会把它引向农夫，注意时机。"
+        },
+        {
+          "trigger": "win",
+          "text": "用苹果当诱饵，比硬挡更有效。"
+        }
+      ],
+      "level": {
+        "id": "advanced_03",
+        "name": "贪吃的牛",
+        "grid": [
+          "##########",
+          "#........#",
+          "#.#......#",
+          "#..###...#",
+          "#........#",
+          "#F.......#",
+          "#........#",
+          "#....G...#",
+          "#...#....#",
+          "##########"
+        ],
+        "farmer_facing": "south",
+        "cow_facings": [
+          "north"
+        ],
+        "obstacle_limit": 2,
+        "step_limit": 32,
+        "item_counts": {
+          "apple": 1
+        },
+        "s_threshold": 12,
+        "a_threshold": 16,
+        "b_threshold": 22
+      }
+    },
+    {
+      "id": "advanced_04",
+      "name": "胆小的牛",
+      "brief": "喇叭响起时所有牛掉头，胆小牛还会后退一步。",
+      "goal": "把喇叭放在农夫会经过的位置，吓退胆小牛。",
+      "practice": "选择喇叭工具，放在农夫的必经之路上。",
+      "tips": [
+        {
+          "trigger": "start",
+          "text": "喇叭被踩到时会响：所有牛掉头，胆小牛还会后退一步。"
+        },
+        {
+          "trigger": "place",
+          "text": "把喇叭放在农夫路上，等他自己去踩。"
+        },
+        {
+          "trigger": "run",
+          "text": "喇叭只响一次，时机比位置更重要。"
+        },
+        {
+          "trigger": "win",
+          "text": "胆小牛的后退常常会把它送到农夫身边。"
+        }
+      ],
+      "level": {
+        "id": "advanced_04",
+        "name": "胆小的牛",
+        "grid": [
+          "##########",
+          "#......F.#",
+          "#...#....#",
+          "#........#",
+          "#........#",
+          "#.....S..#",
+          "#.#......#",
+          "#........#",
+          "#........#",
+          "##########"
+        ],
+        "farmer_facing": "north",
+        "cow_facings": [
+          "west"
+        ],
+        "obstacle_limit": 1,
+        "step_limit": 27,
+        "item_counts": {
+          "horn": 1
+        },
+        "s_threshold": 7,
+        "a_threshold": 11,
+        "b_threshold": 17
+      }
+    },
+    {
+      "id": "advanced_05",
+      "name": "泥地与路标",
+      "brief": "泥地会让人陷住一回合，路标会强行改变朝向。",
+      "goal": "利用已经摆好的泥地和路标完成追逐。",
+      "practice": "观察机关的位置，用两捆干草补上最后一段路。",
+      "tips": [
+        {
+          "trigger": "start",
+          "text": "泥地会让人陷住一回合，路标会强行改变朝向。"
+        },
+        {
+          "trigger": "place",
+          "text": "机关已经摆好，你只需要补上干草垛。"
+        },
+        {
+          "trigger": "run",
+          "text": "看看谁踩进泥地，谁又被路标带走。"
+        },
+        {
+          "trigger": "win",
+          "text": "道具组合起来，能把整条路线重新编排。"
+        }
+      ],
+      "level": {
+        "id": "advanced_05",
+        "name": "泥地与路标",
+        "grid": [
+          "##########",
+          "#...F.##.#",
+          "#.....#..#",
+          "#........#",
+          "#........#",
+          "#..####..#",
+          "#.######.#",
+          "#.#.##.#.#",
+          "#C..##...#",
+          "##########"
+        ],
+        "farmer_facing": "east",
+        "cow_facings": [
+          "north"
+        ],
+        "obstacle_limit": 2,
+        "step_limit": 27,
+        "placed_items": [
+          {
+            "kind": "mud",
+            "pos": [
+              4,
+              2
+            ]
+          },
+          {
+            "kind": "signpost",
+            "pos": [
+              2,
+              4
+            ],
+            "facing": "south"
+          }
+        ],
+        "s_threshold": 7,
+        "a_threshold": 11,
+        "b_threshold": 17
+      }
+    }
+  ]
+}

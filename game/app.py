@@ -10,9 +10,10 @@ import pygame
 
 from . import art, theme
 from .audio import AudioManager
-from .levels import LevelError, load_levels
+from .achievements import AchievementTracker
+from .levels import LevelError, load_level_file, load_levels
 from .models import CowPersonality, Direction, Level, Rank
-from .paths import ensure_data_dir
+from .paths import ensure_data_dir, project_root
 from .progress import ProgressStore
 from .scenes.base import Scene
 from .scenes.level_select import LevelSelectScene
@@ -23,8 +24,13 @@ from .tutorial import TutorialBook, TutorialCatalog
 
 GAME_TITLE = "The Tamworth Two · 塔姆沃斯的两个小家伙"
 
+
+def project_path(relative: str):
+    return project_root() / relative
+
 MVP_FEATURES = {"main", "settings"}
 ALL_FEATURES = {"main", "tutorial", "challenge", "daily", "editor", "achievement", "settings"}
+TUTORIAL_FEATURES = {"main", "tutorial", "settings"}
 
 
 class App:
@@ -36,7 +42,7 @@ class App:
         self.screen = pygame.display.set_mode((theme.WINDOW_WIDTH, theme.WINDOW_HEIGHT))
         self.clock = pygame.time.Clock()
         self.running = True
-        self.features = set(features) if features is not None else set(MVP_FEATURES)
+        self.features = set(features) if features is not None else set(ALL_FEATURES)
 
         self.fonts = theme.FontBook()
         self.cache = art.ArtCache(theme.CELL_SIZE)
@@ -47,8 +53,20 @@ class App:
         )
         self.levels = load_levels()
         self.levels_by_id: Dict[str, Level] = {level.level_id: level for level in self.levels}
+        try:
+            self.challenges = load_level_file(
+                project_path("levels/challenges.json"), source="challenge"
+            )
+        except LevelError:
+            self.challenges = ()
+        self.challenges_by_id: Dict[str, Level] = {
+            level.level_id: level for level in self.challenges
+        }
+        self.achievements = AchievementTracker(self.store)
+        self.daily_cache: Dict[str, Level] = {}
         self.book: Optional[TutorialBook] = None
         self.catalog: Optional[TutorialCatalog] = None
+        self.editor_model = None
         if "tutorial" in self.features:
             self._load_tutorials()
 
@@ -156,6 +174,16 @@ class App:
         self.scene.on_enter()
         self.transition = 1.0
 
+    def start_editor_tutorial(self, chapter_id: str, lesson) -> None:
+        """Open the level editor with a tutorial task (added with the editor)."""
+        from .scenes.editor import EditorScene
+
+        if self.scene is not None:
+            self.scene.on_exit()
+        self.scene = EditorScene(self, tutorial_chapter=chapter_id, tutorial_lesson=lesson)
+        self.scene.on_enter()
+        self.transition = 1.0
+
     def start_tutorial_lesson(self, chapter_id: str, lesson_id: str) -> None:
         if self.catalog is None or self.book is None:
             self.open_scene("menu")
@@ -179,11 +207,17 @@ class App:
     # ------------------------------------------------------------------
     # Hooks
     # ------------------------------------------------------------------
-    def on_level_cleared(self, level: Level, sim, rank: Rank) -> None:
-        """Achievement hook; extended once achievements are available."""
-        achievements = getattr(self, "achievements", None)
-        if achievements is not None:
-            achievements.on_level_cleared(level, sim, rank, self.store)
+    def on_level_cleared(self, level: Level, sim, rank: Rank, **kwargs) -> None:
+        """Evaluate achievements after any clear."""
+        self.achievements.on_level_cleared(level, sim, rank, self.store, **kwargs)
+
+    def daily_level(self) -> Level:
+        from .daily import date_key, generate_daily
+
+        key = date_key()
+        if key not in self.daily_cache:
+            self.daily_cache[key] = generate_daily()
+        return self.daily_cache[key]
 
     def quit(self) -> None:
         self.running = False

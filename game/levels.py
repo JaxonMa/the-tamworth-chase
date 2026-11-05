@@ -11,12 +11,17 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+from dataclasses import replace
+
 from .models import (
     COW_CHARS,
+    CRATE_LIFETIME,
     FARMER_CHAR,
     TILE_CHARS,
     CowPersonality,
     Direction,
+    Item,
+    ItemKind,
     Level,
     PERSONALITY_BY_CHAR,
     TileKind,
@@ -152,6 +157,8 @@ def parse_level(
         pos = _parse_pos(item, name)
         apples.append(pos)
 
+    placed_items = _parse_items(data.get("placed_items") or [], name)
+
     def _int_field(key: str, default: int, minimum: int = 0) -> int:
         value = data.get(key, default)
         try:
@@ -179,7 +186,7 @@ def parse_level(
         tips.append(Tip(trigger=str(item.get("trigger") or "start"), text=text))
 
     item_counts: Dict[str, int] = {}
-    raw_items = data.get("items") or {}
+    raw_items = data.get("item_counts") or data.get("items") or {}
     if isinstance(raw_items, Mapping):
         for key, value in raw_items.items():
             try:
@@ -218,6 +225,7 @@ def parse_level(
         tips=tuple(tips),
         practice_text=str(data.get("practice") or ""),
         apple_positions=tuple(apples),
+        items=placed_items,
         item_counts=item_counts,
         extra={
             k: v
@@ -243,12 +251,44 @@ def parse_level(
                 "practice",
                 "apples",
                 "items",
+                "placed_items",
+                "item_counts",
                 "cow_facings",
                 "cow_personalities",
                 "farmer_facing",
             }
         },
     )
+
+
+def _parse_items(raw: Sequence[Any], level_name: str) -> Tuple[Item, ...]:
+    items: List[Item] = []
+    for entry in raw:
+        if not isinstance(entry, Mapping):
+            raise LevelError(f"关卡 {level_name} 的道具格式不正确")
+        try:
+            kind = ItemKind(str(entry.get("kind")))
+        except ValueError as exc:
+            raise LevelError(f"关卡 {level_name} 出现了未知道具：{entry.get('kind')}") from exc
+        pos = _parse_pos(entry.get("pos"), level_name)
+        facing = _parse_facing(entry.get("facing"), Direction.EAST)
+        items.append(
+            Item(
+                kind=kind,
+                pos=pos,
+                facing=facing,
+                ticks_left=CRATE_LIFETIME if kind is ItemKind.CRATE else None,
+            )
+        )
+
+    portals = [item for item in items if item.kind is ItemKind.PORTAL]
+    if len(portals) % 2 != 0:
+        raise LevelError(f"关卡 {level_name} 的传送门必须成对出现")
+    for index in range(0, len(portals), 2):
+        first, second = portals[index], portals[index + 1]
+        items[items.index(first)] = replace(first, pair=second.pos)
+        items[items.index(second)] = replace(second, pair=first.pos)
+    return tuple(items)
 
 
 def _parse_pos(value: Any, level_name: str) -> Tuple[int, int]:

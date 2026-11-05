@@ -99,6 +99,32 @@ def make_back_button(key: str = "back") -> ui.Button:
     return ui.Button(pygame.Rect(theme.WINDOW_WIDTH - 190, 36, 130, 52), "返回", key, style="ghost")
 
 
+def make_thumbnail(cache: art.ArtCache, level, cell: int = 9) -> pygame.Surface:
+    """Small map preview used by level / challenge / daily cards."""
+    surface = pygame.Surface((level.width * cell, level.height * cell))
+    surface.fill(theme.GRASS)
+    for r in range(level.height):
+        for c in range(level.width):
+            tile = cache.tile(level.tile_at((r, c)), (r * 7 + c * 13) % 4)
+            surface.blit(pygame.transform.smoothscale(tile, (cell, cell)), (c * cell, r * cell))
+    fr, fc = level.farmer_start
+    pygame.draw.circle(
+        surface, (98, 130, 148), (fc * cell + cell // 2, fr * cell + cell // 2), max(2, cell // 3)
+    )
+    for cr, cc in level.cow_positions:
+        pygame.draw.circle(
+            surface, theme.COW_BROWN, (cc * cell + cell // 2, cr * cell + cell // 2), max(2, cell // 3)
+        )
+    for item in level.items:
+        pygame.draw.circle(
+            surface,
+            theme.SUN,
+            (item.pos[1] * cell + cell // 2, item.pos[0] * cell + cell // 2),
+            max(1, cell // 4),
+        )
+    return surface
+
+
 def draw_close_hint(surface: pygame.Surface, fonts: theme.FontBook) -> None:
     theme.draw_text(
         surface,

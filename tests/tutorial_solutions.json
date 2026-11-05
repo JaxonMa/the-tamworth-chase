@@ -1,0 +1,117 @@
+{
+ "basics": {
+  "basics_01": {
+   "obstacles": [],
+   "items": [],
+   "steps": 3
+  },
+  "basics_02": {
+   "obstacles": [
+    [
+     2,
+     5
+    ]
+   ],
+   "items": [],
+   "steps": 7
+  },
+  "basics_03": {
+   "obstacles": [
+    [
+     2,
+     5
+    ]
+   ],
+   "items": [],
+   "steps": 7
+  },
+  "basics_04": {
+   "obstacles": [
+    [
+     1,
+     7
+    ]
+   ],
+   "items": [],
+   "steps": 12
+  },
+  "basics_05": {
+   "obstacles": [
+    [
+     5,
+     5
+    ]
+   ],
+   "items": [],
+   "steps": 14
+  },
+  "basics_06": {
+   "obstacles": [
+    [
+     2,
+     5
+    ]
+   ],
+   "items": [],
+   "steps": 7
+  }
+ },
+ "advanced": {
+  "advanced_01": {
+   "obstacles": [
+    [
+     1,
+     2
+    ]
+   ],
+   "items": [],
+   "steps": 5
+  },
+  "advanced_02": {
+   "obstacles": [
+    [
+     1,
+     8
+    ]
+   ],
+   "items": [],
+   "steps": 14
+  },
+  "advanced_03": {
+   "obstacles": [],
+   "items": [
+    [
+     "apple",
+     [
+      4,
+      4
+     ]
+    ]
+   ],
+   "steps": 12
+  },
+  "advanced_04": {
+   "obstacles": [],
+   "items": [
+    [
+     "horn",
+     [
+      5,
+      3
+     ]
+    ]
+   ],
+   "steps": 7
+  },
+  "advanced_05": {
+   "obstacles": [
+    [
+     2,
+     5
+    ]
+   ],
+   "items": [],
+   "steps": 7
+  }
+ }
+}
