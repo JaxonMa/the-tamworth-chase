@@ -82,6 +82,10 @@ class PlayScene(Scene):
         self.toast_text = ""
         self.toast_timer = 0.0
         self.loop_events = 0
+        self.trail_farmer: List[Pos] = []
+        self.trail_cows: List[List[Pos]] = []
+        self.show_trails = True
+        self._seed_trails()
         self.undo_performed = False
         self.tutorial = None
         self._prediction_cache: Tuple = ()
@@ -146,7 +150,7 @@ class PlayScene(Scene):
         for index, (tool, label) in enumerate(tools):
             self.tool_buttons.append(
                 ui.Button(
-                    pygame.Rect(764 + index * (width + gap), 456, width, 52),
+                    pygame.Rect(764 + index * (width + gap), 466, width, 46),
                     label,
                     f"tool:{tool}",
                     style="ghost",
@@ -203,6 +207,16 @@ class PlayScene(Scene):
         if not (0 <= local_y < theme.CELL_SIZE * self.level.height):
             return None
         return (local_y // theme.CELL_SIZE, local_x // theme.CELL_SIZE)
+
+    def _seed_trails(self) -> None:
+        self.trail_farmer = [self.sim.farmer.pos]
+        self.trail_cows = [[cow.pos] for cow in self.sim.cows]
+
+    def _append_trails(self) -> None:
+        self.trail_farmer.append(self.sim.farmer.pos)
+        for index, cow in enumerate(self.sim.cows):
+            if index < len(self.trail_cows):
+                self.trail_cows[index].append(cow.pos)
 
     def _hover_sprite(self) -> Optional[pygame.Surface]:
         if self.tool == OBSTACLE_TOOL:
@@ -424,6 +438,7 @@ class PlayScene(Scene):
     def _rebuild(self, placements: List[Placement]) -> None:
         speed = self.playback.speed
         self.sim = Simulation(self.level)
+        self._seed_trails()
         for placement in placements:
             if placement.tool == OBSTACLE_TOOL:
                 self.sim.place_obstacle(placement.pos)
@@ -497,6 +512,7 @@ class PlayScene(Scene):
         tick = self.sim.last_tick
         if tick is None:
             return
+        self._append_trails()
         if self.tutorial is not None and not tick.status.is_finished:
             self.tutorial.notify("step")
         self._refresh_buttons()
@@ -541,6 +557,9 @@ class PlayScene(Scene):
             self.app.on_level_cleared(
                 self.level, self.sim, rank, loops=self.loop_events, mode="main"
             )
+            unlocked = self.app.achievements.newly_unlocked
+            if unlocked:
+                self._toast(f"成就解锁：{unlocked[-1].name}", 3.0)
         elif self.mode == "tutorial" and self.app.book is not None:
             self.new_record = self.app.book.complete_lesson(
                 self.chapter, self.level.tutorial_id or self.level.level_id
@@ -550,6 +569,9 @@ class PlayScene(Scene):
             self.app.on_level_cleared(
                 self.level, self.sim, rank, loops=self.loop_events, mode="challenge"
             )
+            unlocked = self.app.achievements.newly_unlocked
+            if unlocked:
+                self._toast(f"成就解锁：{unlocked[-1].name}", 3.0)
         elif self.mode == "daily" and self.daily_key:
             self.new_record = self.store.record_daily(
                 self.daily_key,
@@ -619,7 +641,8 @@ class PlayScene(Scene):
         record_text = "新的最好成绩！" if self.new_record else ""
         body = (
             f"用了 {steps} 步，放下了 {self.sim.obstacle_count} 个干草垛。\n"
-            f"{rank.comment}\n{record_text}"
+            f"{rank.comment}\n{record_text}\n"
+            "通关路线已经画在牧场上了。"
         )
         buttons = [ui.Button(pygame.Rect(0, 0, 150, 50), "再玩一次", "retry", style="ghost")]
         if self.mode == "main" and self.level_number < len(self.app.levels):
@@ -716,6 +739,12 @@ class PlayScene(Scene):
             pulse=self.time,
             highlight=self._highlight_cell(),
             hover_sprite=self._hover_sprite(),
+            trails=(
+                [self.trail_farmer] + self.trail_cows
+                if self.sim.status.is_finished and self.show_trails
+                else ()
+            ),
+            trail_colors=[theme.DENIM, theme.CLAY, theme.LEAF_DARK],
         )
         self.renderer.draw(surface, view)
 
@@ -808,14 +837,15 @@ class PlayScene(Scene):
     def _draw_tool_palette(self, surface: pygame.Surface) -> None:
         if not self.tool_buttons:
             return
-        theme.draw_text(
-            surface,
-            self.fonts,
-            "选择要放下的东西",
-            (764, 430),
-            theme.FONT_TINY,
-            theme.INK_LIGHT,
-        )
+        if self.tutorial is None:
+            theme.draw_text(
+                surface,
+                self.fonts,
+                "选择要放下的东西",
+                (764, 440),
+                theme.FONT_TINY,
+                theme.INK_LIGHT,
+            )
         for button in self.tool_buttons:
             tool = button.key.split(":", 1)[1]
             selected = tool == self.tool
@@ -826,12 +856,12 @@ class PlayScene(Scene):
             theme.rounded_rect(surface, rect, border, radius=12, width=2)
             label_color = theme.WHITE_WARM if selected else theme.INK_SOFT
             if tool == OBSTACLE_TOOL:
-                icon = self.cache.slot_sprite("obstacle", 30)
+                icon = self.cache.slot_sprite("obstacle", 26)
                 remaining = self.sim.obstacles_left
                 name = "干草垛"
             else:
                 kind = ItemKind(tool)
-                icon = self.cache.slot_sprite(kind.value, 30)
+                icon = self.cache.slot_sprite(kind.value, 26)
                 remaining = self.sim.item_left(kind)
                 name = kind.short_label
             surface.blit(icon, icon.get_rect(midleft=(rect.left + 8, rect.centery)))
@@ -876,7 +906,7 @@ class PlayScene(Scene):
     def _draw_toast(self, surface: pygame.Surface) -> None:
         body = self.fonts.wrap(self.toast_text, theme.FONT_SMALL, 420, theme.WHITE_WARM)
         rect = pygame.Rect(0, 0, body.get_width() + 40, body.get_height() + 24)
-        rect.center = (theme.BOARD_ORIGIN[0] + theme.BOARD_SIZE // 2, 96)
+        rect.center = (theme.BOARD_ORIGIN[0] + theme.BOARD_SIZE // 2, 152)
         theme.soft_shadow(surface, rect, radius=14, alpha=60, offset=(0, 4))
         theme.rounded_rect(surface, rect, theme.CLAY, radius=14)
         surface.blit(body, (rect.left + 20, rect.top + 12))

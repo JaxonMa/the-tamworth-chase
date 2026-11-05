@@ -240,6 +240,8 @@ class BoardView:
     show_facing_marks: bool = True
     pulse: float = 0.0
     hover_sprite: Optional[pygame.Surface] = None
+    trails: Sequence[Sequence[Pos]] = ()
+    trail_colors: Sequence[Tuple[int, int, int]] = ()
 
 
 class BoardRenderer:
@@ -268,6 +270,8 @@ class BoardRenderer:
     def draw(self, surface: pygame.Surface, view: BoardView) -> None:
         self._draw_frame(surface)
         self._draw_tiles(surface, view)
+        if view.trails:
+            self._draw_trails(surface, view)
         if view.show_prediction and view.prediction:
             self._draw_prediction(surface, view)
         self._draw_highlight(surface, view)
@@ -306,6 +310,24 @@ class BoardRenderer:
             if level.is_inside((r, c)) and level.tile_at((r, c)) is kind:
                 mask |= bit
         return mask
+
+    def _draw_trails(self, surface: pygame.Surface, view: BoardView) -> None:
+        layer = pygame.Surface((CELL * 10, CELL * 10), pygame.SRCALPHA)
+        for index, trail in enumerate(view.trails):
+            color = view.trail_colors[index] if index < len(view.trail_colors) else theme.INK_LIGHT
+            points = [
+                (
+                    int((pos[1] + 0.5) * CELL),
+                    int((pos[0] + 0.5) * CELL),
+                )
+                for pos in trail
+            ]
+            if len(points) < 2:
+                continue
+            pygame.draw.lines(layer, (*color, 110), False, points, 4)
+            for point in points[1:-1:2]:
+                pygame.draw.circle(layer, (*color, 150), point, 3)
+        surface.blit(layer, ORIGIN)
 
     def _draw_highlight(self, surface: pygame.Surface, view: BoardView) -> None:
         if view.highlight is None:
