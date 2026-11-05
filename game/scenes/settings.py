@@ -24,7 +24,7 @@ class SettingsScene(Scene):
             pygame.Rect(118, 210, 520, 46), "音效", "sound", bool(store.get_setting("sound", True))
         )
         self.volume_slider = ui.Slider(
-            pygame.Rect(118, 274, 520, 40),
+            pygame.Rect(118, 262, 520, 54),
             "音量",
             "volume",
             float(store.get_setting("volume", 0.6)),
@@ -33,13 +33,13 @@ class SettingsScene(Scene):
             0.05,
         )
         self.effects_toggle = ui.Toggle(
-            pygame.Rect(118, 338, 520, 46),
+            pygame.Rect(118, 336, 520, 46),
             "低配模式（关闭粒子与复杂动效）",
             "low_effects",
             bool(store.get_setting("low_effects", False)),
         )
         self.preview_toggle = ui.Toggle(
-            pygame.Rect(118, 402, 520, 46),
+            pygame.Rect(118, 398, 520, 46),
             "默认显示前三步预测",
             "preview",
             bool(store.get_setting("preview", True)),

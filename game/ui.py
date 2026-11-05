@@ -191,7 +191,7 @@ class Slider:
 
     @property
     def track_rect(self) -> pygame.Rect:
-        return pygame.Rect(self.rect.left, self.rect.centery - 4, self.rect.width - 90, 8)
+        return pygame.Rect(self.rect.left, self.rect.top + 36, self.rect.width - 90, 8)
 
     def _value_from_x(self, x: int) -> float:
         track = self.track_rect
@@ -219,7 +219,7 @@ class Slider:
 
     def draw(self, surface: pygame.Surface, fonts: FontBook) -> None:
         theme.draw_text(
-            surface, fonts, self.label, (self.rect.left, self.rect.centery), theme.FONT_BODY,
+            surface, fonts, self.label, (self.rect.left, self.rect.top + 12), theme.FONT_BODY,
             theme.INK, anchor="midleft",
         )
         track = self.track_rect
@@ -232,7 +232,7 @@ class Slider:
         pygame.draw.circle(surface, theme.PRIMARY_BORDER, knob, 12, 2)
         theme.draw_text(
             surface, fonts, self.formatter(self.value),
-            (self.rect.right, self.rect.centery), theme.FONT_SMALL, theme.INK_SOFT, anchor="midright",
+            (self.rect.right, track.centery), theme.FONT_SMALL, theme.INK_SOFT, anchor="midright",
         )
 
 
