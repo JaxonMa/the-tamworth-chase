@@ -117,7 +117,8 @@ class ProgressStore:
                     self.data = self._migrate(legacy_raw)
                     self.migrated_from = str(self.legacy_path)
                     self.notice = (
-                        f"已把旧存档迁移到 {self.path.parent}，原有进度已保留。"
+                        "已把旧存档迁移到新的存档目录，原有进度已保留。\n"
+                        "旧文件不会被删除。"
                     )
                     self.save()
                     return self
