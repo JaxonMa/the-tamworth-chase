@@ -18,7 +18,7 @@ class LevelCard:
     level: Level
     unlocked: bool
     index: int
-    best_steps: Optional[int]
+    best_turns: Optional[int]
     rank: Optional[str]
     thumbnail: pygame.Surface
     hovered: bool = False
@@ -62,7 +62,7 @@ class LevelSelectScene(Scene):
                         [lvl.level_id for lvl in levels], level.level_id
                     ),
                     index=index,
-                    best_steps=record.best_steps,
+                    best_turns=record.best_turns,
                     rank=record.rank.value if record.rank else None,
                     thumbnail=self._thumbnail(level),
                 )
@@ -96,7 +96,7 @@ class LevelSelectScene(Scene):
     # ------------------------------------------------------------------
     def draw(self, surface: pygame.Surface) -> None:
         draw_background(surface)
-        cleared = sum(1 for card in self.cards if card.best_steps is not None)
+        cleared = sum(1 for card in self.cards if card.best_turns is not None)
         draw_header(
             surface,
             self.fonts,
@@ -110,7 +110,7 @@ class LevelSelectScene(Scene):
         draw_footer(
             surface,
             self.fonts,
-            "通关上一关即可解锁下一关 · 步数越少，评价越高",
+            "通关上一关即可解锁下一关 · 回合越少，评价越高",
         )
         self.back_button.draw(surface, self.fonts)
         if self.hover_card is not None and not self.hover_card.unlocked:
@@ -174,9 +174,9 @@ class LevelSelectScene(Scene):
         theme.rounded_rect(surface, thumb_frame, theme.PANEL_BORDER, radius=10, width=2)
 
         detail = (
-            f"最好成绩 {card.best_steps} 步"
-            if card.best_steps is not None
-            else ("障碍 " + str(card.level.obstacle_limit) + " · 步数 " + str(card.level.step_limit))
+            f"最好成绩 {card.best_turns} 回合"
+            if card.best_turns is not None
+            else ("干草垛 " + str(card.level.initial_obstacles) + " · 回合 " + str(card.level.max_turns))
         )
         theme.draw_text(
             surface,

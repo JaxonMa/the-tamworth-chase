@@ -23,8 +23,8 @@ def store(tmp_path: Path) -> ProgressStore:
 
 
 def test_defaults(store):
-    assert store.get_setting("speed") == 1.0
     assert store.get_setting("sound") is True
+    assert store.get_setting("preview") is True
     assert store.main_levels == {}
     assert store.lesson_state("basics", "b1") == TUTORIAL_NOT_STARTED
 
@@ -32,23 +32,23 @@ def test_defaults(store):
 def test_save_and_reload(tmp_path: Path):
     path = tmp_path / "save.json"
     first = ProgressStore(path).load()
-    first.set_setting("speed", 2.0)
+    first.set_setting("volume", 0.9)
     first.record_main_clear("level_01", 9, Rank.A, 1)
     assert path.exists()
 
     second = ProgressStore(path).load()
-    assert second.get_setting("speed") == 2.0
+    assert second.get_setting("volume") == 0.9
     assert second.main_result("level_01").cleared is True
-    assert second.main_result("level_01").best_steps == 9
+    assert second.main_result("level_01").best_turns == 9
     assert second.main_result("level_01").rank is Rank.A
 
 
-def test_best_steps_keep_minimum(store):
+def test_best_turns_keep_minimum(store):
     store.record_main_clear("level_01", 12, Rank.B, 2)
     store.record_main_clear("level_01", 8, Rank.S, 1)
     store.record_main_clear("level_01", 15, Rank.C, 2)
     result = store.main_result("level_01")
-    assert result.best_steps == 8
+    assert result.best_turns == 8
     assert result.rank is Rank.S
 
 
@@ -129,9 +129,9 @@ def test_corrupt_save_falls_back(tmp_path: Path):
     store = ProgressStore(path).load()
     assert store.load_error
     assert store.main_levels == {}
-    store.set_setting("speed", 2.0)
+    store.set_setting("volume", 0.9)
     payload = json.loads(path.read_text(encoding="utf-8"))
-    assert payload["settings"]["speed"] == 2.0
+    assert payload["settings"]["volume"] == 0.9
 
 
 def test_achievements_and_daily(store):
@@ -162,7 +162,7 @@ def test_legacy_save_is_migrated_once(tmp_path: Path):
     assert store.notice
     assert new_path.exists()
     assert store.get_setting("sound") is False
-    assert store.main_result("level_01").best_steps == 7
+    assert store.main_result("level_01").best_turns == 7
     assert old_path.exists(), "the old save must never be deleted"
 
     # A later launch reads the new file and does not migrate again.
@@ -185,3 +185,34 @@ def test_corrupt_legacy_save_reports_instead_of_crashing(tmp_path: Path):
     assert not new_path.exists()
     assert old_path.exists()
     assert store.main_levels == {}
+
+
+def test_legacy_step_records_are_migrated(tmp_path: Path):
+    path = tmp_path / "save.json"
+    path.write_text(
+        json.dumps(
+            {
+                "version": 3,
+                "settings": {"speed": 2.0, "volume": 0.5},
+                "main": {
+                    "levels": {
+                        "level_01": {
+                            "cleared": True,
+                            "best_steps": 9,
+                            "rank": "A",
+                            "obstacles": 1,
+                        }
+                    }
+                },
+                "daily": {"2026-01-01": {"cleared": True, "steps": 12}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    store = ProgressStore(path).load()
+    assert store.data["version"] == 4
+    assert "speed" not in store.settings
+    result = store.main_result("level_01")
+    assert result.best_turns == 9
+    assert result.rank is Rank.A
+    assert store.daily_result("2026-01-01")["turns"] == 12

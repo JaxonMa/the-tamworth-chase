@@ -1,4 +1,4 @@
-"""Pure grid-chase simulation.
+"""Pure turn-based grid chase simulation.
 
 Everything in this module is head-less: no pygame import, no file access, no
 randomness.  The renderer and the user interface only ever read from it, which
@@ -6,35 +6,31 @@ keeps the rule set trivially unit testable.
 
 Rule summary
 ------------
-* The farmer and every cow move on the same tick.  All next states are computed
-  from the *current* state and only then committed, so no actor can react to a
-  move that happens during the same tick.
-* An actor walks one tile forward when that tile is walkable.  Otherwise it
-  turns 90 degrees clockwise and stays where it is for that tick.
-* Actors never block each other; only fences, trees, ponds, hedges, board edges,
-  hay bales and temporary crates do.
-* Catching a cow wins immediately, even when the resulting state was seen
-  before (the game ends before the loop check).
-* Repeating a full state (farmer pose + every cow pose + obstacles + items) is a
-  time loop and loses.
-* Running out of the step budget loses.
+* A turn starts with the player ordering the farmer to step one tile in a
+  cardinal direction, or to wait in place.
+* The farmer cannot enter a wall, a board edge or a hay bale.  A rejected order
+  does not consume a turn.
+* Moving into a cow wins immediately.
+* After the farmer has acted, every cow moves once in fixed index order.  A cow
+  walks forward when the next tile is free, otherwise it turns 90 degrees
+  clockwise and stays put.
+* Moving into the farmer also wins.  In pen levels, having every cow inside a
+  pen cell also wins.
+* Repeating cow poses is reported as a loop hint; it never loses.
+* Running out of the turn budget loses.
 """
 
 from __future__ import annotations
 
-from dataclasses import replace
-from typing import Callable, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
+from dataclasses import dataclass
+from typing import Callable, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .models import (
     Actor,
     ActorTick,
-    CRATE_LIFETIME,
     Cow,
-    CowPersonality,
     Direction,
     GameStatus,
-    Item,
-    ItemKind,
     Level,
     PlacementResult,
     Pos,
@@ -43,6 +39,8 @@ from .models import (
     StateKey,
     TickResult,
 )
+
+CowStateKey = Tuple[Tuple[int, int, int], ...]
 
 
 def step_forward(pos: Pos, facing: Direction) -> Pos:
@@ -54,9 +52,8 @@ def step_forward(pos: Pos, facing: Direction) -> Pos:
 class Board:
     """Static terrain for a level.
 
-    The board knows nothing about actors, obstacles or items; it only answers
-    whether a coordinate is inside the meadow and whether its terrain can be
-    walked on.
+    The board knows nothing about actors or obstacles; it only answers whether a
+    coordinate is inside the meadow and whether its terrain can be walked on.
     """
 
     def __init__(self, level: Level) -> None:
@@ -82,31 +79,42 @@ class Board:
                 yield candidate
 
 
-def advance_actor(
-    actor: Actor,
-    blocked: Callable[[Pos], bool],
-    personality: CowPersonality = CowPersonality.NORMAL,
-) -> ActorTick:
-    """Compute the next state of one actor without mutating anything."""
+def advance_actor(actor: Actor, blocked: Callable[[Pos], bool]) -> ActorTick:
+    """Compute the next state of one cow without mutating anything.
+
+    Cows walk forward when possible and otherwise turn clockwise in place.
+    """
     target = step_forward(actor.pos, actor.facing)
     if not blocked(target):
         return ActorTick(actor.pos, target, actor.facing, actor.facing, True)
-    if personality is CowPersonality.STUBBORN:
-        turned = actor.facing.counter_clockwise()
-    else:
-        turned = actor.facing.clockwise()
-    return ActorTick(actor.pos, actor.pos, actor.facing, turned, False)
+    return ActorTick(actor.pos, actor.pos, actor.facing, actor.facing.clockwise(), False)
+
+
+@dataclass(frozen=True)
+class _Snapshot:
+    """Everything needed to restore one exact past turn."""
+
+    farmer: Actor
+    cows: Tuple[Cow, ...]
+    obstacles: FrozenSet[Pos]
+    turns: int
+    status: GameStatus
+    last_tick: Optional[TickResult]
+    seen: FrozenSet[CowStateKey]
+    loop_events: int
+    loop_hint_last: bool
 
 
 class Simulation:
     """Mutable, deterministic game state for one attempt at one level."""
+
+    MAX_HISTORY = 256
 
     def __init__(
         self,
         level: Level,
         obstacles: Iterable[Pos] = (),
         *,
-        items: Iterable[Item] = (),
         validate: bool = True,
     ) -> None:
         self.level = level
@@ -117,26 +125,18 @@ class Simulation:
                 if not self._obstacle_tile_ok(pos):
                     self._obstacles.discard(pos)
         self.farmer = Actor(level.farmer_start, level.farmer_facing)
-        personalities = list(level.cow_personalities) or [CowPersonality.NORMAL] * len(
-            level.cow_positions
-        )
-        if len(personalities) < len(level.cow_positions):
-            personalities += [CowPersonality.NORMAL] * (
-                len(level.cow_positions) - len(personalities)
-            )
         self.cows: Tuple[Cow, ...] = tuple(
-            Cow(pos, facing, personalities[i])
-            for i, (pos, facing) in enumerate(zip(level.cow_positions, level.cow_facings))
+            Cow(pos, facing) for pos, facing in zip(level.cow_positions, level.cow_facings)
         )
-        self.items: Dict[Pos, Item] = {item.pos: item for item in level.items}
-        for item in items:
-            self.items[item.pos] = item
-        self.stuck: Set[str] = set()
-        self.steps = 0
+        self._pen_cells: FrozenSet[Pos] = frozenset(level.pen_cells)
+        self.turns = 0
         self.status = GameStatus.READY
         self.last_tick: Optional[TickResult] = None
-        self.horn_events = 0
-        self._history: List[StateKey] = [self.state_key()]
+        self.loop_events = 0
+        self.loop_hint_last = False
+        self._seen: Set[CowStateKey] = {self.cow_state_key()}
+        self._undo: List[_Snapshot] = []
+        self._redo: List[_Snapshot] = []
 
     # ------------------------------------------------------------------
     # Placement
@@ -151,7 +151,11 @@ class Simulation:
 
     @property
     def obstacles_left(self) -> int:
-        return max(0, self.level.obstacle_limit - len(self._obstacles))
+        return max(0, self.level.initial_obstacles - len(self._obstacles))
+
+    @property
+    def pen_cells(self) -> FrozenSet[Pos]:
+        return self._pen_cells
 
     def _obstacle_tile_ok(self, pos: Pos) -> bool:
         if not self.board.inside(pos):
@@ -166,20 +170,18 @@ class Simulation:
 
     def can_place_obstacle(self, pos: Pos) -> PlacementResult:
         if self.status is not GameStatus.READY:
-            return PlacementResult(False, "游戏开始后不能再放置障碍")
+            return PlacementResult(False, "追逐开始后不能再放干草垛")
         if not self.board.inside(pos):
-            return PlacementResult(False, "不能在牧场外面放置障碍")
+            return PlacementResult(False, "不能在牧场外面放干草垛")
         if self.board.is_wall(pos):
             return PlacementResult(False, "这里已经有围栏或树木了")
         if pos in self._obstacles:
-            return PlacementResult(False, "这里已经有一块干草垛了")
-        if pos in self.items:
-            return PlacementResult(False, "这里已经有道具了")
+            return PlacementResult(False, "这里已经有一垛干草了")
         if pos == self.level.farmer_start:
             return PlacementResult(False, "不能挡在农夫脚下")
         if pos in self.level.cow_positions:
             return PlacementResult(False, "不能挡在牛的脚下")
-        if len(self._obstacles) >= self.level.obstacle_limit:
+        if len(self._obstacles) >= self.level.initial_obstacles:
             return PlacementResult(False, "干草垛已经用完了")
         return PlacementResult(True, "")
 
@@ -187,8 +189,8 @@ class Simulation:
         result = self.can_place_obstacle(pos)
         if not result.ok:
             return result
+        self._push_undo()
         self._obstacles.add(pos)
-        self._history = [self.state_key()]
         return PlacementResult(True, "")
 
     def remove_obstacle(self, pos: Pos) -> bool:
@@ -196,299 +198,276 @@ class Simulation:
             return False
         if pos not in self._obstacles:
             return False
+        self._push_undo()
         self._obstacles.discard(pos)
-        self._history = [self.state_key()]
         return True
 
     def clear_obstacles(self) -> None:
         if self.status is not GameStatus.READY:
             return
-        self._obstacles.clear()
-        self._history = [self.state_key()]
-
-    # -- items ---------------------------------------------------------
-    def item_count(self, kind: ItemKind) -> int:
-        return sum(1 for item in self.items.values() if item.kind is kind)
-
-    def item_limit(self, kind: ItemKind) -> int:
-        return int(self.level.item_counts.get(kind.value, 0))
-
-    def item_left(self, kind: ItemKind) -> int:
-        return max(0, self.item_limit(kind) - self.item_count(kind))
-
-    def can_place_item(self, kind: ItemKind, pos: Pos) -> PlacementResult:
-        if self.status is not GameStatus.READY:
-            return PlacementResult(False, "游戏开始后不能再放置道具")
-        if not self.board.inside(pos):
-            return PlacementResult(False, "不能在牧场外面放置道具")
-        if self.board.is_wall(pos):
-            return PlacementResult(False, "这里已经有围栏或树木了")
-        if pos in self._obstacles:
-            return PlacementResult(False, "这里已经有干草垛了")
-        if pos in self.items:
-            return PlacementResult(False, "这里已经有道具了")
-        if pos == self.level.farmer_start:
-            return PlacementResult(False, "不能放在农夫脚下")
-        if pos in self.level.cow_positions:
-            return PlacementResult(False, "不能放在牛脚下")
-        if self.item_left(kind) <= 0:
-            return PlacementResult(False, f"{kind.label}已经用完了")
-        return PlacementResult(True, "")
-
-    def _unpaired_portal(self) -> Optional[Pos]:
-        for pos, item in self.items.items():
-            if item.kind is ItemKind.PORTAL and item.pair is None:
-                return pos
-        return None
-
-    def place_item(self, kind: ItemKind, pos: Pos, facing: Direction = Direction.EAST) -> PlacementResult:
-        result = self.can_place_item(kind, pos)
-        if not result.ok:
-            return result
-        item = Item(
-            kind=kind,
-            pos=pos,
-            facing=facing,
-            ticks_left=CRATE_LIFETIME if kind is ItemKind.CRATE else None,
-        )
-        if kind is ItemKind.PORTAL:
-            partner = self._unpaired_portal()
-            if partner is not None:
-                other = self.items[partner]
-                self.items[partner] = replace(other, pair=pos)
-                item = replace(item, pair=partner)
-        self.items[pos] = item
-        self._history = [self.state_key()]
-        return PlacementResult(True, "")
-
-    def remove_item(self, pos: Pos) -> bool:
-        if self.status is not GameStatus.READY:
-            return False
-        item = self.items.pop(pos, None)
-        if item is None:
-            return False
-        if item.kind is ItemKind.PORTAL and item.pair is not None:
-            partner = self.items.get(item.pair)
-            if partner is not None:
-                self.items[item.pair] = replace(partner, pair=None)
-        self._history = [self.state_key()]
-        return True
-
-    def clear_items(self) -> None:
-        if self.status is not GameStatus.READY:
+        if not self._obstacles:
             return
-        self.items.clear()
-        self._history = [self.state_key()]
+        self._push_undo()
+        self._obstacles.clear()
 
     # ------------------------------------------------------------------
     # Movement
     # ------------------------------------------------------------------
     def blocked(self, pos: Pos) -> bool:
-        """True when an actor cannot walk into ``pos``."""
+        """True when a cow cannot walk into ``pos``."""
         if not self.board.walkable(pos):
             return True
-        if pos in self._obstacles:
-            return True
-        item = self.items.get(pos)
-        if item is not None and item.kind is ItemKind.CRATE:
-            return True
-        return False
+        return pos in self._obstacles
 
-    def _apple_at(self, pos: Pos) -> bool:
-        item = self.items.get(pos)
-        return item is not None and item.kind is ItemKind.APPLE
+    def walkable_for_farmer(self, pos: Pos) -> bool:
+        """The farmer may share a cow tile: stepping there catches it."""
+        return self.board.walkable(pos) and pos not in self._obstacles
+
+    def _cow_blocked(self, index: int, cows: Sequence[Cow]) -> Callable[[Pos], bool]:
+        def test(pos: Pos) -> bool:
+            if self.blocked(pos):
+                return True
+            if self.level.cows_block_each_other:
+                for other_index, cow in enumerate(cows):
+                    if other_index != index and cow.pos == pos:
+                        return True
+            return False
+
+        return test
+
+    def cow_state_key(self) -> CowStateKey:
+        return tuple((cow.pos[0], cow.pos[1], int(cow.facing)) for cow in self.cows)
 
     def state_key(self) -> StateKey:
         farmer = (self.farmer.pos[0], self.farmer.pos[1], int(self.farmer.facing))
-        cows = tuple((cow.pos[0], cow.pos[1], int(cow.facing)) for cow in self.cows)
-        items_key = frozenset(item.key() for item in self.items.values())
-        return (farmer, cows, frozenset(self._obstacles), items_key, frozenset(self.stuck))
+        return (
+            farmer,
+            self.cow_state_key(),
+            frozenset(self._obstacles),
+            self.turns,
+            self.status.value,
+        )
 
     @property
     def caught(self) -> bool:
         return any(cow.pos == self.farmer.pos for cow in self.cows)
 
+    @property
+    def penned_count(self) -> int:
+        return sum(1 for cow in self.cows if cow.pos in self._pen_cells)
+
+    @property
+    def all_penned(self) -> bool:
+        return bool(self.cows) and all(cow.pos in self._pen_cells for cow in self.cows)
+
+    def win_reached(self) -> Tuple[bool, bool]:
+        """Return ``(caught, penned)`` for the current position."""
+        caught = self.caught
+        penned = self.level.is_pen_level and self.all_penned
+        return caught, penned
+
     def start(self) -> None:
         if self.status is not GameStatus.READY:
             return
-        # Unpaired portals are removed so the rules stay unambiguous.
-        for pos in list(self.items):
-            item = self.items[pos]
-            if item.kind is ItemKind.PORTAL and item.pair is None:
-                del self.items[pos]
+        self._push_undo()
         self.status = GameStatus.PLAYING
-        self._history = [self.state_key()]
+        self._seen = {self.cow_state_key()}
 
-    # -- one tick ------------------------------------------------------
-    def _advance(self, actor: Actor, key: str, personality: CowPersonality) -> ActorTick:
-        if key in self.stuck:
-            turned = (
-                actor.facing.counter_clockwise()
-                if personality is CowPersonality.STUBBORN
-                else actor.facing.clockwise()
-            )
-            return ActorTick(actor.pos, actor.pos, actor.facing, turned, False)
-        target = step_forward(actor.pos, actor.facing)
-        if not self.blocked(target):
-            return ActorTick(actor.pos, target, actor.facing, actor.facing, True)
-        if personality is CowPersonality.GREEDY:
-            for direction in (
-                actor.facing.clockwise(),
-                actor.facing.counter_clockwise(),
-                actor.facing.opposite(),
-            ):
-                candidate = step_forward(actor.pos, direction)
-                if self._apple_at(candidate) and not self.blocked(candidate):
-                    return ActorTick(actor.pos, candidate, actor.facing, direction, True)
-        turned = (
-            actor.facing.counter_clockwise()
-            if personality is CowPersonality.STUBBORN
-            else actor.facing.clockwise()
-        )
-        return ActorTick(actor.pos, actor.pos, actor.facing, turned, False)
+    def order(self, direction: Optional[Direction]) -> TickResult:
+        """Carry out one player turn: farmer first, then every cow.
 
-    def _apply_entry(self, actor: Actor, key: str) -> Tuple[Actor, bool]:
-        """Resolve item effects for an actor that just entered its tile."""
-        triggered_horn = False
-        item = self.items.get(actor.pos)
-        if item is not None and item.kind is ItemKind.PORTAL and item.pair is not None:
-            actor = Actor(item.pair, actor.facing)
-            item = self.items.get(actor.pos)
-        if item is not None:
-            if item.kind is ItemKind.SIGNPOST:
-                actor = Actor(actor.pos, item.facing)
-            elif item.kind is ItemKind.HORN:
-                del self.items[actor.pos]
-                triggered_horn = True
-            elif item.kind is ItemKind.APPLE:
-                del self.items[actor.pos]
-            elif item.kind is ItemKind.MUD:
-                self.stuck.add(key)
-        return actor, triggered_horn
-
-    def step(self) -> Optional[TickResult]:
-        """Advance exactly one synchronous tick.
-
-        Returns ``None`` when the game is not running any more.
+        ``None`` waits in place.  An illegal farmer move is rejected without
+        consuming a turn and without moving any cow.
         """
-        if self.status is GameStatus.READY:
-            self.status = GameStatus.PLAYING
         if self.status is not GameStatus.PLAYING:
-            return None
+            return self._rejected("现在还不能行动。")
 
-        # 1. compute every next state from the current state
-        farmer_tick = self._advance(self.farmer, "farmer", CowPersonality.NORMAL)
-        cow_ticks = tuple(
-            self._advance(cow, f"cow{index}", cow.personality)
-            for index, cow in enumerate(self.cows)
-        )
+        target = self.farmer.pos if direction is None else step_forward(self.farmer.pos, direction)
+        if direction is not None and not self.walkable_for_farmer(target):
+            return self._rejected("前面过不去，这一下不算回合。")
 
-        # 2. commit all at once: the rule is synchronous by definition
-        self.farmer = Actor(farmer_tick.end_pos, farmer_tick.end_facing)
-        self.cows = tuple(
-            Cow(tick.end_pos, tick.end_facing, cow.personality)
-            for cow, tick in zip(self.cows, cow_ticks)
-        )
-        self.stuck.clear()
-        self.steps += 1
+        self._push_undo()
+        start = self.farmer
+        if direction is None:
+            farmer_tick = ActorTick(start.pos, start.pos, start.facing, start.facing, False)
+        else:
+            farmer_tick = ActorTick(start.pos, target, start.facing, direction, True)
+            self.farmer = Actor(target, direction)
 
-        # 3. item effects, in actor order
-        horn_triggered = False
-        if farmer_tick.moved:
-            self.farmer, horn = self._apply_entry(self.farmer, "farmer")
-            horn_triggered = horn_triggered or horn
-        new_cows: List[Cow] = []
-        for index, (cow, tick) in enumerate(zip(self.cows, cow_ticks)):
-            if tick.moved:
-                resolved, horn = self._apply_entry(cow, f"cow{index}")
-                horn_triggered = horn_triggered or horn
-                cow = Cow(resolved.pos, resolved.facing, cow.personality)
-            new_cows.append(cow)
+        caught, penned = self.win_reached()
+        if caught or penned:
+            self.turns += 1
+            self.status = GameStatus.WON
+            result = TickResult(
+                farmer=farmer_tick,
+                cows=(),
+                status=self.status,
+                turns=self.turns,
+                caught=caught,
+                penned=penned,
+            )
+            self.last_tick = result
+            return result
 
-        # 4. a blown horn reverses every cow, and timid cows retreat a step
-        if horn_triggered:
-            self.horn_events += 1
-            reversed_cows: List[Cow] = []
-            for index, cow in enumerate(new_cows):
-                facing = cow.facing.opposite()
-                if cow.personality is CowPersonality.TIMID:
-                    retreat = step_forward(cow.pos, facing)
-                    if not self.blocked(retreat):
-                        moved, horn = self._apply_entry(Actor(retreat, facing), f"cow{index}")
-                        reversed_cows.append(Cow(moved.pos, moved.facing, cow.personality))
-                        horn_triggered = horn_triggered or horn
-                        continue
-                reversed_cows.append(Cow(cow.pos, facing, cow.personality))
-            new_cows = reversed_cows
+        # Cows move in fixed list order; earlier cows are committed before the
+        # next cow is considered, which makes the order observable and testable.
+        cow_ticks: List[ActorTick] = []
+        new_cows: List[Cow] = list(self.cows)
+        for index, cow in enumerate(self.cows):
+            tick = advance_actor(cow, self._cow_blocked(index, new_cows))
+            new_cows[index] = Cow(tick.end_pos, tick.end_facing)
+            cow_ticks.append(tick)
         self.cows = tuple(new_cows)
 
-        # 5. temporary walls crumble
-        for pos in list(self.items):
-            item = self.items[pos]
-            if item.ticks_left is None:
-                continue
-            ticked = item.ticked()
-            if ticked is None:
-                del self.items[pos]
-            else:
-                self.items[pos] = ticked
-
-        # 6. resolution order: catch, then loop, then step budget
-        caught = self.caught
-        loop_hit = False
-        key = self.state_key()
-        if caught:
+        caught, penned = self.win_reached()
+        self.turns += 1
+        loop_hint = False
+        if caught or penned:
             self.status = GameStatus.WON
-        elif key in self._history:
-            loop_hit = True
-            self.status = GameStatus.LOST_LOOP
-        elif self.steps >= self.level.step_limit:
-            self.status = GameStatus.LOST_STEPS
         else:
-            self._history.append(key)
+            key = self.cow_state_key()
+            if key in self._seen:
+                loop_hint = True
+                self.loop_events += 1
+            else:
+                self._seen.add(key)
+            if self.turns >= self.level.max_turns:
+                self.status = GameStatus.LOST_TURNS
+            else:
+                self.status = GameStatus.PLAYING
 
         result = TickResult(
             farmer=farmer_tick,
-            cows=cow_ticks,
+            cows=tuple(cow_ticks),
             status=self.status,
-            steps=self.steps,
+            turns=self.turns,
             caught=caught,
-            loop_hit=loop_hit,
+            penned=penned,
+            loop_hint=loop_hint,
         )
         self.last_tick = result
+        self.loop_hint_last = loop_hint
         return result
+
+    def wait(self) -> TickResult:
+        """Spend one turn without moving the farmer."""
+        return self.order(None)
+
+    def _rejected(self, message: str) -> TickResult:
+        farmer_tick = ActorTick(
+            self.farmer.pos,
+            self.farmer.pos,
+            self.farmer.facing,
+            self.farmer.facing,
+            False,
+        )
+        return TickResult(
+            farmer=farmer_tick,
+            cows=(),
+            status=self.status,
+            turns=self.turns,
+            blocked=True,
+            message=message,
+        )
+
+    # ------------------------------------------------------------------
+    # Undo / redo
+    # ------------------------------------------------------------------
+    def _snapshot(self) -> _Snapshot:
+        return _Snapshot(
+            farmer=self.farmer,
+            cows=self.cows,
+            obstacles=frozenset(self._obstacles),
+            turns=self.turns,
+            status=self.status,
+            last_tick=self.last_tick,
+            seen=frozenset(self._seen),
+            loop_events=self.loop_events,
+            loop_hint_last=self.loop_hint_last,
+        )
+
+    def _push_undo(self) -> None:
+        self._undo.append(self._snapshot())
+        if len(self._undo) > self.MAX_HISTORY:
+            del self._undo[0]
+        self._redo.clear()
+
+    def _restore(self, snapshot: _Snapshot) -> None:
+        self.farmer = snapshot.farmer
+        self.cows = snapshot.cows
+        self._obstacles = set(snapshot.obstacles)
+        self.turns = snapshot.turns
+        self.status = snapshot.status
+        self.last_tick = snapshot.last_tick
+        self._seen = set(snapshot.seen)
+        self.loop_events = snapshot.loop_events
+        self.loop_hint_last = snapshot.loop_hint_last
+
+    @property
+    def can_undo(self) -> bool:
+        return bool(self._undo)
+
+    @property
+    def can_redo(self) -> bool:
+        return bool(self._redo)
+
+    @property
+    def history_depth(self) -> int:
+        return len(self._undo)
+
+    def undo(self) -> bool:
+        """Restore the state before the most recent action."""
+        if not self._undo:
+            return False
+        self._redo.append(self._snapshot())
+        self._restore(self._undo.pop())
+        return True
+
+    def redo(self) -> bool:
+        if not self._redo:
+            return False
+        self._undo.append(self._snapshot())
+        self._restore(self._redo.pop())
+        return True
+
+    def undo_to_turn(self, turn: int) -> bool:
+        """Undo repeatedly until the attempt is at or before ``turn``."""
+        changed = False
+        while self._undo and self.turns > turn:
+            if not self.undo():
+                break
+            changed = True
+        return changed
 
     # ------------------------------------------------------------------
     # Forecasting
     # ------------------------------------------------------------------
     def clone(self) -> "Simulation":
         """A playable copy used for forecasting without touching live state."""
-        new = Simulation(self.level, self._obstacles, items=(), validate=False)
+        new = Simulation(self.level, self._obstacles, validate=False)
         new.farmer = self.farmer
         new.cows = self.cows
-        new.items = dict(self.items)
-        new.stuck = set(self.stuck)
-        new.steps = self.steps
+        new.turns = self.turns
         new.status = GameStatus.PLAYING
-        new.horn_events = self.horn_events
-        new._history = list(self._history)
+        new.last_tick = None
+        new._seen = set(self._seen)
+        new.loop_events = self.loop_events
         return new
 
-    def predict(self, count: int = 3) -> List[PredictionFrame]:
-        """Project the next ``count`` ticks by replaying a clone."""
-        if self.status.is_finished:
+    def predict(self, count: Optional[int] = None) -> List[PredictionFrame]:
+        """Project the cows' next ``count`` moves while the farmer waits."""
+        steps = self.level.prediction_steps if count is None else int(count)
+        if steps <= 0 or self.status.is_finished:
             return []
         frames: List[PredictionFrame] = []
         probe = self.clone()
-        for index in range(1, count + 1):
-            tick = probe.step()
-            if tick is None:
+        for index in range(1, steps + 1):
+            tick = probe.order(None)
+            if tick.blocked:
                 break
             frames.append(
                 PredictionFrame(
                     step=index,
-                    farmer_pos=probe.farmer.pos,
-                    farmer_facing=probe.farmer.facing,
                     cow_positions=tuple(cow.pos for cow in probe.cows),
                     cow_facings=tuple(cow.facing for cow in probe.cows),
                     status=probe.status,
@@ -503,29 +482,20 @@ class Simulation:
     # ------------------------------------------------------------------
     @property
     def rank(self) -> Rank:
-        return self.level.rank_for(self.steps)
+        return self.level.rank_for(self.turns)
 
     def reset(self) -> None:
-        """Restart the attempt, keeping the player's layout."""
+        """Restart the attempt in the placement phase, keeping the layout."""
         obstacles = set(self._obstacles)
-        player_items = [
-            item for item in self.items.values() if item.pos not in {i.pos for i in self.level.items}
-        ]
-        self.__init__(self.level, obstacles, items=player_items, validate=False)
+        self.__init__(self.level, obstacles, validate=False)
 
-    def snapshot(self) -> Dict[str, object]:
-        """Small, JSON friendly view used by the interface."""
+    def snapshot(self) -> dict:
+        """Small, JSON friendly view used by the interface and the tools."""
         return {
-            "steps": self.steps,
+            "turns": self.turns,
             "status": self.status.value,
             "obstacles": sorted([list(p) for p in self._obstacles]),
-            "items": [
-                {"kind": item.kind.value, "pos": list(item.pos)}
-                for item in self.items.values()
-            ],
+            "pen_cells": sorted([list(p) for p in self._pen_cells]),
             "farmer": [list(self.farmer.pos), int(self.farmer.facing)],
-            "cows": [
-                [list(cow.pos), int(cow.facing), cow.personality.value]
-                for cow in self.cows
-            ],
+            "cows": [[list(cow.pos), int(cow.facing)] for cow in self.cows],
         }

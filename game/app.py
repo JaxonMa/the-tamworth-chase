@@ -12,7 +12,7 @@ from . import art, theme
 from .audio import AudioManager
 from .achievements import AchievementTracker
 from .levels import LevelError, load_level_file, load_levels
-from .models import CowPersonality, Direction, Level, Rank
+from .models import Direction, Level, Rank
 from .paths import ensure_data_dir, project_root
 from .progress import ProgressStore
 from .scenes.base import Scene
@@ -79,7 +79,7 @@ class App:
     def _set_icon(self) -> None:
         try:
             icon = pygame.Surface((64, 64), pygame.SRCALPHA)
-            icon.blit(self.cache.cow(Direction.SOUTH, CowPersonality.NORMAL), (0, 0))
+            icon.blit(self.cache.cow(Direction.SOUTH), (0, 0))
             pygame.display.set_icon(icon)
         except pygame.error:
             pass

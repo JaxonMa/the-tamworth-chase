@@ -40,7 +40,7 @@ class SettingsScene(Scene):
         )
         self.preview_toggle = ui.Toggle(
             pygame.Rect(118, 398, 520, 46),
-            "默认显示前三步预测",
+            "默认显示路径预测",
             "preview",
             bool(store.get_setting("preview", True)),
         )
@@ -157,8 +157,8 @@ class SettingsScene(Scene):
             "界面字体：CEF Fonts CJK（本地内置）",
             "全部美术由程序绘制，运行时不联网。",
             "",
-            "操作：空格开始/暂停，S 单步，",
-            "R 重开，1/2/3 切换速度，P 开关预测。",
+            "操作：方向键/WASD 移动农夫，空格等待，",
+            "U 撤销，R 重开，P 开关路径预测。",
         ]
         y = info.top + 88
         for line in lines:

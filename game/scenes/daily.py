@@ -86,7 +86,7 @@ class DailyScene(Scene):
             theme.draw_text(
                 surface,
                 self.fonts,
-                f"今日最好成绩：{record.get('steps')} 步",
+                f"今日最好成绩：{record.get('turns')} 回合",
                 (card.centerx, card.top + 342),
                 theme.FONT_H3,
                 theme.LEAF_DARK,
@@ -128,7 +128,7 @@ class DailyScene(Scene):
                 theme.INK_SOFT,
                 anchor="midtop",
             )
-            label = f"{result['steps']} 步" if done else "—"
+            label = f"{result['turns']} 回合" if done else "—"
             theme.draw_text(
                 surface,
                 self.fonts,

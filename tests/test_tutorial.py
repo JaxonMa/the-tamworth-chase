@@ -9,7 +9,7 @@ import pytest
 
 from game.core import Simulation
 from game.levels import load_levels
-from game.models import GameStatus, ItemKind, Rank
+from game.models import Direction, GameStatus, Rank
 from game.progress import (
     TUTORIAL_COMPLETED,
     TUTORIAL_IN_PROGRESS,
@@ -74,13 +74,12 @@ def test_tutorial_lesson_solutions_win(catalog):
                 continue
             obstacles = [tuple(pos) for pos in solution["obstacles"]]
             sim = Simulation(lesson, obstacles)
-            for kind, pos in solution.get("items", []):
-                assert sim.place_item(ItemKind(kind), tuple(pos)).ok
             sim.start()
-            while sim.status is GameStatus.PLAYING:
-                sim.step()
+            for action in solution["actions"]:
+                direction = None if action == "wait" else Direction[action.upper()]
+                sim.order(direction)
             assert sim.status is GameStatus.WON, lesson.level_id
-            assert sim.steps <= lesson.step_limit
+            assert sim.turns <= lesson.max_turns
 
 
 # ---------------------------------------------------------------------------

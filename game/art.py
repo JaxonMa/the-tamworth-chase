@@ -18,7 +18,7 @@ from typing import Dict, Optional, Tuple
 import pygame
 
 from . import theme
-from .models import CowPersonality, Direction, TileKind
+from .models import Direction, TileKind
 
 BASE_CELL = 64
 SPRITE_SCALE = 3
@@ -479,7 +479,7 @@ def _draw_cow_base(surface, u: float, facing: Direction) -> None:
     _ellipse(surface, theme.COW_BROWN, (98 * u, 84 * u, 22 * u, 16 * u))
 
 
-def _draw_cow_head_front(surface, u: float, personality: CowPersonality) -> None:
+def _draw_cow_head_front(surface, u: float) -> None:
     # ears
     _ellipse(surface, theme.COW_WHITE, (44 * u, 54 * u, 30 * u, 20 * u))
     _ellipse(surface, theme.COW_WHITE, (118 * u, 54 * u, 30 * u, 20 * u))
@@ -501,22 +501,13 @@ def _draw_cow_head_front(surface, u: float, personality: CowPersonality) -> None
     _circle(surface, theme.darken(theme.PINK_DEEP, 0.35), (86 * u, 94 * u), 3 * u)
     _circle(surface, theme.darken(theme.PINK_DEEP, 0.35), (106 * u, 94 * u), 3 * u)
     # eyes
-    eye_r = 7 * u if personality is not CowPersonality.TIMID else 8.5 * u
-    _circle(surface, theme.INK, (78 * u, 66 * u), eye_r)
-    _circle(surface, theme.INK, (114 * u, 66 * u), eye_r)
-    _circle(surface, theme.WHITE_WARM, (80 * u, 63 * u), eye_r * 0.38)
-    _circle(surface, theme.WHITE_WARM, (116 * u, 63 * u), eye_r * 0.38)
-    if personality is CowPersonality.STUBBORN:
-        _line(surface, theme.INK, (68 * u, 52 * u), (88 * u, 58 * u), max(2, int(3 * u)))
-        _line(surface, theme.INK, (124 * u, 52 * u), (104 * u, 58 * u), max(2, int(3 * u)))
-    elif personality is CowPersonality.GREEDY:
-        _ellipse(surface, theme.PINK_DEEP, (90 * u, 96 * u, 12 * u, 12 * u))
-    elif personality is CowPersonality.TIMID:
-        _line(surface, theme.INK_SOFT, (70 * u, 50 * u), (86 * u, 54 * u), max(2, int(2 * u)))
-        _line(surface, theme.INK_SOFT, (122 * u, 50 * u), (106 * u, 54 * u), max(2, int(2 * u)))
+    _circle(surface, theme.INK, (78 * u, 66 * u), 7 * u)
+    _circle(surface, theme.INK, (114 * u, 66 * u), 7 * u)
+    _circle(surface, theme.WHITE_WARM, (80 * u, 63 * u), 2.6 * u)
+    _circle(surface, theme.WHITE_WARM, (116 * u, 63 * u), 2.6 * u)
 
 
-def _draw_cow_head_east(surface, u: float, personality: CowPersonality) -> None:
+def _draw_cow_head_east(surface, u: float) -> None:
     _ellipse(surface, theme.COW_WHITE, (108 * u, 52 * u, 28 * u, 18 * u))
     _ellipse(surface, theme.COW_PINK, (116 * u, 56 * u, 16 * u, 10 * u))
     _polygon(surface, theme.DIRT_LIGHT, [(102 * u, 30 * u), (98 * u, 14 * u), (110 * u, 24 * u)])
@@ -527,10 +518,6 @@ def _draw_cow_head_east(surface, u: float, personality: CowPersonality) -> None:
     _circle(surface, theme.INK, (108 * u, 52 * u), 6.5 * u)
     _circle(surface, theme.WHITE_WARM, (110 * u, 49 * u), 2.4 * u)
     _ellipse(surface, theme.COW_BROWN, (78 * u, 34 * u, 34 * u, 20 * u))
-    if personality is CowPersonality.STUBBORN:
-        _line(surface, theme.INK, (96 * u, 44 * u), (112 * u, 46 * u), max(2, int(2.5 * u)))
-    if personality is CowPersonality.GREEDY:
-        _ellipse(surface, theme.PINK_DEEP, (112 * u, 78 * u, 18 * u, 10 * u))
 
 
 def build_farmer(size: int, facing: Direction) -> pygame.Surface:
@@ -549,7 +536,7 @@ def build_farmer(size: int, facing: Direction) -> pygame.Surface:
     return pygame.transform.smoothscale(canvas, (size, size))
 
 
-def build_cow(size: int, facing: Direction, personality: CowPersonality) -> pygame.Surface:
+def build_cow(size: int, facing: Direction) -> pygame.Surface:
     work = size * SPRITE_SCALE
     canvas = _actor_canvas(work)
     u = work / 192.0
@@ -559,7 +546,7 @@ def build_cow(size: int, facing: Direction, personality: CowPersonality) -> pyga
 
     if facing is Direction.SOUTH:
         _draw_cow_base(canvas, u, facing)
-        _draw_cow_head_front(canvas, u, personality)
+        _draw_cow_head_front(canvas, u)
     else:
         # Profile view: body drawn compactly, head to the east.
         _shadow(canvas, int(96 * u), int(170 * u), int(58 * u), int(16 * u))
@@ -580,7 +567,7 @@ def build_cow(size: int, facing: Direction, personality: CowPersonality) -> pyga
             max(2, int(4 * u)),
         )
         _circle(canvas, theme.COW_BROWN, (30 * u, 116 * u), 6 * u)
-        _draw_cow_head_east(canvas, u, personality)
+        _draw_cow_head_east(canvas, u)
 
     if facing is Direction.WEST:
         canvas = pygame.transform.flip(canvas, True, False)
@@ -810,7 +797,7 @@ class ArtCache:
         self.cell = cell
         self._tiles: Dict[Tuple, pygame.Surface] = {}
         self._farmers: Dict[Direction, pygame.Surface] = {}
-        self._cows: Dict[Tuple[Direction, CowPersonality], pygame.Surface] = {}
+        self._cows: Dict[Direction, pygame.Surface] = {}
         self._props: Dict[str, pygame.Surface] = {}
         self._rotated: Dict[Tuple[str, int, int], pygame.Surface] = {}
 
@@ -837,12 +824,11 @@ class ArtCache:
             self._farmers[facing] = sprite
         return sprite
 
-    def cow(self, facing: Direction, personality: CowPersonality) -> pygame.Surface:
-        key = (facing, personality)
-        sprite = self._cows.get(key)
+    def cow(self, facing: Direction) -> pygame.Surface:
+        sprite = self._cows.get(facing)
         if sprite is None:
-            sprite = build_cow(self.cell, facing, personality)
-            self._cows[key] = sprite
+            sprite = build_cow(self.cell, facing)
+            self._cows[facing] = sprite
         return sprite
 
     # -- props ---------------------------------------------------------

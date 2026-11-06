@@ -20,7 +20,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 from .models import LevelResult, Rank
 from .paths import data_override, ensure_data_dir, legacy_save_path, save_path
 
-SAVE_VERSION = 3
+SAVE_VERSION = 4
 
 TUTORIAL_NOT_STARTED = "not_started"
 TUTORIAL_IN_PROGRESS = "in_progress"
@@ -35,7 +35,6 @@ TUTORIAL_STATES = (
 )
 
 DEFAULT_SETTINGS: Dict[str, Any] = {
-    "speed": 1.0,
     "sound": True,
     "volume": 0.6,
     "low_effects": False,
@@ -151,7 +150,15 @@ class ProgressStore:
         # Settings are merged shallowly so that new options get defaults.
         settings = copy.deepcopy(DEFAULT_SETTINGS)
         settings.update(raw.get("settings") or {})
+        settings.pop("speed", None)  # real-time speed no longer exists
         base["settings"] = settings
+        # Renamed counters from step based saves.
+        for record in base["main"].get("levels", {}).values():
+            if isinstance(record, dict) and "best_steps" in record:
+                record.setdefault("best_turns", record.pop("best_steps"))
+        for entry in base["daily"].values():
+            if isinstance(entry, dict) and "steps" in entry:
+                entry.setdefault("turns", entry.pop("steps"))
         return base
 
     def save(self) -> None:
@@ -195,7 +202,7 @@ class ProgressStore:
         return LevelResult(
             level_id=level_id,
             cleared=bool(record.get("cleared")),
-            best_steps=record.get("best_steps"),
+            best_turns=record.get("best_turns", record.get("best_steps")),
             rank=Rank(rank_raw) if rank_raw in {r.value for r in Rank} else None,
             obstacles_used=int(record.get("obstacles", 0) or 0),
         )
@@ -203,20 +210,21 @@ class ProgressStore:
     def record_main_clear(
         self,
         level_id: str,
-        steps: int,
+        turns: int,
         rank: Rank,
         obstacles_used: int,
         extra: Optional[Mapping[str, Any]] = None,
     ) -> bool:
-        """Store a campaign win.  Returns True when a new step record was set."""
+        """Store a campaign win.  Returns True when a new turn record was set."""
         record = self.main_levels.setdefault(level_id, {"cleared": False})
-        previous = record.get("best_steps")
-        improved = previous is None or steps < int(previous)
+        previous = record.get("best_turns", record.get("best_steps"))
+        improved = previous is None or turns < int(previous)
         record["cleared"] = True
         record["attempts"] = int(record.get("attempts", 0)) + 1
         record["cleared_at"] = _now()
         if improved:
-            record["best_steps"] = int(steps)
+            record["best_turns"] = int(turns)
+        record.pop("best_steps", None)
         best_rank = record.get("rank")
         if best_rank is None or _rank_value(rank) > _rank_value(Rank(best_rank)):
             record["rank"] = rank.value
@@ -255,11 +263,13 @@ class ProgressStore:
             return True
         return self.main_cleared(ordered_ids[index - 1])
 
-    def total_main_steps(self) -> int:
+    def total_main_turns(self) -> int:
         total = 0
         for record in self.main_levels.values():
-            if record.get("cleared") and record.get("best_steps"):
-                total += int(record["best_steps"])
+            if record.get("cleared"):
+                best = record.get("best_turns", record.get("best_steps"))
+                if best:
+                    total += int(best)
         return total
 
     # ------------------------------------------------------------------
@@ -361,11 +371,11 @@ class ProgressStore:
     def has_achievement(self, achievement_id: str) -> bool:
         return achievement_id in self.achievements
 
-    def record_challenge_best(self, key: str, steps: int) -> bool:
+    def record_challenge_best(self, key: str, turns: int) -> bool:
         challenges = self.data.setdefault("challenges", {})
         previous = challenges.get(key)
-        if previous is None or steps < int(previous):
-            challenges[key] = int(steps)
+        if previous is None or turns < int(previous):
+            challenges[key] = int(turns)
             self.save()
             return True
         return False
@@ -382,7 +392,7 @@ class ProgressStore:
         ) or (
             payload.get("cleared")
             and previous.get("cleared")
-            and int(payload.get("steps", 9999)) < int(previous.get("steps", 9999))
+            and int(payload.get("turns", 9999)) < int(previous.get("turns", 9999))
         ):
             daily[date_key] = dict(payload)
             self.save()

@@ -12,9 +12,9 @@ import random
 from datetime import date
 from typing import List, Optional, Tuple
 
-from .core import Simulation
+from .core import step_forward
 from .levels import parse_level
-from .models import GameStatus, Level, Pos
+from .models import Direction, GameStatus, Level, Pos
 
 DIRECTIONS = ("north", "east", "south", "west")
 
@@ -63,11 +63,13 @@ def _candidate(seed: int, level_id: str) -> Optional[Level]:
         "grid": ["".join(row) for row in rows],
         "farmer_facing": rng.choice(DIRECTIONS),
         "cow_facings": [rng.choice(DIRECTIONS)],
-        "obstacle_limit": 3,
-        "step_limit": 60,
+        "max_turns": 45,
+        "initial_obstacles": 2,
+        "prediction_steps": 5,
+        "win_condition": "catch",
         "s_threshold": 12,
-        "a_threshold": 22,
-        "b_threshold": 34,
+        "a_threshold": 20,
+        "b_threshold": 30,
     }
     try:
         return parse_level(payload, source="daily", group="daily")
@@ -75,40 +77,39 @@ def _candidate(seed: int, level_id: str) -> Optional[Level]:
         return None
 
 
-def _candidate_cells(level: Level) -> List[Pos]:
-    blocked = set(level.wall_positions)
-    blocked.add(level.farmer_start)
-    blocked.update(level.cow_positions)
-    return [
-        (r, c)
-        for r in range(level.height)
-        for c in range(level.width)
-        if (r, c) not in blocked
-    ]
-
-
-def _wins(level: Level, layout: Tuple[Pos, ...]) -> bool:
-    sim = Simulation(level, layout, validate=False)
-    sim.start()
-    guard = level.step_limit + 2
-    while sim.status is GameStatus.PLAYING and guard > 0:
-        sim.step()
-        guard -= 1
-    return sim.status is GameStatus.WON
+def _next_cow(pos: Pos, facing: Direction, level: Level) -> Tuple[Pos, Direction]:
+    target = step_forward(pos, facing)
+    if level.is_inside(target) and not level.is_blocking(target):
+        return target, facing
+    return pos, facing.clockwise()
 
 
 def _solvable(level: Level) -> bool:
-    """Bounded search: no bale, one bale, then pairs (fast enough at runtime)."""
-    pool = _candidate_cells(level)
-    if _wins(level, ()):
-        return True
-    for pos in pool:
-        if _wins(level, (pos,)):
-            return True
-    for first_index, first in enumerate(pool):
-        for second in pool[first_index + 1 :]:
-            if _wins(level, (first, second)):
+    """Bounded breadth-first search over the player's five possible actions."""
+    farmer = level.farmer_start
+    cow = level.cow_positions[0]
+    facing = level.cow_facings[0]
+    visited = {(farmer, cow, int(facing))}
+    frontier: List[Tuple[Pos, Pos, Direction, int]] = [(farmer, cow, facing, 0)]
+    moves: List[Optional[Direction]] = [None, *Direction]
+    while frontier:
+        f_pos, c_pos, c_face, turns = frontier.pop(0)
+        if turns >= level.max_turns:
+            continue
+        for direction in moves:
+            target = f_pos if direction is None else step_forward(f_pos, direction)
+            if not level.is_inside(target) or level.is_blocking(target):
+                continue
+            if target == c_pos:
                 return True
+            new_cow, new_face = _next_cow(c_pos, c_face, level)
+            if new_cow == target:
+                return True
+            state = (target, new_cow, int(new_face))
+            if state in visited:
+                continue
+            visited.add(state)
+            frontier.append((target, new_cow, new_face, turns + 1))
     return False
 
 

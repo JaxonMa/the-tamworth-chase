@@ -8,7 +8,7 @@ from typing import List, Tuple
 import pygame
 
 from .. import art, theme, ui
-from ..models import CowPersonality, Direction, TileKind
+from ..models import Direction
 from .base import Scene, draw_footer
 
 TITLE = "The Tamworth Chase"
@@ -47,7 +47,7 @@ class MenuScene(Scene):
         self._scaled = {
             "farmer": pygame.transform.smoothscale(self.cache.farmer(Direction.SOUTH), (118, 118)),
             "cow": pygame.transform.smoothscale(
-                self.cache.cow(Direction.WEST, CowPersonality.NORMAL), (124, 124)
+                self.cache.cow(Direction.WEST), (124, 124)
             ),
             "hat": art.build_hat(52),
             "bale": self.cache.prop("obstacle"),

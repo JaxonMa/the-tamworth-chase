@@ -115,12 +115,12 @@ def make_thumbnail(cache: art.ArtCache, level, cell: int = 9) -> pygame.Surface:
         pygame.draw.circle(
             surface, theme.COW_BROWN, (cc * cell + cell // 2, cr * cell + cell // 2), max(2, cell // 3)
         )
-    for item in level.items:
-        pygame.draw.circle(
+    for pr, pc in level.pen_cells:
+        pygame.draw.rect(
             surface,
             theme.SUN,
-            (item.pos[1] * cell + cell // 2, item.pos[0] * cell + cell // 2),
-            max(1, cell // 4),
+            pygame.Rect(pc * cell + 1, pr * cell + 1, cell - 2, cell - 2),
+            1,
         )
     return surface
 

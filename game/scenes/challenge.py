@@ -85,7 +85,7 @@ class ChallengeScene(Scene):
 
         for card in self.cards:
             self._draw_card(surface, card)
-        draw_footer(surface, self.fonts, "挑战不占用主线进度 · 记录本地最好步数")
+        draw_footer(surface, self.fonts, "挑战不占用主线进度 · 记录本地最好回合数")
         if not self.levels:
             theme.draw_text(
                 surface,
@@ -123,7 +123,7 @@ class ChallengeScene(Scene):
         theme.draw_text(
             surface,
             self.fonts,
-            f"最好 {best_value} 步" if best_value is not None else "未挑战",
+            f"最好 {best_value} 回合" if best_value is not None else "未挑战",
             (rect.right - 18, rect.top + 22),
             theme.FONT_SMALL,
             theme.INK_SOFT,
@@ -135,7 +135,7 @@ class ChallengeScene(Scene):
         theme.draw_text(
             surface,
             self.fonts,
-            f"最好成绩：{best} 步" if best is not None else "还没有完成过",
+            f"最好成绩：{best} 回合" if best is not None else "还没有完成过",
             (rect.left + 20, rect.bottom - 42),
             theme.FONT_SMALL,
             theme.INK_SOFT,

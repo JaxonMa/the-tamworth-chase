@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import Dict, FrozenSet, Iterable, Mapping, Optional, Sequence, Tuple
+from typing import FrozenSet, Iterable, Mapping, Optional, Tuple
 
 # A board position expressed as (row, column). Row 0 is the top row.
 Pos = Tuple[int, int]
@@ -42,14 +42,14 @@ class Direction(IntEnum):
         return _DIRECTION_LABELS[self]
 
 
-_DELTAS: Dict[Direction, Tuple[int, int]] = {
+_DELTAS = {
     Direction.NORTH: (-1, 0),
     Direction.EAST: (0, 1),
     Direction.SOUTH: (1, 0),
     Direction.WEST: (0, -1),
 }
 
-_DIRECTION_LABELS: Dict[Direction, str] = {
+_DIRECTION_LABELS = {
     Direction.NORTH: "北",
     Direction.EAST: "东",
     Direction.SOUTH: "南",
@@ -87,128 +87,9 @@ TILE_CHARS: Mapping[str, TileKind] = {
 }
 
 FARMER_CHAR = "F"
-COW_CHARS = ("C", "D", "G", "S")  # C=normal, D=stubborn, G=greedy, S=timid
-
-
-class CowPersonality(str, Enum):
-    """Behaviour profile of a cow."""
-
-    NORMAL = "normal"
-    STUBBORN = "stubborn"   # turns counter clockwise when blocked
-    GREEDY = "greedy"       # prefers a neighbouring apple when blocked
-    TIMID = "timid"         # retreats one tile when a horn is blown nearby
-
-    @property
-    def label(self) -> str:
-        return _PERSONALITY_LABELS[self]
-
-    @property
-    def description(self) -> str:
-        return _PERSONALITY_TEXT[self]
-
-
-_PERSONALITY_LABELS = {
-    CowPersonality.NORMAL: "普通牛",
-    CowPersonality.STUBBORN: "倔牛",
-    CowPersonality.GREEDY: "贪吃牛",
-    CowPersonality.TIMID: "胆小牛",
-}
-
-_PERSONALITY_TEXT = {
-    CowPersonality.NORMAL: "被挡住时顺时针转身。",
-    CowPersonality.STUBBORN: "被挡住时逆时针转身。",
-    CowPersonality.GREEDY: "附近有苹果时会先走过去吃。",
-    CowPersonality.TIMID: "听到喇叭声会后退一步。",
-}
-
-PERSONALITY_BY_CHAR: Mapping[str, CowPersonality] = {
-    "C": CowPersonality.NORMAL,
-    "D": CowPersonality.STUBBORN,
-    "G": CowPersonality.GREEDY,
-    "S": CowPersonality.TIMID,
-}
-
-
-class ItemKind(str, Enum):
-    """Placeable tools that modify the chase."""
-
-    APPLE = "apple"
-    MUD = "mud"
-    CRATE = "crate"
-    SIGNPOST = "signpost"
-    HORN = "horn"
-    PORTAL = "portal"
-
-    @property
-    def label(self) -> str:
-        return _ITEM_LABELS[self]
-
-    @property
-    def short_label(self) -> str:
-        return _ITEM_SHORT_LABELS[self]
-
-    @property
-    def description(self) -> str:
-        return _ITEM_TEXT[self]
-
-
-_ITEM_LABELS = {
-    ItemKind.APPLE: "苹果",
-    ItemKind.MUD: "泥地",
-    ItemKind.CRATE: "临时木墙",
-    ItemKind.SIGNPOST: "路标",
-    ItemKind.HORN: "喇叭",
-    ItemKind.PORTAL: "成对传送门",
-}
-
-_ITEM_SHORT_LABELS = {
-    ItemKind.APPLE: "苹果",
-    ItemKind.MUD: "泥地",
-    ItemKind.CRATE: "木墙",
-    ItemKind.SIGNPOST: "路标",
-    ItemKind.HORN: "喇叭",
-    ItemKind.PORTAL: "传送门",
-}
-
-_ITEM_TEXT = {
-    ItemKind.APPLE: "贪吃牛会优先走向苹果，任何角色经过都会吃掉它。",
-    ItemKind.MUD: "踩进泥地的角色下一回合会陷住，只能原地转身。",
-    ItemKind.CRATE: "临时木墙会阻挡 8 个回合，然后自己散开。",
-    ItemKind.SIGNPOST: "角色踩上路标后会立刻转向箭头方向。",
-    ItemKind.HORN: "踩到喇叭时所有牛掉头，胆小牛还会后退一步。",
-    ItemKind.PORTAL: "成对出现，角色踩进去会从另一扇门出来。",
-}
-
-PORTAL_LIFETIME = 8
-CRATE_LIFETIME = 8
-
-
-@dataclass(frozen=True)
-class Item:
-    """An item on the board.  Instances are replaced, never mutated in place."""
-
-    kind: ItemKind
-    pos: Pos
-    facing: Direction = Direction.EAST
-    ticks_left: Optional[int] = None
-    pair: Optional[Pos] = None
-
-    def ticked(self) -> Optional["Item"]:
-        if self.ticks_left is None:
-            return self
-        remaining = self.ticks_left - 1
-        if remaining <= 0:
-            return None
-        return Item(self.kind, self.pos, self.facing, remaining, self.pair)
-
-    def key(self) -> Tuple[str, int, int, int, int]:
-        return (
-            self.kind.value,
-            self.pos[0],
-            self.pos[1],
-            int(self.facing),
-            -1 if self.ticks_left is None else int(self.ticks_left),
-        )
+COW_CHAR = "C"
+# Legacy maps read "D", "G" and "S" as ordinary cows; personalities are gone.
+LEGACY_COW_CHARS = ("C", "D", "G", "S")
 
 
 @dataclass(frozen=True)
@@ -227,29 +108,33 @@ class Actor:
 
 @dataclass(frozen=True)
 class Cow(Actor):
-    """A cow with a behaviour personality."""
-
-    personality: CowPersonality = CowPersonality.NORMAL
+    """A cow.  Cows share the farmer's movement rules but never react to him."""
 
 
 class GameStatus(str, Enum):
     READY = "ready"
     PLAYING = "playing"
     WON = "won"
-    LOST_STEPS = "lost_steps"
-    LOST_LOOP = "lost_loop"
+    LOST_TURNS = "lost_turns"
 
     @property
     def is_finished(self) -> bool:
-        return self in (GameStatus.WON, GameStatus.LOST_STEPS, GameStatus.LOST_LOOP)
+        return self in (GameStatus.WON, GameStatus.LOST_TURNS)
 
     @property
     def is_failure(self) -> bool:
-        return self in (GameStatus.LOST_STEPS, GameStatus.LOST_LOOP)
+        return self is GameStatus.LOST_TURNS
+
+
+class WinCondition(str, Enum):
+    """How a level is won."""
+
+    CATCH = "catch"
+    PEN = "pen"
 
 
 class Rank(str, Enum):
-    """Step based performance grade."""
+    """Turn based performance grade."""
 
     S = "S"
     A = "A"
@@ -294,12 +179,15 @@ class Level:
     farmer_facing: Direction
     cow_positions: Tuple[Pos, ...]
     cow_facings: Tuple[Direction, ...]
-    cow_personalities: Tuple[CowPersonality, ...] = ()
-    obstacle_limit: int = 3
-    step_limit: int = 60
-    s_threshold: int = 12
-    a_threshold: int = 20
-    b_threshold: int = 30
+    max_turns: int = 30
+    initial_obstacles: int = 3
+    prediction_steps: int = 5
+    win_condition: WinCondition = WinCondition.CATCH
+    pen_cells: Tuple[Pos, ...] = ()
+    cows_block_each_other: bool = False
+    s_threshold: int = 10
+    a_threshold: int = 15
+    b_threshold: int = 22
     hint: str = ""
     description: str = ""
     order: int = 0
@@ -310,15 +198,12 @@ class Level:
     goal_text: str = ""
     tips: Tuple[Tip, ...] = ()
     practice_text: str = ""
-    apple_positions: Tuple[Pos, ...] = ()
-    items: Tuple[Item, ...] = ()
-    item_counts: Mapping[str, int] = field(default_factory=dict)
     extra: Mapping[str, object] = field(default_factory=dict)
 
     @property
     def rows(self) -> Tuple[str, ...]:
         """Re-serialise the tiles to grid characters (used by the editor)."""
-        lookup = {v: k for k, v in TILE_CHARS.items() if k not in (FARMER_CHAR, "C")}
+        lookup = {v: k for k, v in TILE_CHARS.items() if k not in (FARMER_CHAR, COW_CHAR)}
         return tuple("".join(lookup[t] for t in row) for row in self.tiles)
 
     @property
@@ -340,12 +225,12 @@ class Level:
     def wall_positions(self) -> FrozenSet[Pos]:
         return frozenset(p for p, t in self.cells if t.blocking)
 
-    def rank_for(self, steps: int) -> Rank:
-        if steps <= self.s_threshold:
+    def rank_for(self, turns: int) -> Rank:
+        if turns <= self.s_threshold:
             return Rank.S
-        if steps <= self.a_threshold:
+        if turns <= self.a_threshold:
             return Rank.A
-        if steps <= self.b_threshold:
+        if turns <= self.b_threshold:
             return Rank.B
         return Rank.C
 
@@ -353,10 +238,23 @@ class Level:
     def has_tutorial(self) -> bool:
         return bool(self.tips) or self.source == "tutorial"
 
+    @property
+    def is_pen_level(self) -> bool:
+        return self.win_condition is WinCondition.PEN
+
+    @property
+    def goal_summary(self) -> str:
+        """Short, player facing description of the win condition."""
+        if self.is_pen_level:
+            return f"把 {len(self.cow_positions)} 头牛赶进围栏格"
+        if len(self.cow_positions) > 1:
+            return f"抓住任意一头牛（共 {len(self.cow_positions)} 头）"
+        return "抓住牛"
+
 
 @dataclass(frozen=True)
 class ActorTick:
-    """Snapshot of one actor before and after a single simulation tick."""
+    """Snapshot of one actor before and after a single turn."""
 
     start_pos: Pos
     end_pos: Pos
@@ -369,28 +267,35 @@ class ActorTick:
         return self.start_facing != self.end_facing
 
 
-StateKey = Tuple[Tuple[int, int, int], Tuple[Tuple[int, int, int], ...], FrozenSet[Pos]]
+StateKey = Tuple[
+    Tuple[int, int, int],
+    Tuple[Tuple[int, int, int], ...],
+    FrozenSet[Pos],
+    int,
+    str,
+]
 
 
 @dataclass(frozen=True)
 class TickResult:
-    """Everything the renderer needs to animate one synchronous tick."""
+    """Everything the renderer needs to animate one turn."""
 
     farmer: ActorTick
     cows: Tuple[ActorTick, ...]
     status: GameStatus
-    steps: int
+    turns: int
     caught: bool = False
-    loop_hit: bool = False
+    penned: bool = False
+    loop_hint: bool = False
+    blocked: bool = False
+    message: str = ""
 
 
 @dataclass(frozen=True)
 class PredictionFrame:
-    """One projected future state used by the three-step preview."""
+    """One projected future state used by the configurable path preview."""
 
     step: int
-    farmer_pos: Pos
-    farmer_facing: Direction
     cow_positions: Tuple[Pos, ...]
     cow_facings: Tuple[Direction, ...]
     status: GameStatus
@@ -408,6 +313,6 @@ class LevelResult:
 
     level_id: str
     cleared: bool
-    best_steps: Optional[int] = None
+    best_turns: Optional[int] = None
     rank: Optional[Rank] = None
     obstacles_used: int = 0

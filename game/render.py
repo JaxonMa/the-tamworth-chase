@@ -12,17 +12,14 @@ import pygame
 from . import art, theme
 from .core import Simulation
 from .models import (
-    Actor,
-    CowPersonality,
     Direction,
     GameStatus,
-    ItemKind,
     Level,
     Pos,
     PredictionFrame,
     TileKind,
 )
-from .playback import Playback, VisualActor
+from .animation import TurnAnimator, VisualActor
 
 CELL = theme.CELL_SIZE
 ORIGIN = theme.BOARD_ORIGIN
@@ -227,7 +224,7 @@ class EffectSystem:
 class BoardView:
     level: Level
     sim: Simulation
-    playback: Optional[Playback] = None
+    animator: Optional[TurnAnimator] = None
     hover: Optional[Pos] = None
     hover_valid: bool = True
     placement_mode: bool = False
@@ -242,6 +239,7 @@ class BoardView:
     hover_sprite: Optional[pygame.Surface] = None
     trails: Sequence[Sequence[Pos]] = ()
     trail_colors: Sequence[Tuple[int, int, int]] = ()
+    pen_cells: Sequence[Pos] = ()
 
 
 class BoardRenderer:
@@ -250,9 +248,6 @@ class BoardRenderer:
     def __init__(self, cache: art.ArtCache, fonts: theme.FontBook) -> None:
         self.cache = cache
         self.fonts = fonts
-        self._frame_rect = pygame.Rect(
-            ORIGIN[0] - 14, ORIGIN[1] - 14, CELL * 10 + 28, CELL * 10 + 28
-        )
 
     # -- helpers -------------------------------------------------------
     @staticmethod
@@ -268,10 +263,12 @@ class BoardRenderer:
 
     # -- public API ----------------------------------------------------
     def draw(self, surface: pygame.Surface, view: BoardView) -> None:
-        self._draw_frame(surface)
+        self._draw_frame(surface, view.level)
         self._draw_tiles(surface, view)
         if view.trails:
             self._draw_trails(surface, view)
+        if view.pen_cells:
+            self._draw_pen_cells(surface, view)
         if view.show_prediction and view.prediction:
             self._draw_prediction(surface, view)
         self._draw_highlight(surface, view)
@@ -281,16 +278,24 @@ class BoardRenderer:
         if view.effects is not None:
             view.effects.draw(surface, ORIGIN)
         if view.overlay_alpha:
-            overlay = pygame.Surface((CELL * 10, CELL * 10), pygame.SRCALPHA)
+            overlay = pygame.Surface(
+                (CELL * view.level.width, CELL * view.level.height), pygame.SRCALPHA
+            )
             overlay.fill((*theme.CREAM, view.overlay_alpha))
             surface.blit(overlay, ORIGIN)
 
     # -- pieces --------------------------------------------------------
-    def _draw_frame(self, surface: pygame.Surface) -> None:
-        theme.soft_shadow(surface, self._frame_rect, radius=26, alpha=42, offset=(0, 7))
-        theme.rounded_rect(surface, self._frame_rect, theme.WOOD_LIGHT, radius=26)
-        theme.rounded_rect(surface, self._frame_rect, theme.WOOD_DARK, radius=26, width=3)
-        inner = self._frame_rect.inflate(-8, -8)
+    def _draw_frame(self, surface: pygame.Surface, level: Level) -> None:
+        frame = pygame.Rect(
+            ORIGIN[0] - 14,
+            ORIGIN[1] - 14,
+            CELL * level.width + 28,
+            CELL * level.height + 28,
+        )
+        theme.soft_shadow(surface, frame, radius=26, alpha=42, offset=(0, 7))
+        theme.rounded_rect(surface, frame, theme.WOOD_LIGHT, radius=26)
+        theme.rounded_rect(surface, frame, theme.WOOD_DARK, radius=26, width=3)
+        inner = frame.inflate(-8, -8)
         pygame.draw.rect(surface, theme.GRASS_DARK, inner, border_radius=22)
 
     def _draw_tiles(self, surface: pygame.Surface, view: BoardView) -> None:
@@ -312,7 +317,9 @@ class BoardRenderer:
         return mask
 
     def _draw_trails(self, surface: pygame.Surface, view: BoardView) -> None:
-        layer = pygame.Surface((CELL * 10, CELL * 10), pygame.SRCALPHA)
+        layer = pygame.Surface(
+            (CELL * view.level.width, CELL * view.level.height), pygame.SRCALPHA
+        )
         for index, trail in enumerate(view.trails):
             color = view.trail_colors[index] if index < len(view.trail_colors) else theme.INK_LIGHT
             points = [
@@ -344,41 +351,64 @@ class BoardRenderer:
         )
         surface.blit(layer, rect.topleft)
 
+    def _draw_pen_cells(self, surface: pygame.Surface, view: BoardView) -> None:
+        """Soft straw markers under every designated pen tile."""
+        for pos in view.pen_cells:
+            rect = self.cell_rect(pos)
+            layer = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
+            pygame.draw.rect(layer, (*theme.SUN_LIGHT, 120), layer.get_rect().inflate(-6, -6), border_radius=12)
+            pygame.draw.rect(
+                layer,
+                (*theme.WOOD, 210),
+                layer.get_rect().inflate(-6, -6),
+                width=3,
+                border_radius=12,
+            )
+            for index in range(5):
+                angle = index * 1.7 + pos[0] * 0.4 + pos[1] * 0.7
+                x = CELL // 2 + int(14 * math.cos(angle))
+                y = CELL // 2 + int(14 * math.sin(angle))
+                pygame.draw.line(
+                    layer, (*art.STRAW_DARK, 170), (x - 4, y + 2), (x + 4, y - 2), 2
+                )
+            surface.blit(layer, rect.topleft)
+
     def _draw_prediction(self, surface: pygame.Surface, view: BoardView) -> None:
+        """Translucent cow footprints for the next configured number of turns."""
         frames = view.prediction
         if not frames:
             return
-        farmer_points = [self.cell_center(view.sim.farmer.pos)]
-        cow_points = [[self.cell_center(cow.pos)] for cow in view.sim.cows]
+        paths = [
+            [self.cell_center(cow.pos)] for cow in view.sim.cows
+        ]
         for frame in frames:
-            farmer_points.append(self.cell_center(frame.farmer_pos))
             for index, pos in enumerate(frame.cow_positions):
-                if index < len(cow_points):
-                    cow_points[index].append(self.cell_center(pos))
+                if index < len(paths):
+                    paths[index].append(self.cell_center(pos))
 
-        layer = pygame.Surface((CELL * 10, CELL * 10), pygame.SRCALPHA)
+        layer = pygame.Surface(
+            (CELL * view.level.width, CELL * view.level.height), pygame.SRCALPHA
+        )
         offset = (-ORIGIN[0], -ORIGIN[1])
-        shifted = [(x + offset[0], y + offset[1]) for x, y in farmer_points]
-        self._dashed_polyline(layer, shifted, (*theme.DENIM, 150))
-        for points in cow_points:
-            shifted_cow = [(x + offset[0], y + offset[1]) for x, y in points]
-            self._dashed_polyline(layer, shifted_cow, (*theme.CLAY, 140))
+        for path in paths:
+            shifted = [(x + offset[0], y + offset[1]) for x, y in path]
+            self._dashed_polyline(layer, shifted, (*theme.CLAY, 135))
         surface.blit(layer, ORIGIN)
 
         for index, frame in enumerate(frames):
-            label = str(index + 1)
-            for pos, color, show_label in (
-                (frame.farmer_pos, theme.DENIM, True),
-                (frame.cow_positions[0] if frame.cow_positions else frame.farmer_pos, theme.CLAY, False),
-            ):
+            for cow_index, pos in enumerate(frame.cow_positions):
                 center = self.cell_center(pos)
-                token = pygame.Surface((28, 28), pygame.SRCALPHA)
-                pygame.draw.circle(token, (*color, 145), (14, 14), 11)
-                pygame.draw.circle(token, (*theme.WHITE_WARM, 190), (14, 14), 11, 2)
-                surface.blit(token, (center[0] - 14, center[1] - 14))
-                if show_label:
-                    text = self.fonts.render(label, 16, theme.WHITE_WARM, True)
-                    surface.blit(text, text.get_rect(center=center))
+                token = pygame.Surface((26, 26), pygame.SRCALPHA)
+                color = theme.CLAY if cow_index == 0 else theme.LEAF_DARK
+                # a tiny hoof print: two soft ovals
+                pygame.draw.ellipse(token, (*color, 80), pygame.Rect(6, 9, 7, 10))
+                pygame.draw.ellipse(token, (*color, 80), pygame.Rect(14, 9, 7, 10))
+                pygame.draw.ellipse(token, (*color, 170), pygame.Rect(6, 9, 7, 10), 2)
+                pygame.draw.ellipse(token, (*color, 170), pygame.Rect(14, 9, 7, 10), 2)
+                surface.blit(token, (center[0] - 13, center[1] - 13))
+                if cow_index == 0:
+                    label = self.fonts.render(str(index + 1), 14, theme.CLAY, True)
+                    surface.blit(label, (center[0] + 9, center[1] - 17))
 
     @staticmethod
     def _dashed_polyline(surface: pygame.Surface, points: Sequence[Tuple[int, int]], color) -> None:
@@ -404,36 +434,6 @@ class BoardRenderer:
         for pos in view.sim.obstacles:
             surface.blit(sprite, self.cell_rect(pos).topleft)
 
-        portal_index = 0
-        for pos, item in sorted(view.sim.items.items(), key=lambda pair: (pair[0][0], pair[0][1])):
-            kind = item.kind
-            if kind is ItemKind.SIGNPOST:
-                angle = {Direction.EAST: 0, Direction.NORTH: 90, Direction.WEST: 180, Direction.SOUTH: 270}[
-                    item.facing
-                ]
-                image = self.cache.rotated("signpost", angle)
-                surface.blit(
-                    image,
-                    image.get_rect(center=self.cell_rect(pos).center),
-                )
-                continue
-            if kind is ItemKind.PORTAL:
-                name = "portal_a" if portal_index % 2 == 0 else "portal_b"
-                portal_index += 1
-                surface.blit(self.cache.prop(name), self.cell_rect(pos).topleft)
-                continue
-            if kind is ItemKind.CRATE:
-                surface.blit(self.cache.prop("crate"), self.cell_rect(pos).topleft)
-                continue
-            if kind is ItemKind.APPLE:
-                surface.blit(self.cache.prop("apple"), self.cell_rect(pos).topleft)
-                continue
-            if kind is ItemKind.MUD:
-                surface.blit(self.cache.prop("mud"), self.cell_rect(pos).topleft)
-                continue
-            if kind is ItemKind.HORN:
-                surface.blit(self.cache.prop("horn"), self.cell_rect(pos).topleft)
-
     def _draw_hover(self, surface: pygame.Surface, view: BoardView) -> None:
         if view.hover is None or not view.placement_mode:
             return
@@ -452,8 +452,8 @@ class BoardRenderer:
         sim = view.sim
         farmer_visual: VisualActor
         cow_visuals: Tuple[VisualActor, ...]
-        if view.playback is not None:
-            farmer_visual, cow_visuals = view.playback.actor_visuals()
+        if view.animator is not None:
+            farmer_visual, cow_visuals = view.animator.actor_visuals(sim)
         else:
             farmer_visual = VisualActor(
                 float(sim.farmer.pos[0]), float(sim.farmer.pos[1]), sim.farmer.facing, False, 0.0, False
@@ -466,7 +466,7 @@ class BoardRenderer:
         drawables = []
         for index, cow in enumerate(sim.cows):
             visual = cow_visuals[index]
-            sprite = self.cache.cow(visual.facing, cow.personality)
+            sprite = self.cache.cow(visual.facing)
             drawables.append((visual.row, visual.col, sprite, visual.wobble, index * 0.02))
         farmer_sprite = self.cache.farmer(farmer_visual.facing)
         drawables.append((farmer_visual.row, farmer_visual.col, farmer_sprite, farmer_visual.wobble, 0.5))

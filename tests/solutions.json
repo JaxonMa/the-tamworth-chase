@@ -1,150 +1,168 @@
 {
- "level_01": {
-  "obstacles": [
-   [
-    1,
-    2
-   ]
-  ],
-  "steps": 8,
-  "status": "won"
- },
- "level_02": {
-  "obstacles": [
-   [
-    4,
-    8
-   ]
-  ],
-  "steps": 11,
-  "status": "won"
- },
- "level_03": {
-  "obstacles": [
-   [
-    1,
-    6
-   ],
-   [
-    2,
-    7
-   ]
-  ],
-  "steps": 8,
-  "status": "won"
- },
- "level_04": {
-  "obstacles": [
-   [
-    1,
-    4
-   ],
-   [
-    3,
-    3
-   ]
-  ],
-  "steps": 10,
-  "status": "won"
- },
- "level_05": {
-  "obstacles": [
-   [
-    2,
-    2
-   ],
-   [
-    7,
-    8
-   ]
-  ],
-  "steps": 12,
-  "status": "won"
- },
- "level_06": {
-  "obstacles": [
-   [
-    1,
-    5
-   ],
-   [
-    7,
-    2
-   ],
-   [
-    8,
-    8
-   ]
-  ],
-  "steps": 16,
-  "status": "won"
- },
- "level_07": {
-  "obstacles": [
-   [
-    2,
-    5
-   ],
-   [
-    3,
-    4
-   ]
-  ],
-  "steps": 13,
-  "status": "won"
- },
- "level_08": {
-  "obstacles": [
-   [
-    4,
-    2
-   ],
-   [
-    5,
-    1
-   ],
-   [
-    6,
-    3
-   ]
-  ],
-  "steps": 16,
-  "status": "won"
- },
- "level_09": {
-  "obstacles": [
-   [
-    1,
-    8
-   ],
-   [
-    5,
-    1
-   ],
-   [
-    8,
-    7
-   ]
-  ],
-  "steps": 15,
-  "status": "won"
- },
- "level_10": {
-  "obstacles": [
-   [
-    6,
-    5
-   ],
-   [
-    7,
-    8
-   ],
-   [
-    8,
-    6
-   ]
-  ],
-  "steps": 13,
-  "status": "won"
- }
+  "level_01": {
+    "obstacles": [],
+    "turns": 8,
+    "actions": [
+      "wait",
+      "north",
+      "east",
+      "east",
+      "east",
+      "east",
+      "east",
+      "east"
+    ],
+    "status": "won"
+  },
+  "level_02": {
+    "obstacles": [],
+    "turns": 5,
+    "actions": [
+      "wait",
+      "north",
+      "east",
+      "east",
+      "east"
+    ],
+    "status": "won"
+  },
+  "level_03": {
+    "obstacles": [],
+    "turns": 10,
+    "actions": [
+      "north",
+      "north",
+      "north",
+      "north",
+      "north",
+      "north",
+      "east",
+      "east",
+      "east",
+      "east"
+    ],
+    "status": "won"
+  },
+  "level_04": {
+    "obstacles": [],
+    "turns": 8,
+    "actions": [
+      "east",
+      "east",
+      "south",
+      "south",
+      "south",
+      "west",
+      "west",
+      "west"
+    ],
+    "status": "won"
+  },
+  "level_05": {
+    "obstacles": [],
+    "turns": 9,
+    "actions": [
+      "wait",
+      "north",
+      "north",
+      "west",
+      "west",
+      "west",
+      "north",
+      "west",
+      "north"
+    ],
+    "status": "won"
+  },
+  "level_06": {
+    "obstacles": [],
+    "turns": 15,
+    "actions": [
+      "wait",
+      "north",
+      "west",
+      "west",
+      "west",
+      "north",
+      "north",
+      "east",
+      "north",
+      "north",
+      "north",
+      "east",
+      "east",
+      "east",
+      "east"
+    ],
+    "status": "won"
+  },
+  "level_07": {
+    "obstacles": [],
+    "turns": 11,
+    "actions": [
+      "south",
+      "south",
+      "south",
+      "east",
+      "east",
+      "east",
+      "east",
+      "north",
+      "north",
+      "west",
+      "west"
+    ],
+    "status": "won"
+  },
+  "level_08": {
+    "obstacles": [],
+    "turns": 12,
+    "actions": [
+      "east",
+      "north",
+      "north",
+      "north",
+      "west",
+      "north",
+      "north",
+      "west",
+      "north",
+      "north",
+      "west",
+      "west"
+    ],
+    "status": "won"
+  },
+  "level_09": {
+    "obstacles": [],
+    "turns": 9,
+    "actions": [
+      "east",
+      "south",
+      "east",
+      "east",
+      "north",
+      "north",
+      "east",
+      "north",
+      "east"
+    ],
+    "status": "won"
+  },
+  "level_10": {
+    "obstacles": [],
+    "turns": 9,
+    "actions": [
+      "east",
+      "east",
+      "east",
+      "east",
+      "east",
+      "south",
+      "east",
+      "south",
+      "south"
+    ],
+    "status": "won"
+  }
 }
