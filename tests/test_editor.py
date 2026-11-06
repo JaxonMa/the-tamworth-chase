@@ -59,6 +59,17 @@ def test_add_and_remove_cows(model):
     assert len(model.cows) == 2
 
 
+def test_active_cow_can_be_chosen_and_moved(model):
+    assert model.add_cow((3, 3)) is True
+    assert model.active_cow == 1
+    assert model.move_cow((3, 4)) is True
+    assert model.cows[1][0] == (3, 4)
+    model.cycle_active_cow()
+    assert model.active_cow == 0
+    model.cycle_cow_facing()
+    assert model.cows[0][1] is Direction.NORTH.clockwise()
+
+
 def test_cycle_facing_and_rules(model):
     facing = model.farmer_facing
     model.cycle_facing()

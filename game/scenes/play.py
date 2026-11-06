@@ -827,6 +827,8 @@ class PlayScene(Scene):
 
         if self.level.is_pen_level:
             goal = f"目标：{self.sim.penned_count} / {len(self.sim.cows)} 头牛进栏"
+        elif len(self.sim.cows) > 1:
+            goal = "目标：抓住任意一头"
         else:
             goal = "目标：抓住牛"
         ui.draw_pill(surface, self.fonts, goal, (left + 52, y + 18), theme.LEAF_DARK)

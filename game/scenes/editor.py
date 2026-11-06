@@ -112,10 +112,11 @@ class EditorScene(Scene):
                 )
             )
         self.actor_buttons = [
-            ui.Button(pygame.Rect(764, 200, 104, 42), "农夫", "actor:farmer", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(877, 200, 104, 42), "牛", "actor:cow", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(990, 200, 104, 42), "加牛", "actor:add", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(1103, 200, 104, 42), "减牛", "actor:remove", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(764, 200, 84, 42), "农夫", "actor:farmer", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(855, 200, 84, 42), "牛", "actor:cow", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(946, 200, 84, 42), "加牛", "actor:add", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(1037, 200, 84, 42), "减牛", "actor:remove", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(1128, 200, 84, 42), "换牛", "actor:cycle", style="ghost", font_size=theme.FONT_TINY),
         ]
         self.pen_button = ui.Button(
             pygame.Rect(764, 250, 150, 42), "围栏格", "pen", style="ghost", font_size=theme.FONT_TINY
@@ -283,6 +284,9 @@ class EditorScene(Scene):
                 self.app.sound.play("undo")
             else:
                 self._toast("至少要留下一头牛。")
+        elif action == "actor:cycle":
+            self.model.cycle_active_cow()
+            self.app.sound.play("click")
         elif action == "pen":
             self.tool = TOOL_PEN
             self.app.sound.play("click")
@@ -567,7 +571,7 @@ class EditorScene(Scene):
                 border_radius=12,
             )
             surface.blit(layer, rect.topleft)
-        for pos, facing in self.model.cows:
+        for index, (pos, facing) in enumerate(self.model.cows):
             sprite = self.cache.cow(facing)
             surface.blit(
                 sprite,
@@ -575,6 +579,14 @@ class EditorScene(Scene):
                     center=(ORIGIN[0] + pos[1] * CELL + CELL // 2, ORIGIN[1] + pos[0] * CELL + CELL // 2)
                 ),
             )
+            if index == self.model.active_cow:
+                pygame.draw.circle(
+                    surface,
+                    theme.SUN,
+                    (ORIGIN[0] + pos[1] * CELL + CELL // 2, ORIGIN[1] + pos[0] * CELL + CELL // 2),
+                    CELL // 2 - 3,
+                    2,
+                )
         sprite = self.cache.farmer(self.model.farmer_facing)
         surface.blit(
             sprite,
@@ -614,7 +626,8 @@ class EditorScene(Scene):
         self.condition_button.draw(surface, self.fonts)
         self.facing_button.text = f"农夫朝向：{self.model.farmer_facing.label}"
         self.facing_button.draw(surface, self.fonts)
-        cow_facing = self.model.cows[0][1] if self.model.cows else Direction.NORTH
+        active = min(self.model.active_cow, len(self.model.cows) - 1) if self.model.cows else 0
+        cow_facing = self.model.cows[active][1] if self.model.cows else Direction.NORTH
         self.cow_facing_button.text = f"牛朝向：{cow_facing.label}"
         self.cow_facing_button.draw(surface, self.fonts)
         self.block_button.text = (

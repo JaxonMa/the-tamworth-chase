@@ -18,7 +18,6 @@ from typing import Any, Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from game.levels import parse_level  # noqa: E402
 from game.tutorial import TutorialCatalog  # noqa: E402
 
 STARTER = [

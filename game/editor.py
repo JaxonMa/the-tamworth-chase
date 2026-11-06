@@ -56,6 +56,7 @@ class EditorModel:
     farmer: Pos = (8, 1)
     farmer_facing: Direction = Direction.EAST
     cows: List[Tuple[Pos, Direction]] = field(default_factory=list)
+    active_cow: int = 0
     max_turns: int = 30
     initial_obstacles: int = 3
     prediction_steps: int = 5
@@ -107,6 +108,7 @@ class EditorModel:
         model.farmer = level.farmer_start
         model.farmer_facing = level.farmer_facing
         model.cows = list(zip(level.cow_positions, level.cow_facings))
+        model.active_cow = 0
         model.max_turns = level.max_turns
         model.initial_obstacles = level.initial_obstacles
         model.prediction_steps = level.prediction_steps
@@ -173,10 +175,12 @@ class EditorModel:
         self.tiles[pos[0]][pos[1]] = TileKind.GRASS
         self.pen_cells.discard(pos)
         if self.cows:
-            _, facing = self.cows[0]
-            self.cows[0] = (pos, facing)
+            self.active_cow = min(self.active_cow, len(self.cows) - 1)
+            _, facing = self.cows[self.active_cow]
+            self.cows[self.active_cow] = (pos, facing)
         else:
             self.cows = [(pos, Direction.NORTH)]
+            self.active_cow = 0
         return True
 
     def add_cow(self, pos: Optional[Pos] = None) -> bool:
@@ -190,12 +194,14 @@ class EditorModel:
         self.tiles[target[0]][target[1]] = TileKind.GRASS
         self.pen_cells.discard(target)
         self.cows.append((target, Direction.NORTH))
+        self.active_cow = len(self.cows) - 1
         return True
 
     def remove_cow(self) -> bool:
         if len(self.cows) <= 1:
             return False
         self.cows.pop()
+        self.active_cow = min(self.active_cow, len(self.cows) - 1)
         return True
 
     def find_free_cell(self) -> Pos:
@@ -216,8 +222,13 @@ class EditorModel:
     def cycle_cow_facing(self) -> None:
         if not self.cows:
             return
-        pos, facing = self.cows[0]
-        self.cows[0] = (pos, facing.clockwise())
+        self.active_cow = min(self.active_cow, len(self.cows) - 1)
+        pos, facing = self.cows[self.active_cow]
+        self.cows[self.active_cow] = (pos, facing.clockwise())
+
+    def cycle_active_cow(self) -> None:
+        if len(self.cows) > 1:
+            self.active_cow = (self.active_cow + 1) % len(self.cows)
 
     def cycle_win_condition(self) -> None:
         self.win_condition = (

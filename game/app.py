@@ -10,6 +10,7 @@ from . import art, theme
 from .audio import AudioManager
 from .achievements import AchievementTracker
 from .levels import LevelError, load_level_file, load_levels
+from . import GAME_TITLE
 from .models import Direction, Level, Rank
 from .paths import project_root
 from .progress import ProgressStore
@@ -19,8 +20,6 @@ from .scenes.menu import MenuScene
 from .scenes.play import PlayScene
 from .scenes.settings import SettingsScene
 from .tutorial import TutorialBook, TutorialCatalog
-
-GAME_TITLE = "The Tamworth Chase · 塔姆沃斯追逐"
 
 
 def project_path(relative: str):

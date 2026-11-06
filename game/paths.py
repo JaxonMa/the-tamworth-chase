@@ -16,7 +16,6 @@ import os
 from pathlib import Path
 
 APP_NAME = "The Tamworth Chase"
-APP_SLUG = "the_tamworth_chase"
 DATA_DIR_ENV = "TAMWORTH_CHASE_DATA"
 LEGACY_DATA_DIR_ENV = "TAMWORTH_TWO_DATA"
 DATA_DIR_NAME = ".the_tamworth_chase"
