@@ -13,9 +13,9 @@ order, but skipping a lesson or a whole chapter only affects that chapter.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, List, Mapping, Optional, Tuple
 
 from .levels import TUTORIAL_FILES, LevelError, parse_level
 from .models import Level, Tip

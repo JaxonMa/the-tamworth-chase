@@ -7,7 +7,7 @@ called after every campaign / challenge clear and never blocks gameplay.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Sequence
 
 from .core import Simulation
 from .models import GameStatus, Level, Rank
@@ -26,7 +26,7 @@ ACHIEVEMENTS: Sequence[Achievement] = (
     Achievement("one_step", "一步抓牛", "只用一个回合就抓住了牛。", "让牛被挡住，农夫只差一步。"),
     Achievement("no_obstacles", "零障碍通关", "没有放下任何干草垛就抓住了牛。", "有些牧场本来就会相遇。"),
     Achievement("fenced_cow", "围栏里的牛", "把牛赶进围栏，或把它逼进死角。", "围栏关里让所有牛同时进栏。"),
-    Achievement("loop_free", "一气呵成", "整局没有出现牛的循环提示。", "看准牛的路线，一次走对。"),
+    Achievement("loop_free", "一气呵成", "整局没有出现循环提示。", "看准牛的路线，一次走对。"),
     Achievement("all_levels", "牧场主", "通关全部十个主线关卡。", "主线通关后自然获得。"),
 )
 

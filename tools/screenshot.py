@@ -7,6 +7,7 @@ Usage::
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -20,7 +21,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pygame
 
 from game.app import ALL_FEATURES, App
-from game.models import Direction, GameStatus
+from game.models import Direction
+
+ROOT = Path(__file__).resolve().parent.parent
+SOLUTIONS = json.loads((ROOT / "tests" / "solutions.json").read_text(encoding="utf-8"))
 
 
 def frames(app: App, count: int = 3, dt: float = 1 / 60) -> None:
@@ -61,23 +65,25 @@ def scenario_play_place(app: App, path: Path) -> None:
 def scenario_play_run(app: App, path: Path) -> None:
     app.start_level(app.levels[3])
     scene = app.scene
-    for pos in ((1, 4), (3, 3)):
-        scene._place_at(pos)
-    scene._handle_start()
-    frames(app, 22)
+    scene._start_run()
+    for action in ("north", "west", "north"):
+        scene._take_turn(Direction[action.upper()])
+        scene.animator.clear()
+    frames(app, 2)
     draw(app, path)
 
 
 def scenario_play_win(app: App, path: Path) -> None:
     app.start_level(app.levels[0])
     scene = app.scene
-    scene._place_at((1, 2))
-    scene._handle_start()
-    for _ in range(400):
+    scene._start_run()
+    for action in SOLUTIONS["level_01"]["actions"]:
+        scene._take_turn(None if action == "wait" else Direction[action.upper()])
+        scene.animator.clear()
+    for _ in range(120):
         app.update(1 / 60)
-        if scene.phase == "result" and scene.result_shown:
+        if scene.result_shown:
             break
-    frames(app, 2)
     draw(app, path)
 
 
@@ -96,8 +102,27 @@ def scenario_tutorial_chapter(app: App, path: Path) -> None:
 def scenario_play_tutorial(app: App, path: Path) -> None:
     app.start_tutorial_lesson("basics", "basics_02")
     scene = app.scene
-    scene._place_at((2, 7))
+    scene._place_at((2, 5))
     frames(app, 5)
+    draw(app, path)
+
+
+def scenario_play_pen(app: App, path: Path) -> None:
+    app.start_tutorial_lesson("advanced", "advanced_02")
+    frames(app, 5)
+    draw(app, path)
+
+
+def scenario_play_loop(app: App, path: Path) -> None:
+    app.start_tutorial_lesson("advanced", "advanced_03")
+    scene = app.scene
+    scene._start_run()
+    for _ in range(5):
+        scene._take_turn(None)
+        scene.animator.clear()
+        if scene.modal is not None:
+            break
+    frames(app, 2)
     draw(app, path)
 
 
@@ -131,19 +156,6 @@ def scenario_editor(app: App, path: Path) -> None:
     draw(app, path)
 
 
-def scenario_play_loop(app: App, path: Path) -> None:
-    level = app.levels[9]
-    app.start_level(level)
-    scene = app.scene
-    scene._handle_start()
-    for _ in range(2000):
-        app.update(1 / 60)
-        if scene.phase == "result" and scene.result_shown:
-            break
-    frames(app, 2)
-    draw(app, path)
-
-
 SCENARIOS = {
     "menu": scenario_menu,
     "level_select": scenario_level_select,
@@ -151,10 +163,11 @@ SCENARIOS = {
     "play_place": scenario_play_place,
     "play_run": scenario_play_run,
     "play_win": scenario_play_win,
-    "play_loop": scenario_play_loop,
     "tutorial": scenario_tutorial,
     "tutorial_chapter": scenario_tutorial_chapter,
     "play_tutorial": scenario_play_tutorial,
+    "play_pen": scenario_play_pen,
+    "play_loop": scenario_play_loop,
     "challenge": scenario_challenge,
     "daily": scenario_daily,
     "achievements": scenario_achievements,

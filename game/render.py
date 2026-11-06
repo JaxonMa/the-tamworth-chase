@@ -4,16 +4,14 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass, field
-from typing import List, Optional, Sequence, Set, Tuple
+from dataclasses import dataclass
+from typing import List, Optional, Sequence, Tuple
 
 import pygame
 
 from . import art, theme
 from .core import Simulation
 from .models import (
-    Direction,
-    GameStatus,
     Level,
     Pos,
     PredictionFrame,

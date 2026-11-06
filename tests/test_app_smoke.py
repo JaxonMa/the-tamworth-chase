@@ -252,3 +252,48 @@ def test_editor_set_rules_tutorial_task(app):
     scene.update(1 / 60)
     assert scene.task_done
     assert app.store.lesson_state("editor", "editor_02") == "completed"
+
+
+def test_no_prediction_level_shows_disabled_button(app):
+    app.start_level(app.levels[8])
+    scene = app.scene
+    assert scene.level.prediction_steps == 0
+    assert scene.predict_button.enabled is False
+    assert scene.predict_button.text == "预测 无"
+    assert scene._prediction() == ()
+
+
+def test_keyboard_and_mouse_controls(app):
+    import pygame
+    from game.models import Direction
+
+    app.start_level(app.levels[0])
+    scene = app.scene
+    scene._start_run()
+    pygame.event.clear()
+    scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT))
+    scene.animator.clear()
+    assert scene.sim.turns == 1
+    assert scene.sim.farmer.pos == (3, 3)
+    scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
+    scene.animator.clear()
+    assert scene.sim.turns == 2
+    scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_u))
+    assert scene.sim.turns == 1
+    scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_p))
+    assert scene.show_prediction is False
+    scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r))
+    assert scene.phase == "place"
+
+    # Mouse placement during the placement phase.
+    from game import theme
+
+    cell = (1, 2)
+    pos = (
+        theme.BOARD_ORIGIN[0] + cell[1] * theme.CELL_SIZE + theme.CELL_SIZE // 2,
+        theme.BOARD_ORIGIN[1] + cell[0] * theme.CELL_SIZE + theme.CELL_SIZE // 2,
+    )
+    scene.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos))
+    assert cell in scene.sim.obstacles
+    scene.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=3, pos=pos))
+    assert cell not in scene.sim.obstacles

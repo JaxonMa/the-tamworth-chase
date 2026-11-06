@@ -1,22 +1,38 @@
-"""Build the tutorial chapter JSON files and verify every lesson is winnable.
+"""Author the tutorial chapter data and write the JSON files.
+
+The tutorial is intentionally separate from the campaign.  This script keeps the
+five basic, three advanced and three editor lessons together so the content can
+be reviewed in one place, then writes ``tutorials/*.json``.
 
 Usage::
 
-    .venv/bin/python -m tools.build_tutorials
+    .venv/bin/python tools/build_tutorials.py
 """
 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List
 
-from game.levels import parse_level
-from game.models import GameStatus
-from tools.search import search
-from tools.solve import solve, run
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-ROOT = Path(__file__).resolve().parent.parent
+from game.levels import parse_level  # noqa: E402
+from game.tutorial import TutorialCatalog  # noqa: E402
+
+STARTER = [
+    "##########",
+    "#........#",
+    "#........#",
+    "#........#",
+    "#........#",
+    "#........#",
+    "#........#",
+    "#........#",
+    "#F......C#",
+    "##########",
+]
 
 
 def lesson(
@@ -25,460 +41,460 @@ def lesson(
     brief: str,
     goal: str,
     practice: str,
-    grid: Sequence[str],
+    tips: List[Dict[str, str]],
+    level: Dict[str, Any],
     *,
-    farmer_facing: str = "east",
-    cow_facings: Sequence[str] = ("east",),
-    obstacle_limit: int = 1,
-    tips: Sequence[Dict[str, str]] = (),
-    extra: Optional[Dict[str, object]] = None,
-) -> Dict[str, object]:
-    level = {
-        "id": lesson_id,
-        "name": name,
-        "grid": list(grid),
-        "farmer_facing": farmer_facing,
-        "cow_facings": list(cow_facings),
-        "obstacle_limit": obstacle_limit,
-        "step_limit": 60,
-    }
-    if extra:
-        level.update(extra)
-    return {
+    editor_task: Dict[str, Any] | None = None,
+    starter_grid: List[str] | None = None,
+) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
         "id": lesson_id,
         "name": name,
         "brief": brief,
         "goal": goal,
         "practice": practice,
-        "tips": list(tips),
+        "tips": tips,
         "level": level,
     }
+    if editor_task:
+        payload["editor_task"] = editor_task
+    if starter_grid:
+        payload["starter_grid"] = starter_grid
+    return payload
 
 
-# ---------------------------------------------------------------------------
-# 基础教程
-# ---------------------------------------------------------------------------
-B1_GRID = [
-    "##########",
-    "#......#.#",
-    "#......#.#",
-    "#.......C#",
-    "#........#",
-    "#........#",
-    "#....F...#",
-    "#........#",
-    "#........#",
-    "##########",
-]
-B2_GRID = [
-    "##########",
-    "#........#",
-    "#........#",
-    "#....C#..#",
-    "#........#",
-    "#.#......#",
-    "#.......F#",
-    "#........#",
-    "#........#",
-    "##########",
-]
-B4_GRID = [
-    "##########",
-    "#F.......#",
-    "#.####...#",
-    "#....#...#",
-    "#....#..C#",
-    "#....#...#",
-    "#....#####",
-    "#........#",
-    "#........#",
-    "##########",
-]
-B5_GRID = [
-    "##########",
-    "#F....#..#",
-    "#.....#..#",
-    "#..####..#",
-    "#.....#..#",
-    "#..C..#..#",
-    "#.....#..#",
-    "#........#",
-    "#........#",
-    "##########",
-]
-B6_GRID = [
-    "##########",
-    "#...F.##.#",
-    "#.....#..#",
-    "#........#",
-    "#........#",
-    "#..####..#",
-    "#.######.#",
-    "#.#.##.#.#",
-    "#C..##...#",
-    "##########",
-]
+def level(
+    lesson_id: str,
+    name: str,
+    grid: List[str],
+    farmer_facing: str,
+    cow_facings: List[str],
+    *,
+    max_turns: int = 12,
+    initial_obstacles: int = 0,
+    prediction_steps: int = 0,
+    win_condition: str = "catch",
+    pen_cells: List[List[int]] | None = None,
+    cows_block_each_other: bool = False,
+    s_threshold: int = 4,
+    a_threshold: int = 7,
+    b_threshold: int = 10,
+    **extra: Any,
+) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
+        "id": lesson_id,
+        "name": name,
+        "grid": grid,
+        "farmer_facing": farmer_facing,
+        "cow_facings": cow_facings,
+        "max_turns": max_turns,
+        "initial_obstacles": initial_obstacles,
+        "prediction_steps": prediction_steps,
+        "win_condition": win_condition,
+        "pen_cells": pen_cells or [],
+        "cows_block_each_other": cows_block_each_other,
+        "s_threshold": s_threshold,
+        "a_threshold": a_threshold,
+        "b_threshold": b_threshold,
+    }
+    payload.update(extra)
+    return payload
+
 
 BASICS = {
-    "version": 1,
-    "chapter": "basics",
     "title": "基础教程",
-    "subtitle": "从认识牧场开始",
-    "intro": "六节短课，从同步移动到时间闭环。每节课只讲一个新机制，随时可以跳过。",
+    "subtitle": "从走一步开始，学会追逐",
+    "intro": "五节短课，每节只介绍一件事。可以跳过任何一节，也可以随时重玩。",
     "badge": "基础",
     "accent": "leaf",
     "lessons": [
         lesson(
             "basics_01",
-            "一起出发",
-            "先看看农夫和牛是怎么一起走路的。",
-            "观察同步移动，让他们自然相遇。",
-            "点击「开始游戏」，看两位主角一起动起来。",
-            B1_GRID,
-            farmer_facing="east",
-            cow_facings=["south"],
-            obstacle_limit=0,
-            tips=[
-                {"trigger": "start", "text": "农夫和牛每回合同时移动：前方能走就前进，否则顺时针转 90°。"},
-                {"trigger": "run", "text": "现在点「开始游戏」，看他们一起动。"},
-                {"trigger": "step", "text": "每一回合两人同时走一步，注意看他们的朝向。"},
-                {"trigger": "win", "text": "碰到一起就算抓住！这就是最基础的追逐。"},
+            "第一步",
+            "用方向键移动农夫，牛会在你之后走一步。",
+            "抓住牛",
+            "用方向键或 WASD 移动农夫，至少走一步。",
+            [
+                {"trigger": "start", "text": "用方向键或 WASD 移动农夫。你走一步，牛才会走一步。"},
+                {"trigger": "move", "text": "注意：农夫先动，牛后动。牛撞到围栏时会顺时针转身。"},
+                {"trigger": "win", "text": "和牛站在同一格就抓住了。基础教程开始！"},
             ],
+            level(
+                "basics_01",
+                "第一步",
+                [
+                    "#######",
+                    "#....C#",
+                    "#.....#",
+                    "#.....#",
+                    "#.....#",
+                    "#F....#",
+                    "#######",
+                ],
+                "east",
+                ["east"],
+                max_turns=12,
+                s_threshold=5,
+                a_threshold=8,
+                b_threshold=10,
+            ),
         ),
         lesson(
             "basics_02",
-            "第一捆干草",
-            "把干草垛放在牛的正前方，逼它转弯。",
-            "用一捆干草改变牛的路线。",
-            "点击草地放下干草垛，然后开始游戏。",
-            B2_GRID,
-            farmer_facing="east",
-            cow_facings=["north"],
-            obstacle_limit=1,
-            extra={"require_obstacle": 1},
-            tips=[
-                {"trigger": "start", "text": "这次只靠等待抓不到。点击草地，把干草垛放在牛的正前方。"},
-                {"trigger": "place", "text": "干草垛挡住了牛，它只好向右转身。"},
-                {"trigger": "run", "text": "现在开始游戏，看看路线会怎么改变。"},
-                {"trigger": "win", "text": "障碍改变了路线，这就是这个游戏的核心。"},
+            "转过墙角",
+            "在牛的正前方放下干草垛，逼它右转。",
+            "用一捆干草改变牛的路线，抓住它。",
+            "先在牛的正前方放一捆干草，再开始。",
+            [
+                {"trigger": "start", "text": "把干草垛放在牛的正前方，它会原地右转。"},
+                {"trigger": "place", "text": "放好了。干草垛会挡住牛，让它改变方向。"},
+                {"trigger": "run", "text": "现在开始追逐，看看它拐向哪里。"},
+                {"trigger": "win", "text": "墙角加干草，就能把牛的路线折回来。"},
             ],
+            level(
+                "basics_02",
+                "转过墙角",
+                [
+                    "#######",
+                    "#.....#",
+                    "#..#C.#",
+                    "#..#..#",
+                    "#..#..#",
+                    "#F....#",
+                    "#######",
+                ],
+                "east",
+                ["east"],
+                max_turns=10,
+                initial_obstacles=1,
+                require_obstacle=1,
+                s_threshold=4,
+                a_threshold=6,
+                b_threshold=8,
+            ),
         ),
         lesson(
             "basics_03",
-            "收回来再想想",
-            "布局阶段可以反复调整，点击干草垛就能收回。",
-            "学会撤销：先放一捆干草，再收回来。",
-            "放下一捆干草，然后点击它把它收回来。",
-            B2_GRID,
-            farmer_facing="east",
-            cow_facings=["north"],
-            obstacle_limit=1,
-            extra={"require_undo": True},
-            tips=[
-                {"trigger": "start", "text": "先放一捆干草，再点同一格把它收回来。"},
-                {"trigger": "place", "text": "放好了。现在点击干草垛，或按「撤销一步」。"},
-                {"trigger": "remove", "text": "收回来了！布局阶段可以反复调整，直到开始为止。"},
-                {"trigger": "run", "text": "重新放好干草垛，然后开始吧。"},
-                {"trigger": "win", "text": "调整路线就是解谜的过程。"},
+            "等一等",
+            "按空格让农夫等待，牛会自己走过来。",
+            "用等待抓住牛。",
+            "按空格等待至少一回合，再抓住牛。",
+            [
+                {"trigger": "start", "text": "按空格可以让农夫原地等待，牛仍然会走一步。"},
+                {"trigger": "wait", "text": "牛正在靠近。继续等，让它自己走进来。"},
+                {"trigger": "win", "text": "等待也是一种策略：不用追，让牛来找你。"},
             ],
+            level(
+                "basics_03",
+                "等一等",
+                [
+                    "#######",
+                    "#.....#",
+                    "#######",
+                    "#F...C#",
+                    "#######",
+                    "#.....#",
+                    "#######",
+                ],
+                "east",
+                ["west"],
+                max_turns=8,
+                require_wait=True,
+                s_threshold=4,
+                a_threshold=6,
+                b_threshold=7,
+            ),
         ),
         lesson(
             "basics_04",
-            "看清三步",
-            "虚线是接下来三步的预测，布局会实时改变它。",
-            "利用前三步预测完成关卡。",
-            "先观察预测虚线，再放下两块干草。",
-            B4_GRID,
-            farmer_facing="east",
-            cow_facings=["north"],
-            obstacle_limit=2,
-            tips=[
-                {"trigger": "start", "text": "虚线表示接下来 3 步的预测，先看看两位主角会走到哪里。"},
-                {"trigger": "place", "text": "预测会随布局实时变化，换个位置再看看。"},
-                {"trigger": "run", "text": "开始之后，每走一步预测都会重新计算。"},
-                {"trigger": "win", "text": "善用预测，可以少走很多弯路。"},
+            "撤销一步",
+            "放错了？按 U 收回干草垛，再重新想。",
+            "先放下一捆干草并收回，再完成追逐。",
+            "放一捆干草，按 U 收回，然后再放好开始。",
+            [
+                {"trigger": "start", "text": "放一捆干草，再按 U 把它收回。布局阶段可以反复调整。"},
+                {"trigger": "place", "text": "放好了。现在按 U，或点击干草垛把它收回。"},
+                {"trigger": "undo", "text": "收回来了。撤销之后可以重新放，直到你满意为止。"},
+                {"trigger": "run", "text": "再放一捆干草，然后开始追逐。"},
+                {"trigger": "win", "text": "会撤销，就能大胆试错。"},
             ],
+            level(
+                "basics_04",
+                "撤销一步",
+                [
+                    "#######",
+                    "#.....#",
+                    "#..#C.#",
+                    "#..#..#",
+                    "#..#..#",
+                    "#F....#",
+                    "#######",
+                ],
+                "east",
+                ["east"],
+                max_turns=10,
+                initial_obstacles=1,
+                require_obstacle=1,
+                require_undo=True,
+                s_threshold=4,
+                a_threshold=6,
+                b_threshold=8,
+            ),
         ),
         lesson(
             "basics_05",
-            "时间闭环",
-            "如果状态完全重复，时间就会绕成一个圈。",
-            "先见识一次时间闭环，再打破它。",
-            "不妨先不加干草，直接开始看看。",
-            B5_GRID,
-            farmer_facing="east",
-            cow_facings=["north"],
-            obstacle_limit=1,
-            tips=[
-                {"trigger": "start", "text": "如果两位主角回到完全相同的状态，时间就会绕成闭环。"},
-                {"trigger": "run", "text": "先不加干草垛，直接开始看看会发生什么。"},
-                {"trigger": "step", "text": "他们在重复同一段路线……"},
-                {"trigger": "fail", "text": "时间闭环了。重复的状态意味着永远抓不到，必须改变路线。"},
-                {"trigger": "place", "text": "加一捆干草，打破这个循环。"},
-                {"trigger": "win", "text": "打破循环，就能抓到牛。"},
+            "看清前路",
+            "按 P 打开路径预测，先看牛会走到哪里。",
+            "打开 6 回合预测，规划路线抓住牛。",
+            "按 P 打开预测，再开始追逐。",
+            [
+                {"trigger": "start", "text": "这一关的预测能看到 6 回合。按 P 打开它。"},
+                {"trigger": "predict", "text": "半透明脚印就是牛接下来会走的路。先观察，再移动。"},
+                {"trigger": "run", "text": "现在开始追逐。每走一步，脚印都会重新计算。"},
+                {"trigger": "win", "text": "先看路，再走路，就能少绕很多圈。"},
             ],
-        ),
-        lesson(
-            "basics_06",
-            "抓牛小考",
-            "两块干草，一头牛，一节课学到的都用上。",
-            "用两捆干草抓住牛。",
-            "结合预测与转角，把两块干草放在关键位置。",
-            B6_GRID,
-            farmer_facing="east",
-            cow_facings=["north"],
-            obstacle_limit=2,
-            extra={"require_obstacle": 2},
-            tips=[
-                {"trigger": "start", "text": "最后来一次小测验：两捆干草，抓住牛。"},
-                {"trigger": "place", "text": "位置很重要，先看看预测虚线。"},
-                {"trigger": "win", "text": "基础教程完成！主线关卡里还有更多牧场等着你。"},
-            ],
+            level(
+                "basics_05",
+                "看清前路",
+                [
+                    "#######",
+                    "#F....#",
+                    "#..#..#",
+                    "#..#C.#",
+                    "#..#..#",
+                    "#.....#",
+                    "#######",
+                ],
+                "east",
+                ["east"],
+                max_turns=15,
+                prediction_steps=6,
+                require_prediction=True,
+                s_threshold=7,
+                a_threshold=10,
+                b_threshold=12,
+            ),
         ),
     ],
 }
 
 
-def _find_solution(level):
-    """Use the item-aware search when the lesson ships tools, else the solver."""
-    if level.item_counts:
-        return search(level, max_tries=400000)
-    return solve(level, level.obstacle_limit, verbose=False)
-
-
-
-# ---------------------------------------------------------------------------
-# 进阶教程
-# ---------------------------------------------------------------------------
-A1_GRID = [
-    "##########",
-    "#F.......#",
-    "#........#",
-    "#..###...#",
-    "#........#",
-    "#.......C#",
-    "#........#",
-    "#..C.....#",
-    "#........#",
-    "##########",
-]
-A2_GRID = [
-    "##########",
-    "#F.......#",
-    "#....#...#",
-    "#........#",
-    "#....#..D#",
-    "#........#",
-    "#........#",
-    "#........#",
-    "#........#",
-    "##########",
-]
-A3_GRID = [
-    "##########",
-    "#........#",
-    "#.#......#",
-    "#..###...#",
-    "#........#",
-    "#F.......#",
-    "#........#",
-    "#....G...#",
-    "#...#....#",
-    "##########",
-]
-A4_GRID = [
-    "##########",
-    "#......F.#",
-    "#...#....#",
-    "#........#",
-    "#........#",
-    "#.....S..#",
-    "#.#......#",
-    "#........#",
-    "#........#",
-    "##########",
-]
-A5_GRID = [
-    "##########",
-    "#...F.##.#",
-    "#.....#..#",
-    "#........#",
-    "#........#",
-    "#..####..#",
-    "#.######.#",
-    "#.#.##.#.#",
-    "#C..##...#",
-    "##########",
-]
-
 ADVANCED = {
-    "version": 1,
-    "chapter": "advanced",
     "title": "进阶教程",
-    "subtitle": "新的牛与新的道具",
-    "intro": "学会和性格各异的牛打交道，并用苹果、喇叭、泥地和路标改变追逐的节奏。",
+    "subtitle": "多头牛、围栏和循环提示",
+    "intro": "三节进阶课：同时应付多头牛，把牛送进围栏，认识不会判负的循环提示。",
     "badge": "进阶",
-    "accent": "clay",
+    "accent": "sky",
     "lessons": [
         lesson(
             "advanced_01",
-            "牧场来了第二头牛",
-            "抓住任意一头牛就算赢。",
-            "同时盯着两头牛的路线，抓住其中一头。",
-            "用两捆干草制造一次相遇。",
-            A1_GRID,
-            farmer_facing="east",
-            cow_facings=["north", "west"],
-            obstacle_limit=2,
-            tips=[
-                {"trigger": "start", "text": "牧场上有两头牛，抓住任意一头就算胜利。"},
-                {"trigger": "place", "text": "两捆干草可以分别影响两条路线。"},
-                {"trigger": "run", "text": "注意两束预测虚线，找到最早的交点。"},
-                {"trigger": "win", "text": "面对多头牛时，先解决离农夫最近的那一头。"},
+            "两头牛",
+            "两头牛按固定顺序移动；抓住任意一头即可。",
+            "抓住任意一头牛。",
+            "观察两头牛的路线，抓住离你更近的一头。",
+            [
+                {"trigger": "start", "text": "场上有两头牛，它们按从左到右的固定顺序各走一步。"},
+                {"trigger": "move", "text": "抓任意一头都算赢。先盯住离你最近的那一头。"},
+                {"trigger": "win", "text": "多头牛时，选择一个目标，别在两条路线之间摇摆。"},
             ],
+            level(
+                "advanced_01",
+                "两头牛",
+                [
+                    "##########",
+                    "#........#",
+                    "#.#....#.#",
+                    "#...TT...#",
+                    "##.CTT..##",
+                    "#........#",
+                    "#.#...C#.#",
+                    "#.HHHHHH.#",
+                    "#..#..#F.#",
+                    "##########",
+                ],
+                "north",
+                ["east", "west"],
+                max_turns=20,
+                prediction_steps=5,
+                cows_block_each_other=True,
+                s_threshold=7,
+                a_threshold=10,
+                b_threshold=13,
+            ),
         ),
         lesson(
             "advanced_02",
-            "倔脾气的牛",
-            "倔牛被挡住时会逆时针转身。",
-            "利用倔牛与众不同的转身方向。",
-            "先挡住倔牛，再让农夫绕过去。",
-            A2_GRID,
-            farmer_facing="east",
-            cow_facings=["north"],
-            obstacle_limit=2,
-            tips=[
-                {"trigger": "start", "text": "这头牛被挡住时会逆时针转身，和普通牛正好相反。"},
-                {"trigger": "place", "text": "挡在它前面，它会转向左边。"},
-                {"trigger": "run", "text": "倔牛会往反方向拐，路线会比你想的更绕。"},
-                {"trigger": "win", "text": "记住它的转向，下一次就能提前预判。"},
+            "围栏",
+            "把所有牛赶进金色围栏格就获胜。",
+            "让牛走进围栏格。",
+            "等牛自己走进金色围栏格。",
+            [
+                {"trigger": "start", "text": "这一关的目标不是抓住牛，而是让牛走进金色围栏格。"},
+                {"trigger": "wait", "text": "农夫无法进入围栏区。耐心等牛沿自己的路线走进来。"},
+                {"trigger": "win", "text": "所有牛都进栏就获胜。围栏关里，牛可以不用被抓住。"},
             ],
+            level(
+                "advanced_02",
+                "围栏",
+                [
+                    "########",
+                    "#......#",
+                    "#.####.#",
+                    "#.#C.#.#",
+                    "#.#..#.#",
+                    "#.####.#",
+                    "#F.....#",
+                    "########",
+                ],
+                "east",
+                ["east"],
+                max_turns=8,
+                prediction_steps=3,
+                win_condition="pen",
+                pen_cells=[[3, 4]],
+                s_threshold=1,
+                a_threshold=3,
+                b_threshold=5,
+            ),
         ),
         lesson(
             "advanced_03",
-            "贪吃的牛",
-            "贪吃牛被挡住时会优先走向旁边的苹果。",
-            "用一颗苹果把贪吃牛引到农夫面前。",
-            "选择苹果工具，点在牛身边；再补一捆干草。",
-            A3_GRID,
-            farmer_facing="south",
-            cow_facings=["north"],
-            obstacle_limit=2,
-            extra={"item_counts": {"apple": 1}},
-            tips=[
-                {"trigger": "start", "text": "贪吃牛被挡住时，会优先走向旁边的苹果。"},
-                {"trigger": "place", "text": "把苹果放在它转向后能碰到的地方。"},
-                {"trigger": "run", "text": "苹果会把它引向农夫，注意时机。"},
-                {"trigger": "win", "text": "用苹果当诱饵，比硬挡更有效。"},
+            "循环提示",
+            "牛的状态重复时会出现提示，但不会判负。",
+            "观察一次循环提示。",
+            "连续按空格等待，直到循环提示出现。",
+            [
+                {"trigger": "start", "text": "连续按空格等待。牛的位置和朝向重复时，会看到循环提示。"},
+                {"trigger": "wait", "text": "继续等。循环提示只是一条提醒，不是失败。"},
+                {"trigger": "loop", "text": "看，牛进入了循环。你可以继续行动，或者回到布置阶段换一条路。"},
             ],
-        ),
-        lesson(
-            "advanced_04",
-            "胆小的牛",
-            "喇叭响起时所有牛掉头，胆小牛还会后退一步。",
-            "把喇叭放在农夫会经过的位置，吓退胆小牛。",
-            "选择喇叭工具，放在农夫的必经之路上。",
-            A4_GRID,
-            farmer_facing="north",
-            cow_facings=["west"],
-            obstacle_limit=1,
-            extra={"item_counts": {"horn": 1}},
-            tips=[
-                {"trigger": "start", "text": "喇叭被踩到时会响：所有牛掉头，胆小牛还会后退一步。"},
-                {"trigger": "place", "text": "把喇叭放在农夫路上，等他自己去踩。"},
-                {"trigger": "run", "text": "喇叭只响一次，时机比位置更重要。"},
-                {"trigger": "win", "text": "胆小牛的后退常常会把它送到农夫身边。"},
-            ],
-        ),
-        lesson(
-            "advanced_05",
-            "泥地与路标",
-            "泥地会让人陷住一回合，路标会强行改变朝向。",
-            "利用已经摆好的泥地和路标完成追逐。",
-            "观察机关的位置，用两捆干草补上最后一段路。",
-            A5_GRID,
-            farmer_facing="east",
-            cow_facings=["north"],
-            obstacle_limit=2,
-            extra={
-                "placed_items": [
-                    {"kind": "mud", "pos": [4, 2]},
-                    {"kind": "signpost", "pos": [2, 4], "facing": "south"},
-                ]
-            },
-            tips=[
-                {"trigger": "start", "text": "泥地会让人陷住一回合，路标会强行改变朝向。"},
-                {"trigger": "place", "text": "机关已经摆好，你只需要补上干草垛。"},
-                {"trigger": "run", "text": "看看谁踩进泥地，谁又被路标带走。"},
-                {"trigger": "win", "text": "道具组合起来，能把整条路线重新编排。"},
-            ],
+            level(
+                "advanced_03",
+                "循环提示",
+                [
+                    "#######",
+                    "#.....#",
+                    "#.###.#",
+                    "#.#C#.#",
+                    "#.###.#",
+                    "#F....#",
+                    "#######",
+                ],
+                "east",
+                ["east"],
+                max_turns=20,
+                complete_on_loop=True,
+                s_threshold=4,
+                a_threshold=8,
+                b_threshold=12,
+            ),
         ),
     ],
 }
 
 
-def verify(chapter: Dict[str, object], strict: bool = True) -> Dict[str, object]:
-    solutions: Dict[str, object] = {}
-    for item in chapter["lessons"]:  # type: ignore[index]
-        payload = item["level"]
-        level = parse_level({**payload, "step_limit": 100})
-        limit = int(payload.get("obstacle_limit", 0))
-        zero_status, zero_steps = run(level, ())
-        best = None
-        for cap in range(0, limit + 1):
-            if level.item_counts:
-                probe = parse_level({**payload, "obstacle_limit": cap, "step_limit": 100})
-                result = search(probe, cap, max_tries=400000)
-            else:
-                result = solve(level, cap, verbose=False)
-            if result.solved:
-                best = result
-                break
-        if best is None:
-            raise SystemExit(f"{item['id']} is not solvable with {limit} obstacles")
-        minimum = best.steps
-        payload["step_limit"] = minimum + 20
-        if int(payload.get("obstacle_limit", 0)) == 0:
-            payload["step_limit"] = max(12, minimum + 10)
-        payload["s_threshold"] = max(1, minimum)
-        payload["a_threshold"] = minimum + 4
-        payload["b_threshold"] = minimum + 10
-        solutions[item["id"]] = {
-            "obstacles": [list(pos) for pos in best.obstacles],
-            "items": [[kind.value, list(pos)] for kind, pos in getattr(best, "items", ())],
-            "steps": minimum,
-        }
-        print(
-            f"  {item['id']} {item['name']}: min={minimum} bales={len(best.obstacles)} "
-            f"zero={zero_status.value}@{zero_steps} limit={payload['step_limit']}"
-        )
-        if strict and zero_status is GameStatus.WON and limit > 0:
-            print("    note: this lesson can be won without placing anything (fine for demos)")
-    return solutions
+EDITOR = {
+    "title": "编辑器教程",
+    "subtitle": "自己造一片牧场",
+    "intro": "三节编辑器课：画地形、设置规则、导出与导入。",
+    "badge": "编辑器",
+    "accent": "clay",
+    "lessons": [
+        lesson(
+            "editor_01",
+            "画一面栅栏",
+            "选择栅栏工具，在草地上画出三格。",
+            "画出至少三格栅栏。",
+            "选择「栅栏」，在草地上点击三次。",
+            [
+                {"trigger": "start", "text": "在右侧选择「栅栏」，然后在草地上点击三格。右键可以擦除。"},
+                {"trigger": "place", "text": "继续点击。画好的栅栏会立刻出现在棋盘上。"},
+            ],
+            level(
+                "editor_01",
+                "画一面栅栏",
+                STARTER,
+                "east",
+                ["north"],
+                max_turns=40,
+                initial_obstacles=3,
+                prediction_steps=5,
+                s_threshold=10,
+                a_threshold=18,
+                b_threshold=26,
+            ),
+            editor_task={"type": "paint_wall", "count": 3},
+            starter_grid=STARTER,
+        ),
+        lesson(
+            "editor_02",
+            "设置新的规则",
+            "把胜利条件改成围栏，再画出两格围栏格。",
+            "设置围栏胜利，并画出两格围栏格。",
+            "点「胜利：抓住」切换成围栏，再用围栏格工具画两格。",
+            [
+                {"trigger": "start", "text": "先点「胜利：抓住」切换成围栏，再用「围栏格」画两格。"},
+                {"trigger": "place", "text": "金色格子就是围栏。围栏关里，牛要走到这里才算赢。"},
+            ],
+            level(
+                "editor_02",
+                "设置新的规则",
+                STARTER,
+                "east",
+                ["north"],
+                max_turns=40,
+                initial_obstacles=3,
+                prediction_steps=5,
+                s_threshold=10,
+                a_threshold=18,
+                b_threshold=26,
+            ),
+            editor_task={"type": "set_rules", "pen_cells": 2},
+            starter_grid=STARTER,
+        ),
+        lesson(
+            "editor_03",
+            "导出与导入",
+            "把关卡保存成 JSON，再读回来。",
+            "导出一次并导入一次。",
+            "先点「导出关卡」，再点「导入关卡」选择刚才的文件。",
+            [
+                {"trigger": "start", "text": "「导出关卡」会把当前设计写进 custom_levels/，格式是普通 JSON。"},
+                {"trigger": "place", "text": "导出之后点「导入关卡」，选择刚生成的文件就能读回来。"},
+            ],
+            level(
+                "editor_03",
+                "导出与导入",
+                STARTER,
+                "east",
+                ["north"],
+                max_turns=40,
+                initial_obstacles=3,
+                prediction_steps=5,
+                s_threshold=10,
+                a_threshold=18,
+                b_threshold=26,
+            ),
+            editor_task={"type": "export_import"},
+            starter_grid=STARTER,
+        ),
+    ],
+}
 
 
 def main() -> int:
-    print("verify basics chapter")
-    solutions = verify(BASICS)
-    path = ROOT / "tutorials" / "basics.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(BASICS, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    solution_path = ROOT / "tests" / "tutorial_solutions.json"
-    existing = {}
-    if solution_path.exists():
-        try:
-            existing = json.loads(solution_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            existing = {}
-    existing["basics"] = solutions
-    solution_path.write_text(json.dumps(existing, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    print("verify advanced chapter")
-    advanced_solutions = verify(ADVANCED)
-    advanced_path = ROOT / "tutorials" / "advanced.json"
-    advanced_path.write_text(json.dumps(ADVANCED, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    existing["advanced"] = advanced_solutions
-    solution_path.write_text(json.dumps(existing, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    print(f"wrote {path}, {advanced_path} and {solution_path}")
+    root = Path(__file__).resolve().parent.parent
+    for name, chapter in (("basics", BASICS), ("advanced", ADVANCED), ("editor", EDITOR)):
+        path = root / "tutorials" / f"{name}.json"
+        path.write_text(json.dumps(chapter, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"wrote {path.relative_to(root)} ({len(chapter['lessons'])} lessons)")
+    # A quick syntax / schema check through the real loader.
+    catalog = TutorialCatalog.load()
+    for chapter in catalog.all():
+        for item in chapter.lessons:
+            if chapter.chapter_id == "editor":
+                continue
+            print("  ok", item.level_id, item.max_turns, item.win_condition.value)
     return 0
 
 

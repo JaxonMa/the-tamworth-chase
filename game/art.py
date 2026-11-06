@@ -594,88 +594,6 @@ def build_obstacle(size: int) -> pygame.Surface:
     return pygame.transform.smoothscale(canvas, (size, size))
 
 
-def build_apple(size: int) -> pygame.Surface:
-    work = size * 3
-    canvas = _actor_canvas(work)
-    u = work / 64.0
-    _shadow(canvas, int(32 * u), int(50 * u), int(14 * u), int(5 * u), 50)
-    _circle(canvas, theme.BERRY, (30 * u, 34 * u), 15 * u)
-    _circle(canvas, theme.BERRY_LIGHT, (36 * u, 30 * u), 12 * u)
-    _circle(canvas, theme.lighten(theme.BERRY, 0.35), (26 * u, 27 * u), 4 * u)
-    _line(canvas, theme.WOOD_DARK, (32 * u, 20 * u), (34 * u, 12 * u), max(2, int(2.4 * u)))
-    _ellipse(canvas, theme.LEAF, (34 * u, 10 * u, 14 * u, 8 * u))
-    return pygame.transform.smoothscale(canvas, (size, size))
-
-
-def build_mud(size: int) -> pygame.Surface:
-    work = size * 3
-    canvas = _actor_canvas(work)
-    u = work / 64.0
-    _ellipse(canvas, theme.DIRT_DARK, (6 * u, 22 * u, 52 * u, 30 * u))
-    _ellipse(canvas, theme.DIRT, (10 * u, 25 * u, 44 * u, 22 * u))
-    for x, y in ((20, 34), (34, 30), (42, 38)):
-        _ellipse(canvas, theme.darken(theme.DIRT, 0.12), (x * u, y * u, 8 * u, 4 * u))
-    return pygame.transform.smoothscale(canvas, (size, size))
-
-
-def build_signpost(size: int) -> pygame.Surface:
-    work = size * 3
-    canvas = _actor_canvas(work)
-    u = work / 64.0
-    _shadow(canvas, int(34 * u), int(54 * u), int(14 * u), int(5 * u), 50)
-    _rounded(canvas, theme.WOOD_DARK, (30 * u, 16 * u, 6 * u, 40 * u), int(2 * u))
-    _rounded(canvas, theme.WOOD_LIGHT, (10 * u, 20 * u, 38 * u, 16 * u), int(4 * u))
-    _polygon(canvas, theme.WOOD_LIGHT, [(48 * u, 20 * u), (58 * u, 28 * u), (48 * u, 36 * u)])
-    _line(canvas, theme.WOOD_DARK, (16 * u, 28 * u), (40 * u, 28 * u), max(1, int(2 * u)))
-    return pygame.transform.smoothscale(canvas, (size, size))
-
-
-def build_horn(size: int) -> pygame.Surface:
-    work = size * 3
-    canvas = _actor_canvas(work)
-    u = work / 64.0
-    _circle(canvas, theme.CLAY, (22 * u, 34 * u), 16 * u)
-    _circle(canvas, theme.CLAY_LIGHT, (18 * u, 30 * u), 10 * u)
-    _polygon(canvas, theme.SUN, [(34 * u, 30 * u), (58 * u, 16 * u), (56 * u, 44 * u)])
-    _polygon(canvas, theme.SUN_LIGHT, [(36 * u, 30 * u), (54 * u, 20 * u), (53 * u, 38 * u)])
-    _circle(canvas, theme.WOOD_DARK, (22 * u, 34 * u), 5 * u)
-    return pygame.transform.smoothscale(canvas, (size, size))
-
-
-PORTAL_COLORS = ((151, 188, 214), (206, 170, 200))
-
-
-def build_portal(size: int, variant: int = 0) -> pygame.Surface:
-    work = size * 3
-    canvas = _actor_canvas(work)
-    u = work / 64.0
-    color = PORTAL_COLORS[variant % len(PORTAL_COLORS)]
-    _ellipse(canvas, theme.darken(color, 0.2), (10 * u, 8 * u, 44 * u, 52 * u))
-    _ellipse(canvas, color, (14 * u, 12 * u, 36 * u, 44 * u))
-    for index, radius in enumerate((14, 9, 5)):
-        pygame.draw.arc(
-            canvas,
-            theme.lighten(color, 0.35 - index * 0.06),
-            pygame.Rect((32 - radius) * u, (34 - radius) * u, radius * 2 * u, radius * 2 * u),
-            index * 1.4,
-            index * 1.4 + 3.6,
-            max(1, int(1.8 * u)),
-        )
-    return pygame.transform.smoothscale(canvas, (size, size))
-
-
-def build_crate(size: int) -> pygame.Surface:
-    work = size * 3
-    canvas = _actor_canvas(work)
-    u = work / 64.0
-    _shadow(canvas, int(32 * u), int(54 * u), int(20 * u), int(6 * u), 50)
-    _rounded(canvas, theme.WOOD_DARK, (12 * u, 16 * u, 40 * u, 38 * u), int(5 * u))
-    _rounded(canvas, theme.WOOD, (15 * u, 19 * u, 34 * u, 32 * u), int(4 * u))
-    _line(canvas, theme.WOOD_DARK, (18 * u, 22 * u), (46 * u, 48 * u), max(2, int(2 * u)))
-    _line(canvas, theme.WOOD_DARK, (46 * u, 22 * u), (18 * u, 48 * u), max(2, int(2 * u)))
-    return pygame.transform.smoothscale(canvas, (size, size))
-
-
 def build_hat(size: int) -> pygame.Surface:
     """A straw hat that pops off the farmer's head when he catches a cow."""
     work = size * 3
@@ -715,18 +633,6 @@ def build_tree(size: int) -> pygame.Surface:
 
 def unit_u(u: float) -> float:
     return max(1.0, u)
-
-
-def build_target_marker(size: int) -> pygame.Surface:
-    """Soft ring used to highlight a tutorial goal tile."""
-    work = size * 2
-    canvas = _actor_canvas(work)
-    for index, radius in enumerate((work * 0.44, work * 0.36)):
-        alpha = 150 if index == 0 else 90
-        layer = pygame.Surface((work, work), pygame.SRCALPHA)
-        pygame.draw.circle(layer, (*theme.SUN, alpha), (work // 2, work // 2), int(radius), 3)
-        canvas.blit(layer, (0, 0))
-    return pygame.transform.smoothscale(canvas, (size, size))
 
 
 # ---------------------------------------------------------------------------
@@ -799,7 +705,6 @@ class ArtCache:
         self._farmers: Dict[Direction, pygame.Surface] = {}
         self._cows: Dict[Direction, pygame.Surface] = {}
         self._props: Dict[str, pygame.Surface] = {}
-        self._rotated: Dict[Tuple[str, int, int], pygame.Surface] = {}
 
     # -- tiles ---------------------------------------------------------
     def tile(self, kind: TileKind, variant: int = 0, fence_mask: Optional[int] = None) -> pygame.Surface:
@@ -836,50 +741,8 @@ class ArtCache:
         sprite = self._props.get(name)
         if sprite is not None:
             return sprite
-        builders = {
-            "obstacle": lambda: build_obstacle(self.cell),
-            "apple": lambda: build_apple(self.cell),
-            "mud": lambda: build_mud(self.cell),
-            "signpost": lambda: build_signpost(self.cell),
-            "horn": lambda: build_horn(self.cell),
-            "crate": lambda: build_crate(self.cell),
-            "marker": lambda: build_target_marker(self.cell),
-            "portal_a": lambda: build_portal(self.cell, 0),
-            "portal_b": lambda: build_portal(self.cell, 1),
-        }
-        builder = builders.get(name)
-        if builder is None:
+        if name != "obstacle":
             raise KeyError(f"unknown prop sprite: {name}")
-        sprite = builder()
+        sprite = build_obstacle(self.cell)
         self._props[name] = sprite
-        return sprite
-
-    def rotated(self, name: str, angle: int) -> pygame.Surface:
-        """Rotate a prop by a multiple of 15 degrees (cached)."""
-        snapped = int(round(angle / 15.0)) * 15
-        key = (name, snapped, self.cell)
-        cached = self._rotated.get(key)
-        if cached is None:
-            cached = pygame.transform.rotozoom(self.prop(name), snapped, 1.0)
-            self._rotated[key] = cached
-        return cached
-
-    def slot_sprite(self, kind: str, size: int = 44) -> pygame.Surface:
-        """Small icon used in the item palette / HUD."""
-        key = f"slot_{kind}_{size}"
-        cached = self._props.get(key)
-        if cached is not None:
-            return cached
-        builders = {
-            "apple": build_apple,
-            "mud": build_mud,
-            "signpost": build_signpost,
-            "horn": build_horn,
-            "crate": build_crate,
-            "obstacle": build_obstacle,
-            "portal": lambda s: build_portal(s, 0),
-        }
-        builder = builders.get(kind, build_obstacle)
-        sprite = builder(size)
-        self._props[key] = sprite
         return sprite

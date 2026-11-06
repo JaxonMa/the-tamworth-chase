@@ -48,6 +48,9 @@ def data_dir() -> Path:
 
 def legacy_data_dir() -> Path:
     """Return the pre-rename data directory (never created automatically)."""
+    override = os.environ.get(LEGACY_DATA_DIR_ENV)
+    if override:
+        return Path(override).expanduser()
     return Path.home() / LEGACY_DATA_DIR_NAME
 
 

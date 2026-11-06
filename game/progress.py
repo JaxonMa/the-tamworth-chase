@@ -12,8 +12,8 @@ import copy
 import json
 import os
 import tempfile
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
@@ -101,6 +101,8 @@ class ProgressStore:
         raw = self._read_json(self.path)
         if raw is not None:
             self.data = self._migrate(raw)
+            if raw.get("version") != SAVE_VERSION:
+                self.save()
             return self
 
         # First launch after the rename: migrate the old save exactly once.

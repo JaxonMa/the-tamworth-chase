@@ -89,6 +89,14 @@ def test_turn_limits_leave_room(levels):
         assert level.s_threshold < level.a_threshold < level.b_threshold
 
 
+def test_campaign_has_multi_cow_and_no_prediction_levels(levels):
+    by_id = {level.level_id: level for level in levels}
+    assert len(by_id["level_08"].cow_positions) == 2
+    assert by_id["level_08"].cows_block_each_other is True
+    assert len(by_id["level_10"].cow_positions) == 2
+    assert by_id["level_09"].prediction_steps == 0
+
+
 def test_levels_are_solvable_without_obstacles(levels):
     for level in levels:
         solution = SOLUTIONS[level.level_id]

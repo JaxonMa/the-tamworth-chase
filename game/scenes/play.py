@@ -143,7 +143,10 @@ class PlayScene(Scene):
         self.undo_button.enabled = self.sim.can_undo and not self.animator.busy
         self.restart_button.enabled = True
         self.predict_button.enabled = self.level.prediction_steps > 0
-        self.predict_button.text = "预测 开" if self.show_prediction else "预测 关"
+        if self.level.prediction_steps <= 0:
+            self.predict_button.text = "预测 无"
+        else:
+            self.predict_button.text = "预测 开" if self.show_prediction else "预测 关"
         if self.phase == "place":
             self.start_button.text = "开始追逐"
         elif self.phase == "result":
@@ -865,6 +868,35 @@ class PlayScene(Scene):
             )
             surface.blit(helper, (left, y))
 
+        if self.tutorial is None:
+            card = pygame.Rect(left, 438, width, 124)
+            theme.rounded_rect(surface, card, theme.CREAM, radius=14)
+            theme.rounded_rect(surface, card, theme.PANEL_BORDER, radius=14, width=2)
+            theme.draw_text(
+                surface,
+                self.fonts,
+                "本关规则",
+                (card.left + 16, card.top + 10),
+                theme.FONT_TINY,
+                theme.INK_LIGHT,
+            )
+            lines = [
+                "每回合：农夫先动，牛后动。",
+                f"回合上限 {self.level.max_turns} · 预测 {self.level.prediction_steps} 步",
+                "空格等待 · U 撤销 · R 重开",
+            ]
+            line_y = card.top + 34
+            for line in lines:
+                theme.draw_text(
+                    surface,
+                    self.fonts,
+                    line,
+                    (card.left + 16, line_y),
+                    theme.FONT_SMALL,
+                    theme.INK_SOFT,
+                )
+                line_y += 26
+
         self.start_button.draw(surface, self.fonts)
         if self.mode == "tutorial":
             self.skip_button.enabled = not self.sim.status.is_finished
@@ -901,12 +933,12 @@ class PlayScene(Scene):
         else:
             text = "方向键/WASD 移动 · 空格等待 · U 撤销 · R 重开 · P 预测"
         draw_footer(surface, self.fonts, text)
-        if self.show_prediction and self.level.prediction_steps > 0:
+        if self.show_prediction and self.level.prediction_steps > 0 and self.toast_timer <= 0:
             theme.draw_text(
                 surface,
                 self.fonts,
                 f"半透明脚印 = 牛接下来 {self.level.prediction_steps} 回合的路线（假设农夫等待）",
-                (theme.BOARD_ORIGIN[0], 752),
+                (theme.BOARD_ORIGIN[0], 760),
                 theme.FONT_TINY,
                 theme.INK_LIGHT,
             )
@@ -916,7 +948,7 @@ class PlayScene(Scene):
         rect = pygame.Rect(0, 0, body.get_width() + 40, body.get_height() + 24)
         rect.center = (
             theme.BOARD_ORIGIN[0] + theme.BOARD_SIZE // 2,
-            theme.BOARD_ORIGIN[1] + theme.BOARD_SIZE - 8,
+            770,
         )
         theme.soft_shadow(surface, rect, radius=14, alpha=60, offset=(0, 4))
         theme.rounded_rect(surface, rect, theme.CLAY, radius=14)

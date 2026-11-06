@@ -92,6 +92,12 @@
         "wait"
       ],
       "status": "won"
+    },
+    "advanced_03": {
+      "obstacles": [],
+      "turns": 0,
+      "actions": [],
+      "status": "playing"
     }
   },
   "editor": {
@@ -99,19 +105,19 @@
       "obstacles": [],
       "turns": 0,
       "actions": [],
-      "status": "playing"
+      "status": "editor"
     },
     "editor_02": {
       "obstacles": [],
       "turns": 0,
       "actions": [],
-      "status": "playing"
+      "status": "editor"
     },
     "editor_03": {
       "obstacles": [],
       "turns": 0,
       "actions": [],
-      "status": "playing"
+      "status": "editor"
     }
   }
 }

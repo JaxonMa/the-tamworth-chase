@@ -1,12 +1,12 @@
 # The Tamworth Chase
 
-*A cozy, hand-drawn grid-chase puzzle game made entirely with Python.*
+*A cozy, hand-drawn, turn-based grid chase puzzle made entirely with Python.*
 
-Farmer John and his cow both walk the same way: one step forward if the next
-tile is free, otherwise turn 90° clockwise and stay put. They move at exactly
-the same time, forever. Place a few hay bales and tools before the chase starts
-so the two paths fold into each other and the farmer catches the cow — without
-running out of steps and without falling into a time loop.
+Farmer John wants to catch his cow. Every turn the player moves the farmer one
+tile (or waits), and only then does the cow walk one step of its own. The cow
+always walks forward when it can and turns 90° clockwise when a fence, a tree,
+the board edge or a hay bale blocks it. Read the route, use the hay, undo a bad
+guess, and catch the cow before the turn budget runs out.
 
 The whole game is offline. No accounts, no servers, no telemetry, no network
 requests while it runs.
@@ -15,10 +15,8 @@ requests while it runs.
 
 The project was previously released as **The Tamworth Two**. Starting with this
 version the name is **The Tamworth Chase** (Chinese subtitle 《塔姆沃斯追逐》).
-The save file moved to `~/.the_tamworth_chase/save.json`; the old save is
+The save file moved to `~/.the_tamworth_chase/save.json`; an old save is
 migrated automatically on first launch and is never deleted.
-
----
 
 ## Contents
 
@@ -28,79 +26,72 @@ migrated automatically on first launch and is never deleted.
 4. [Running the game](#running-the-game)
 5. [Controls](#controls)
 6. [Game rules](#game-rules)
-7. [Progression, ranks and unlocks](#progression-ranks-and-unlocks)
+7. [Campaign, ranks and unlocks](#campaign-ranks-and-unlocks)
 8. [Tutorial chapters](#tutorial-chapters)
-9. [Cow personalities](#cow-personalities)
-10. [Items](#items)
-11. [Challenge mode and daily meadow](#challenge-mode-and-daily-meadow)
-12. [Level editor](#level-editor)
-13. [Achievements](#achievements)
-14. [Fonts and licensing](#fonts-and-licensing)
-15. [Art, audio and offline assets](#art-audio-and-offline-assets)
-16. [Save data](#save-data)
-17. [Tests](#tests)
-18. [Project layout](#project-layout)
-19. [Design notes and assumptions](#design-notes-and-assumptions)
-
----
+9. [Challenge, daily and achievements](#challenge-daily-and-achievements)
+10. [Level editor](#level-editor)
+11. [Level data schema](#level-data-schema)
+12. [Save data](#save-data)
+13. [Fonts and licensing](#fonts-and-licensing)
+14. [Art and audio](#art-and-audio)
+15. [Offline promise](#offline-promise)
+16. [Tests](#tests)
+17. [Project layout](#project-layout)
+18. [Design notes and assumptions](#design-notes-and-assumptions)
+19. [Known limitations](#known-limitations)
 
 ## Features
 
-- 10 hand-made 10×10 campaign meadows with a rising difficulty curve.
-- A synchronous two-body chase simulation with strict time-loop detection.
-- Place limited hay bales and items, undo them, and forecast the next three steps.
-- Playback controls: start, pause, single step, 0.5× / 1× / 2× speed, restart.
-- S/A/B/C step-based ratings and locally stored best results.
-- An independent tutorial system with three chapters, its own progress and its
-  own state machine.
-- Four cow personalities, six placeable items, five challenge puzzles, a local
-  daily seed meadow and a level editor with JSON export / import.
-- Six local achievements.
-- Every player-facing string is Simplified Chinese.
-- All artwork is drawn procedurally; the only binary asset is the bundled font.
+- **Direct control.** The player moves Farmer John with the arrow keys or WASD,
+  or waits with Space. The cow reacts afterwards, so every turn is a small
+  decision instead of a pre-run simulation.
+- **10 campaign levels** on 10×10 meadows, including two-cow levels and a
+  no-prediction level. Levels unlock one at a time; turns decide the S/A/B/C
+  grade.
+- **Multi-level undo.** Undo any turn, or step all the way back to the
+  placement phase. Placement actions are undoable too, before or after the
+  chase starts.
+- **Configurable path preview.** Each level chooses how many future cow steps
+  to show (0–20, default 5). The preview is drawn as translucent hoof prints
+  and can be toggled at any time with `P`.
+- **Loop hint, not a loss.** When the cows' positions and facings repeat, a
+  Chinese hint appears. The game keeps going; the player can break the loop.
+- **Two win conditions.** Catch any cow, or — on pen levels — have every cow
+  inside a marked pen cell at the same time.
+- **Independent tutorial chapters.** 5 basic, 3 advanced and 3 editor lessons.
+  The tutorial has its own entry, its own progress and its own skip/replay/reset
+  controls. Tutorial completion never unlocks a campaign level.
+- **Challenge and daily modes.** Five curated side levels, plus a local daily
+  meadow generated from the calendar date and verified solvable on the device.
+- **Level editor.** Paint terrain, place the farmer and up to three cows, set
+  the turn budget, obstacle count, prediction depth and win condition, paint pen
+  cells, test-play, then export/import plain JSON.
+- **Achievements.** One-turn catch, obstacle-free clear, pen clear, loop-free
+  run, and full campaign completion, all stored locally.
+- **Procedural picture-book art.** Grass, fences, hedges, ponds, trees, the
+  farmer, cows, hay bales and pen tiles are drawn in code. No bitmap sprite
+  sheets and no emoji are used.
+- **Bundled Chinese font.** CEF Fonts CJK is shipped with the game and loaded
+  locally.
 
 ## Requirements
 
-- Python 3.10 or newer (developed and verified on CPython 3.14).
-- A desktop session with a window system (macOS, Windows or Linux).
-- `pygame-ce` for windowing, drawing and audio; `pytest` for the test suite.
+- Python 3.10 or newer (developed and tested with Python 3.14.7)
+- `pygame-ce` 2.5.x
+- `pytest` for the test suite only
+- macOS, Linux or Windows with a desktop session for the graphical window
 
 ## Virtual environment and installation
 
-The repository expects a local virtual environment in `.venv/`.
-
-macOS / Linux:
+The project uses its own `.venv`; dependencies are never installed into the
+global Python.
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -r requirements.txt
 ```
 
-Windows (PowerShell):
-
-```powershell
-py -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
-If you prefer an explicit interpreter path instead of activating the
-environment:
-
-```bash
-.venv/bin/python main.py
-.venv/bin/python -m pytest
-```
-
-Dependencies are pinned to compatible ranges in `requirements.txt`:
-
-| Package | Version | Purpose |
-| --- | --- | --- |
-| pygame-ce | >=2.5,<2.6 | Window, rendering, input and sound mixing |
-| pytest | >=8,<9 | Unit tests only |
+On Windows the interpreter path is `.venv\Scripts\python.exe`.
 
 ## Running the game
 
@@ -108,194 +99,243 @@ Dependencies are pinned to compatible ranges in `requirements.txt`:
 .venv/bin/python main.py
 ```
 
-There are no command-line modes required to play. All progress is stored in a
-local JSON file (see [Save data](#save-data)).
+The window is 1280×840. All player-facing text is Simplified Chinese; the code,
+comments and docstrings are English.
 
 ## Controls
 
 | Input | Action |
-| --- | --- |
-| Left click | Place the selected hay bale / item, or pick up what is under the cursor |
-| Right click | Pick up whatever is under the cursor |
-| `Space` | Start the chase, or pause / resume |
-| `S` or `→` | Advance a single tick |
-| `R` | Restart the attempt |
-| `1` / `2` / `3` | Set playback speed to 0.5× / 1× / 2× |
-| `P` | Toggle the three-step forecast |
-| `Esc` | Go back |
+|---|---|
+| Arrow keys / `W` `A` `S` `D` | Move Farmer John one tile |
+| Space | Wait one turn (or start the chase during placement) |
+| Mouse left click | Place / remove a hay bale during placement |
+| Mouse right click | Remove a hay bale during placement |
+| `U` | Undo one action (placement or turn) |
+| `R` | Restart the level in the placement phase |
+| `P` | Toggle the path preview |
+| `Esc` | Return to the previous screen |
 
-Every action is also available from the on-screen buttons on the right-hand
-panel. In the level editor, left click paints and right click erases.
+The UI also shows clickable **撤销**, **重开** and **预测** buttons at the top.
+Paused, single-step and speed controls do not exist: the player sets the pace.
 
 ## Game rules
 
-1. The board is a 10×10 meadow surrounded by fence.
-2. Farmer John and every cow stand on a tile and face one of the four cardinal
-   directions.
-3. On every tick all actors are advanced **simultaneously**: the next state of
-   the farmer and of every cow is computed from the current state, and only
-   then are all of them committed.
-4. If the tile directly in front is walkable, the actor moves one tile forward
-   and keeps its facing. Otherwise it rotates 90° clockwise in place and does
-   not move on that tick. (Stubborn cows rotate counter-clockwise instead.)
-5. Fences, hedges, trees, ponds, board edges, hay bales and temporary crates
-   block movement. Actors never block each other; they can step through the
-   same tile in opposite directions without meeting.
-6. If the farmer and a cow occupy the same tile after a tick, the cow is caught
-   and the level is won immediately.
-7. If a complete state repeats — farmer pose, every cow pose, obstacle layout,
-   item state and stuck flags — the simulation has entered a time loop and the
-   attempt is lost.
-8. If the step budget is exhausted before a catch, the attempt is lost.
+### State machine
 
-The simulation lives in `game/core.py` and has no pygame dependency, so every
-rule above is covered by unit tests.
+```
+placement → playing ⇄ undo / restart → win / loss
+```
 
-## Progression, ranks and unlocks
+- **Placement:** place up to the level's allowed number of hay bales. Hay cannot
+  be placed on the farmer, a cow, a wall or another bale. Press Space or the
+  start button to begin.
+- **Playing:** each turn is one player action followed by one cow step.
+- **Finished:** a win or loss opens a result dialog. The player can restart,
+  undo to the previous turn (loss) or go to the next lesson/level (win).
 
-- Campaign levels unlock in order: finishing a level opens the next one.
-- The rating depends only on the number of steps used:
-  - **S** – at or below the level's S threshold
-  - **A** – at or below the A threshold
-  - **B** – at or below the B threshold
-  - **C** – finished the level above the B threshold
-- The best step count and the best rank are stored per level; the best rank
-  never downgrades.
-- Tutorial progress is stored in a **separate** section of the save file and
-  never affects campaign unlocking. Campaign progress never marks a tutorial
-  lesson as completed.
+### Turn order
+
+1. The player orders Farmer John to move north/east/south/west, or to wait.
+2. If the farmer's target is a wall, the board edge or a hay bale, the order is
+   rejected. It does not consume a turn; a Chinese toast explains why.
+3. The farmer moves and faces the direction of travel. Waiting keeps the facing.
+4. If the farmer shares a tile with a cow, the level is won immediately.
+5. Every cow moves once, in fixed list order. A cow walks forward when the
+   target tile is free; otherwise it turns 90° clockwise and stays put.
+6. If a cow shares the farmer's tile after moving, the level is won.
+7. In pen levels, if every cow is on a pen cell, the level is won.
+8. The turn counter increases. Reaching the level's `max_turns` without a win
+   loses.
+
+Farmer John and the cows never block each other: only terrain, the board edge
+and hay bales do. The farmer may step onto a cow to catch it.
+
+### Cows and cow order
+
+- Cows are deterministic. They never chase, flee or react to the farmer.
+- With several cows, index order decides who moves first. Earlier cows are
+  committed before later cows move.
+- `cows_block_each_other` (default `false`) makes a cow treat another cow's
+  current tile as an obstacle, so a queue of cows can push the rear cow into a
+  turn. This is tested and used by one campaign/challenge level.
+
+### Winning and losing
+
+- **Catch:** the farmer and any cow occupy the same tile, checked after the
+  farmer moves and again after the cows move. Catching always wins, including
+  on pen levels.
+- **Pen:** all cows are inside the level's pen cells at the same time. Pen
+  levels are usually built as sealed rooms so the farmer cannot catch the cow;
+  the pen is the intended solution.
+- **Turn limit:** the level fails when the turn counter reaches `max_turns`
+  without a win. The winning turn may be the last allowed turn.
+- **Loop hint:** repeating cow poses produce a Chinese hint and a soft chime,
+  but never a loss.
+- **Undo:** restores the farmer, every cow, the hay bales, the turn counter and
+  the loop history. The failure dialog offers **撤销到上一回合** and
+  **重开本关**.
+
+### Path preview
+
+The preview simulates the cows only, assuming the farmer waits. It shows at most
+`prediction_steps` future cow poses as dashed lines and hoof prints. `0` turns
+the preview off for that level; the `P` shortcut then explains that the level has
+no preview. The preview never mutates the live game state.
+
+## Campaign, ranks and unlocks
+
+- Ten levels, `level_01` … `level_10`, all 10×10.
+- Clearing a level unlocks the next one. The first level is always available.
+- The grade is based on the number of turns: each level defines
+  `s_threshold`, `a_threshold` and `b_threshold`. Lower is better.
+- Best turn counts and ranks are stored per level. Tutorial progress is stored
+  in a different section and never affects campaign unlocking.
+- Levels 8 and 10 have two cows; level 9 has `prediction_steps: 0`.
 
 ## Tutorial chapters
 
-The tutorial is an independent chapter system with its own entry on the main
-menu, its own lesson list and its own state machine
-(`not_started` / `in_progress` / `completed` / `skipped`).
+The tutorial is a separate book with three independent chapters:
 
-| Chapter | File | Focus |
-| --- | --- | --- |
-| 基础教程 | `tutorials/basics.json` | Movement, turning, placing and undoing hay bales, synchronous movement, the three-step forecast, catching, time loops |
-| 进阶教程 | `tutorials/advanced.json` | A second cow, cow personalities, apples, horns, mud and signposts |
-| 编辑器教程 | `tutorials/editor.json` | Painting terrain, placing actors, exporting and importing levels |
+| Chapter | File | Lessons | Focus |
+|---|---|---|---|
+| 基础教程 (basics) | `tutorials/basics.json` | 5 | moving, corner turns, waiting, undo, prediction |
+| 进阶教程 (advanced) | `tutorials/advanced.json` | 3 | multiple cows, pen victory, loop hint |
+| 编辑器教程 (editor) | `tutorials/editor.json` | 3 | painting, new rule fields, export/import |
 
-- Each lesson introduces a single mechanic, with ordered hints that react to
-  what the player does (placing, running, winning, losing).
-- A lesson can be replayed at any time; completed lessons keep their completion.
-- Single lessons and whole chapters can be skipped, and reset actions live on
-  the chapter screen and in the settings.
-- Tutorial lessons record completion only; they never receive S/A/B/C ratings.
-- On first launch the main menu shows “初次游玩？试试新手教程。” but never forces
-  the player into the tutorial.
+- Each chapter has its own progress, entry point, lesson list, skip button and
+  reset button. Lessons unlock in order and can be replayed.
+- A lesson can be skipped individually, a whole chapter can be skipped, or all
+  tutorial progress can be reset from Settings.
+- Some lessons enforce a practice step before they count as complete: placing
+  hay, undoing a placement, opening the preview, or waiting at least one turn.
+  The panel shows the practice text under the hint.
+- Tutorial lessons do not receive S/A/B/C grades.
+- The loop lesson completes when the loop hint appears, so it never needs an
+  artificial loss.
 
-State, unlocking and save separation are implemented in `game/tutorial.py` and
-covered by `tests/test_tutorial.py`.
+## Challenge, daily and achievements
 
-## Cow personalities
-
-| Personality | Behaviour |
-| --- | --- |
-| 普通牛 | Turns clockwise when blocked. |
-| 倔牛 | Turns counter-clockwise when blocked. |
-| 贪吃牛 | When blocked, steps onto an adjacent apple instead of turning. |
-| 胆小牛 | When a horn sounds, turns around **and** retreats one tile if possible. |
-
-Cows are placed in the level grid with `C`, `D`, `G` and `S`. Catching any cow
-wins the level.
-
-## Items
-
-Items are placed before the chase starts, limited by the level's item counts.
-
-| Item | Effect |
-| --- | --- |
-| 苹果 | Eaten by whoever steps on it; greedy cows are lured by adjacent apples. |
-| 泥地 | The actor entering it is stuck for one tick and can only turn. |
-| 临时木墙 | Blocks movement for 8 ticks, then crumbles. |
-| 路标 | Turns the actor to the signpost's direction when stepped on. |
-| 喇叭 | All cows reverse; a timid cow also retreats one tile. |
-| 成对传送门 | Entering one portal moves the actor to its partner (must be paired). |
-
-## Challenge mode and daily meadow
-
-- **挑战模式** ships five curated side puzzles: two cows, an apple lure, a horn
-  scare, a mud-and-signpost contraption, and a one-step catch. Best step counts
-  are stored locally and never touch campaign progress.
-- **每日挑战** derives a meadow from the local calendar date. Generation is
-  verified with a bounded solver so the daily is always winnable, and results
-  are stored per date in the save file. Nothing is uploaded anywhere.
+- **Challenge:** five side levels (`levels/challenges.json`) with local best
+  turn counts. They do not consume campaign progress.
+- **Daily:** a meadow generated from the local date with a fixed seed. The
+  generator performs a bounded search on the device and falls back to campaign
+  level 1 only if no candidate is winnable. A seven-day local history is kept.
+- **Achievements:** `one_step`, `no_obstacles`, `fenced_cow`, `loop_free`,
+  `all_levels`. They are awarded once and stored in the save file.
 
 ## Level editor
 
-The editor (**关卡编辑器**) lets you:
+- Paint grass, fence, hedge, tree or pond.
+- Place the farmer, move the first cow, and add up to three cows.
+- Set `initial_obstacles` (0–9), `max_turns` (5–120), `prediction_steps` (0–20)
+  and `cows_block_each_other`.
+- Switch the win condition between catch and pen; with the pen tool, click
+  walkable cells to toggle pen cells.
+- Test-play with the real simulation, then export. Exports are written to
+  `custom_levels/` as ordinary JSON bundles. Importing reads the first level from
+  a bundle.
+- The editor tutorial teaches painting, the new rule fields and export/import.
+  The level name is currently fixed to “我的牧场”; there is no text input.
 
-- paint grass, fence, hedge, tree and pond tiles;
-- place and move the farmer and a cow, cycle the farmer's facing, and cycle cow
-  personalities;
-- set the obstacle limit and the step budget;
-- test-play the level immediately with the real simulation;
-- export the level as JSON to `custom_levels/` and import it again.
+## Level data schema
 
-The editor tutorial chapter uses the same editor with per-lesson tasks
-(paint three fences, move both actors, export and re-import).
+Levels are JSON objects inside `levels/*.json` or `tutorials/*.json`:
 
-## Achievements
+```json
+{
+  "id": "level_01",
+  "name": "晨露草坪",
+  "grid": ["##########", "#........#", "..."],
+  "farmer_facing": "east",
+  "cow_facings": ["north"],
+  "max_turns": 20,
+  "initial_obstacles": 1,
+  "prediction_steps": 5,
+  "win_condition": "catch",
+  "pen_cells": [],
+  "cows_block_each_other": false,
+  "s_threshold": 8,
+  "a_threshold": 12,
+  "b_threshold": 16,
+  "hint": "先按方向键走一步，看看牛怎么动。",
+  "description": "新的一天从一片开阔的草地开始。",
+  "goal": "抓住牛",
+  "practice": "用方向键移动农夫。",
+  "tips": [{"trigger": "start", "text": "..."}]
+}
+```
 
-Six achievements are tracked locally: 一步抓牛, 零障碍通关, 围栏里的牛,
-一气呵成 (clear without hitting a time loop in that run), 牧场主 (clear all ten
-campaign levels) and 道具达人 (clear a challenge using items).
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `id` | string | required | Unique level id |
+| `name` | string | id | Chinese display name |
+| `grid` | string[] | required | Rows of the meadow |
+| `farmer_facing` | string | `east` | Visual facing; movement is free |
+| `cow_facings` | string[] | `east` | One facing per cow, in order |
+| `max_turns` | int | 30 | Turn budget |
+| `initial_obstacles` | int | 3 | Hay bales placeable before the chase |
+| `prediction_steps` | int | 5 | Preview depth; 0 disables it |
+| `win_condition` | `"catch"` / `"pen"` | `catch` | Win rule |
+| `pen_cells` | [row, col][] | `[]` | Required for `pen` |
+| `cows_block_each_other` | bool | false | Cows treat each other as obstacles |
+| `s/a/b_threshold` | int | derived | Grade thresholds in turns |
+| `hint` / `description` / `goal` / `practice` | string | `""` | Chinese UI text |
+| `tips` | `{trigger, text}[]` | `[]` | Tutorial hints |
 
-## Fonts and licensing
+Grid characters: `.` grass, `,` flowers, `#` fence, `T` tree, `~` pond,
+`H` hedge, `F` farmer, `C` cow. Legacy maps that use `D`, `G` or `S` for cows
+still load; they are read as ordinary cows because personalities were removed.
 
-The interface uses **CEF Fonts CJK** (快去写作业CJK), a hand-written style font
-drawn entirely with a mouse, which gives the interface its picture-book feel.
-
-- Font: CEF Fonts CJK, Regular
-- Author: Partyb0ssishere
-- Source repository: <https://github.com/Partyb0ssishere/cef-fonts-cjk>
-- License: SIL Open Font License, Version 1.1
-- Bundled file: `assets/fonts/CEFFontsCJK-Regular.ttf`
-- License text: `assets/fonts/OFL.txt`
-
-The font is downloaded once during development and shipped inside the
-repository. The game never fetches a font at runtime. The OFL permits free use,
-embedding and redistribution as long as the license text is retained and the
-font files themselves are not sold on their own.
-
-Two practical details are handled by `game/theme.py`:
-
-1. **Fallback chain.** If the bundled font is missing the game falls back to a
-   system rounded/sans CJK font and then to the system default, so Chinese text
-   stays readable on any machine.
-2. **Digit legibility.** CEF Fonts CJK draws the digit `1` as a bare stroke that
-   is easily confused with `/`. Numbers are therefore rendered with a rounded
-   system face (SF Rounded → Avenir Next → Helvetica Neue → DejaVu Sans →
-   Arial → the bundled font) while Chinese and Latin letters keep the
-   hand-written look. Body text is never smaller than 18 px.
-
-## Art, audio and offline assets
-
-- **Art** – every visual element is drawn procedurally at runtime by
-  `game/art.py` and `game/render.py`: grass tiles with soft texture, wooden
-  fence segments that connect to their neighbours, hedges, tree groves, ponds,
-  the farmer, four cow views per personality, hay bales, apples, mud, crates,
-  signposts, horns and portals. The game ships no bitmap sprite sheets.
-- **Audio** – all sound effects are synthesised at start-up in `game/audio.py`
-  from simple waveforms, so there are no audio files to download. Sound can be
-  muted in the settings screen.
-- **Offline** – the game makes no network calls. The only binary asset in the
-  repository is the bundled font.
+**Backward compatibility.** Old files that use `step_limit` or `obstacle_limit`
+are read as fallbacks for `max_turns` and `initial_obstacles`. Fields that only
+belonged to the removed automatic simulation (`speed`, `pause`, items, apples,
+cow personalities) are ignored. Missing new fields take their defaults.
 
 ## Save data
 
 Progress is stored as JSON outside the repository:
 
 - Default: `~/.the_tamworth_chase/save.json`
-- Override: set the environment variable `TAMWORTH_CHASE_DATA` to a directory
-  before starting the game. The pre-rename variable is still accepted for
-  compatibility.
+- Override: set `TAMWORTH_CHASE_DATA` to a directory before starting.
+  The pre-rename environment variable is still read for compatibility.
+- On the first launch after the rename, the old save is copied to the new
+  location, the old file is left untouched, and a startup dialog reports the
+  migration. A corrupt old file produces a message and a fresh save; it never
+  crashes the game.
 
-The file keeps the following sections apart: `settings`, `main` (campaign),
-`tutorial`, `achievements`, `challenges`, `daily`. Writes are atomic, and a
-corrupt file falls back to a fresh save instead of crashing.
+The file keeps these sections apart: `settings`, `main` (campaign), `tutorial`,
+`achievements`, `challenges`, `daily`, `custom`. Writes are atomic and a
+corrupt file falls back to a fresh save. Save version 4 renames step records to
+turn records and drops the removed speed setting.
+
+## Fonts and licensing
+
+- `assets/fonts/CEFFontsCJK-Regular.ttf` — bundled CEF Fonts CJK, SIL Open Font
+  License 1.1. The full license text is in `assets/fonts/OFL.txt`.
+- The font is loaded from the repository at runtime; no font is downloaded.
+- CEF Fonts CJK draws the digit `1` in a way that resembles a slash, so digit
+  runs are rendered with a system rounded font (SF Rounded, Avenir Next,
+  Helvetica Neue, DejaVu Sans or Arial) while Chinese and Latin text keeps the
+  handwritten face. If the font is missing, the UI falls back to system CJK
+  fonts instead of showing boxes.
+
+## Art and audio
+
+- Every visual is procedural: soft grass textures, connecting wooden fences,
+  hedges, tree groves, ponds, four farmer facings, cow sprites, hay bales and
+  pen tiles. Tiles are drawn at a higher resolution and smoothed down.
+- No emoji are used for game objects.
+- All sound effects are synthesised at start-up from simple waveforms in
+  `game/audio.py`; the repository ships no audio files. Sound can be muted and
+  the volume adjusted in Settings.
+
+## Offline promise
+
+- The game does not import networking modules and makes no network requests.
+- The only binary asset is the bundled font.
+- No accounts, rooms, matchmaking, servers, WebSockets, cloud saves or online
+  leaderboards are involved.
+- Daily seeds come from the local date, not from a server.
 
 ## Tests
 
@@ -303,65 +343,74 @@ corrupt file falls back to a fresh save instead of crashing.
 .venv/bin/python -m pytest -q
 ```
 
-The suite covers the head-less rules (forward movement, clockwise turning,
-synchronous commits, catches, time loops, step limits, obstacle and item
-placement, personality behaviour, forecasting), the shipped campaign and
-tutorial data with reference solutions, the save store, the tutorial state
-machine and isolation, the editor model with JSON round-trips, the achievement
-rules and a head-less smoke test that opens and renders every scene.
+The suite covers farmer movement in all four directions, blocked orders that do
+not consume a turn, strict farmer-then-cow turn order, multi-cow order and
+blocking, catch and pen wins, the turn budget, loop hints that never lose,
+undo/restart and full state restoration, configurable previews, legacy level
+fields, the save migration, tutorial isolation and practice gates, editor JSON
+round-trips, achievement rules, daily determinism, offline scanning, and a
+head-less render smoke test for every scene.
 
 ## Project layout
 
 ```
-main.py                     Application entry point
-game/app.py                 Window, scene routing, main loop
-game/models.py              Enums and immutable data models
-game/core.py                Pure simulation (no pygame import)
-game/levels.py              Level JSON parsing and validation
-game/tutorial.py            Tutorial catalogue, state machine and hint session
-game/progress.py            Separate campaign / tutorial save storage
-game/achievements.py        Local achievement rules
-game/editor.py              Editor model and JSON export / import
-game/daily.py               Local daily seeded meadow
-game/theme.py               Palette, fonts, rounded UI primitives
-game/art.py                 Procedural tiles, characters and props
-game/render.py              Board rendering, forecasting overlay, effects
-game/playback.py            Playback clock and move interpolation
-game/ui.py                  Buttons, cards, toggles, sliders, modals
-game/audio.py               Synthesised sound effects
-game/scenes/                One module per screen
-levels/levels.json          Campaign level data
-levels/challenges.json      Challenge mode data
-tutorials/*.json            Tutorial chapter data
-assets/fonts/               Bundled CJK font + OFL license
-tests/                      pytest suite and reference solutions
-tools/                      Development helpers (solver, builders, screenshots)
+main.py                     Entry point
+game/
+  models.py                 Head-less data models
+  core.py                   Turn-based simulation, undo, previews
+  levels.py                 Level schema, parsing and serialisation
+  tutorial.py               Tutorial catalogue, state machine, hints
+  progress.py               Local save sections and migration
+  achievements.py           Achievement rules
+  editor.py                 Editor model and JSON exchange
+  daily.py                  Local daily seed + solvability search
+  animation.py              One-turn interpolation
+  render.py                 Board, footprints, pen cells, effects
+  theme.py                  Palette, fonts, layout
+  ui.py                     Buttons, toggles, modal dialogs
+  art.py                    Procedural artwork
+  audio.py                  Synthesised cues
+  app.py                    Window and scene routing
+  scenes/                   Menu, level select, play, tutorial, challenge,
+                            daily, editor, achievements, settings
+levels/                     Campaign and challenge JSON
+tutorials/                  Three tutorial chapters
+assets/fonts/               Bundled CJK font and OFL text
+tests/                      Unit, integration and data tests
+tools/                      Solver, tutorial builder, screenshot helper
 ```
+
+The custom level export directory `custom_levels/` and the save directory are
+not tracked by Git.
 
 ## Design notes and assumptions
 
-- **Synchronous by construction.** Each tick computes every actor's next state
-  first and commits afterwards, which is the only way to keep the rule honest
-  when actors swap tiles.
-- **Time loop state key.** The key contains the farmer's tile and facing, every
-  cow's tile and facing, the obstacle layout, the item state and the stuck
-  flags. A new tick that reproduces a key already seen ends the attempt.
-- **Step budget.** A level with a limit of *n* steps allows exactly *n* moves.
-- **Placement rules.** Hay bales and items cannot be placed on fences, trees,
-  ponds, hedges, outside the meadow, on the actors or on each other, and cannot
-  be placed once the chase has started. Portals must be paired; an unpaired
-  portal is removed when the chase starts.
-- **Ratings** are derived from step counts so they are deterministic and
-  testable; no hidden timers are involved.
-- **Daily meadow.** The date seeds a deterministic generator; candidates are
-  verified with a bounded search (no bale, one bale, then pairs) so today's
-  meadow is always winnable. If every candidate fails, a campaign meadow is
-  used as a fallback.
-- The renderer runs at 60 FPS and offers a low-effects mode (no particles or
-  complex flourishes) from the settings screen.
+- **Catch is always a win.** The rules state that stepping onto a cow wins, so
+  this holds on pen levels too. Pen levels are built as sealed rooms where the
+  farmer cannot reach any cow, which makes the pen the only practical solution.
+- **Cows never react to the farmer.** Their routes depend only on terrain, hay
+  and each other. This keeps them predictable and makes the preview exact.
+- **Prediction assumes the farmer waits.** It is a map of the cows' future
+  poses, not a promise of the player's own route.
+- **Loop hints are informational.** The cow state is the tuple of positions and
+  facings; a repeat sets the hint and a counter but does not end the attempt.
+- **Undo is state based.** Each placement or turn pushes a complete snapshot
+  (farmer, cows, hay, turn count, loop history). Undo restores the snapshot;
+  redo is available internally but not bound to a key.
+- **Waiting is a real turn.** It consumes the turn budget and lets every cow
+  move.
+- **No hidden time pressure.** There is no real-time clock while playing; the
+  turn budget is the only limit.
 
-## License
+## Known limitations
 
-The game code in this repository is provided for personal and educational use.
-The bundled font is covered by the SIL Open Font License 1.1, reproduced in
-`assets/fonts/OFL.txt`.
+- The graphical UI is verified head-less with rendered screenshots and injected
+  events. It has not been manually play-tested on a physical display in this
+  environment.
+- Audio is synthesised and its code path runs with a dummy device; it has not
+  been auditioned here.
+- The editor uses a fixed level name and does not provide text input.
+- The daily generator falls back to campaign level 1 if every candidate fails
+  the bounded solvability search.
+- Undo keeps at most 256 snapshots per attempt.
+- Large custom levels are limited to the editor's 10×10 canvas.

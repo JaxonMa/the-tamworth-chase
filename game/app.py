@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import os
-import sys
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional, Set
 
 import pygame
 
@@ -13,7 +11,7 @@ from .audio import AudioManager
 from .achievements import AchievementTracker
 from .levels import LevelError, load_level_file, load_levels
 from .models import Direction, Level, Rank
-from .paths import ensure_data_dir, project_root
+from .paths import project_root
 from .progress import ProgressStore
 from .scenes.base import Scene
 from .scenes.level_select import LevelSelectScene

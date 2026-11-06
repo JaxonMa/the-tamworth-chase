@@ -52,12 +52,14 @@ def _cow_timeline(level: Level, obstacles: Sequence[Pos]) -> List[Tuple[State, .
             if target in blocked or not (0 <= target[0] < level.height and 0 <= target[1] < level.width):
                 updated.append((pos, facing.clockwise()))
                 continue
-            if level.cows_block_each_other and any(
-                other != index and other_pos == target
-                for other, (other_pos, _other_facing) in enumerate(cows)
-            ):
-                updated.append((pos, facing.clockwise()))
-                continue
+            if level.cows_block_each_other:
+                # Earlier cows have already moved this turn; later cows have not.
+                occupied = [p for p, _f in updated] + [
+                    p for p, _f in cows[index + 1 :]
+                ]
+                if target in occupied:
+                    updated.append((pos, facing.clockwise()))
+                    continue
             updated.append((target, facing))
         cows = updated
         timeline.append(tuple(cows))

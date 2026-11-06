@@ -7,7 +7,6 @@ the file is missing, so the interface stays readable on any machine.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple
 
@@ -136,6 +135,9 @@ FALLBACK_FONT_NAMES: Sequence[str] = (
 )
 
 _BOLD_OFFSET = 1
+
+# Closing punctuation should not start a new line in Chinese text.
+_NO_LINE_START = "，。！？；：、）》」』】%"
 
 
 class FontBook:
@@ -292,8 +294,12 @@ class FontBook:
             for char in paragraph:
                 candidate = current + char
                 if self.size_of(candidate, size, bold)[0] > max_width and current:
-                    lines.append(current)
-                    current = char
+                    if char in _NO_LINE_START and len(current) > 1:
+                        lines.append(current[:-1])
+                        current = current[-1] + char
+                    else:
+                        lines.append(current)
+                        current = char
                 else:
                     current = candidate
             lines.append(current)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Tuple
 
 import pygame
 
@@ -105,7 +105,19 @@ def make_thumbnail(cache: art.ArtCache, level, cell: int = 9) -> pygame.Surface:
     surface.fill(theme.GRASS)
     for r in range(level.height):
         for c in range(level.width):
-            tile = cache.tile(level.tile_at((r, c)), (r * 7 + c * 13) % 4)
+            kind = level.tile_at((r, c))
+            mask = None
+            if kind.value in ("fence", "pond"):
+                mask = 0
+                for bit, (dr, dc) in ((1, (0, -1)), (2, (0, 1)), (4, (-1, 0)), (8, (1, 0))):
+                    rr, cc = r + dr, c + dc
+                    if (
+                        0 <= rr < level.height
+                        and 0 <= cc < level.width
+                        and level.tile_at((rr, cc)) is kind
+                    ):
+                        mask |= bit
+            tile = cache.tile(kind, (r * 7 + c * 13) % 4, fence_mask=mask)
             surface.blit(pygame.transform.smoothscale(tile, (cell, cell)), (c * cell, r * cell))
     fr, fc = level.farmer_start
     pygame.draw.circle(

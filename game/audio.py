@@ -8,9 +8,8 @@ from the settings screen; a missing audio device is tolerated silently.
 from __future__ import annotations
 
 import math
-import random
 from array import array
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Sequence
 
 import pygame
 
@@ -61,11 +60,9 @@ def _to_bytes(samples: Sequence[float]) -> bytes:
 
 
 def _build_cues() -> Dict[str, bytes]:
-    rng = random.Random(11)
     cues: Dict[str, bytes] = {}
 
     cues["click"] = _to_bytes(_tone(880, 0.055, 0.25, 0.2))
-    cues["hover"] = _to_bytes(_tone(1320, 0.03, 0.08, 0.1))
 
     place = _tone(320, 0.08, 0.3, 0.6)
     for index in range(len(place)):
@@ -74,8 +71,6 @@ def _build_cues() -> Dict[str, bytes]:
     cues["undo"] = _to_bytes(_tone(420, 0.07, 0.22, 0.4))
 
     cues["start"] = _to_bytes(_mix_sequence([_tone(523, 0.09, 0.3), _tone(784, 0.12, 0.3)], 0.01))
-    cues["step"] = _to_bytes(_tone(660, 0.035, 0.10, 0.1))
-    cues["paused"] = _to_bytes(_tone(392, 0.08, 0.18, 0.2))
 
     cues["win"] = _to_bytes(
         _mix_sequence(
@@ -94,10 +89,6 @@ def _build_cues() -> Dict[str, bytes]:
         _mix_sequence([_tone(784, 0.08, 0.22), _tone(988, 0.08, 0.22), _tone(1318, 0.18, 0.24)], 0.01)
     )
     cues["error"] = _to_bytes(_tone(180, 0.12, 0.2, 0.8))
-
-    # a light "flap" built from filtered noise
-    noise = [rng.uniform(-0.35, 0.35) * (1 - i / 1800) for i in range(1800)]
-    cues["flap"] = _to_bytes(noise)
     return cues
 
 

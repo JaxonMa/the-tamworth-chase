@@ -212,6 +212,7 @@ def test_legacy_step_records_are_migrated(tmp_path: Path):
     store = ProgressStore(path).load()
     assert store.data["version"] == 4
     assert "speed" not in store.settings
+    assert json.loads(path.read_text(encoding="utf-8"))["version"] == 4
     result = store.main_result("level_01")
     assert result.best_turns == 9
     assert result.rank is Rank.A

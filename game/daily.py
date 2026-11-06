@@ -14,7 +14,7 @@ from typing import List, Optional, Tuple
 
 from .core import step_forward
 from .levels import parse_level
-from .models import Direction, GameStatus, Level, Pos
+from .models import Direction, Level, Pos
 
 DIRECTIONS = ("north", "east", "south", "west")
 
