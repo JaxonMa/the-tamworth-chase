@@ -13,7 +13,7 @@ def app(tmp_path_factory):
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
     data_dir = tmp_path_factory.mktemp("data")
-    os.environ["TAMWORTH_TWO_DATA"] = str(data_dir)
+    os.environ["TAMWORTH_CHASE_DATA"] = str(data_dir)
     import pygame
 
     pygame.init()

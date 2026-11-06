@@ -22,7 +22,7 @@ from .scenes.play import PlayScene
 from .scenes.settings import SettingsScene
 from .tutorial import TutorialBook, TutorialCatalog
 
-GAME_TITLE = "The Tamworth Two · 塔姆沃斯的两个小家伙"
+GAME_TITLE = "The Tamworth Chase · 塔姆沃斯追逐"
 
 
 def project_path(relative: str):

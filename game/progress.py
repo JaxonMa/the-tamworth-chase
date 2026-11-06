@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from .models import LevelResult, Rank
-from .paths import data_dir, ensure_data_dir, save_path
+from .paths import data_override, ensure_data_dir, legacy_save_path, save_path
 
 SAVE_VERSION = 3
 
@@ -72,28 +72,75 @@ class ProgressStore:
     add keys without breaking older save files.
     """
 
-    def __init__(self, path: Optional[Path] = None) -> None:
+    def __init__(
+        self, path: Optional[Path] = None, legacy_path: Optional[Path] = None
+    ) -> None:
         self.path = Path(path) if path else save_path()
+        if legacy_path is not None:
+            self.legacy_path: Optional[Path] = Path(legacy_path)
+        elif path is None and not data_override():
+            self.legacy_path = legacy_save_path()
+        else:
+            self.legacy_path = None
         self.data: Dict[str, Any] = default_save()
         self.load_error: str = ""
+        self.migrated_from: str = ""
+        self.notice: str = ""
 
     # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------
-    def load(self) -> "ProgressStore":
+    @staticmethod
+    def _read_json(path: Path) -> Optional[Dict[str, Any]]:
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
-            if not isinstance(raw, dict):
-                raise ValueError("save root is not an object")
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, json.JSONDecodeError, ValueError, OSError):
+            return None
+        return raw if isinstance(raw, dict) else None
+
+    def load(self) -> "ProgressStore":
+        raw = self._read_json(self.path)
+        if raw is not None:
+            self.data = self._migrate(raw)
+            return self
+
+        # First launch after the rename: migrate the old save exactly once.
+        if (
+            self.legacy_path is not None
+            and self.path != self.legacy_path
+            and not self.path.exists()
+        ):
+            if self.legacy_path.exists():
+                legacy_raw = self._read_json(self.legacy_path)
+                if legacy_raw is not None:
+                    self.data = self._migrate(legacy_raw)
+                    self.migrated_from = str(self.legacy_path)
+                    self.notice = (
+                        f"已把旧存档迁移到 {self.path.parent}，原有进度已保留。"
+                    )
+                    self.save()
+                    return self
+                self.load_error = "旧存档无法读取，已使用全新的存档（旧文件没有被删除）"
+                self.notice = self.load_error
+                self.data = default_save()
+                return self
+
+        try:
+            self.path.read_text(encoding="utf-8")
         except FileNotFoundError:
             self.data = default_save()
             return self
-        except (json.JSONDecodeError, ValueError, OSError):
-            self.data = default_save()
-            self.load_error = "存档文件损坏，已使用全新的存档"
-            return self
-        self.data = self._migrate(raw)
+        except OSError:
+            pass
+        self.data = default_save()
+        self.load_error = "存档文件损坏，已使用全新的存档"
         return self
+
+    def consume_notice(self) -> str:
+        """Return and clear a one-shot startup message for the interface."""
+        text = self.notice
+        self.notice = ""
+        return text
 
     def _migrate(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         base = default_save()

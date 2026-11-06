@@ -147,3 +147,41 @@ def test_challenge_best(store):
     assert store.record_challenge_best("level_01/min", 14) is True
     assert store.record_challenge_best("level_01/min", 20) is False
     assert store.challenge_best("level_01/min") == 14
+
+
+def test_legacy_save_is_migrated_once(tmp_path: Path):
+    new_path = tmp_path / "new" / "save.json"
+    old_path = tmp_path / "old" / "save.json"
+    old_path.parent.mkdir(parents=True)
+    legacy = ProgressStore(old_path).load()
+    legacy.set_setting("sound", False)
+    legacy.record_main_clear("level_01", 7, Rank.S, 0)
+
+    store = ProgressStore(new_path, legacy_path=old_path).load()
+    assert store.migrated_from == str(old_path)
+    assert store.notice
+    assert new_path.exists()
+    assert store.get_setting("sound") is False
+    assert store.main_result("level_01").best_steps == 7
+    assert old_path.exists(), "the old save must never be deleted"
+
+    # A later launch reads the new file and does not migrate again.
+    store.consume_notice()
+    again = ProgressStore(new_path, legacy_path=old_path).load()
+    assert again.migrated_from == ""
+    assert again.notice == ""
+    assert again.main_result("level_01").cleared is True
+
+
+def test_corrupt_legacy_save_reports_instead_of_crashing(tmp_path: Path):
+    new_path = tmp_path / "new" / "save.json"
+    old_path = tmp_path / "old" / "save.json"
+    old_path.parent.mkdir(parents=True)
+    old_path.write_text("{broken", encoding="utf-8")
+
+    store = ProgressStore(new_path, legacy_path=old_path).load()
+    assert store.load_error
+    assert store.notice
+    assert not new_path.exists()
+    assert old_path.exists()
+    assert store.main_levels == {}

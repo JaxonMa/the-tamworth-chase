@@ -11,9 +11,9 @@ from .. import art, theme, ui
 from ..models import CowPersonality, Direction, TileKind
 from .base import Scene, draw_footer
 
-TITLE = "The Tamworth Two"
-SUBTITLE = "塔姆沃斯的两个小家伙"
-TAGLINE = "在牧场上放下篱笆，让农夫抓住那头牛。"
+TITLE = "The Tamworth Chase"
+SUBTITLE = "《塔姆沃斯追逐》"
+TAGLINE = "在牧场上一步步追上那头牛。"
 
 
 class MenuScene(Scene):
@@ -34,6 +34,16 @@ class MenuScene(Scene):
     # ------------------------------------------------------------------
     def on_enter(self) -> None:
         self.buttons = self._build_buttons()
+        notice = self.store.consume_notice()
+        if notice:
+            self.modal = ui.Modal(
+                "存档迁移",
+                notice,
+                accent=theme.SKY_DEEP,
+                buttons=[ui.Button(pygame.Rect(0, 0, 150, 50), "知道了", "dismiss", style="primary")],
+                width=620,
+                height=280,
+            )
         self._scaled = {
             "farmer": pygame.transform.smoothscale(self.cache.farmer(Direction.SOUTH), (118, 118)),
             "cow": pygame.transform.smoothscale(
@@ -146,7 +156,7 @@ class MenuScene(Scene):
         draw_footer(
             surface,
             self.fonts,
-            "The Tamworth Two · 离线单机 · 所有资源随游戏一起打包",
+            "The Tamworth Chase · 离线单机 · 所有资源随游戏一起打包",
         )
         if self.modal is not None:
             self.modal.draw(surface, self.fonts)

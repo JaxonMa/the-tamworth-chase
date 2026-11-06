@@ -1,4 +1,4 @@
-# The Tamworth Two
+# The Tamworth Chase
 
 *一款用纯 Python 制作的手绘田园风网格追逐解谜游戏。*
 
@@ -7,6 +7,12 @@
 让两条路线互相咬合，在步数用完之前让农夫抓到牛——同时别让时间绕成一个圈。
 
 游戏完全离线：没有账号、没有服务器、没有遥测，运行时不发起任何网络请求。
+
+## 改名说明
+
+本项目原名为 **The Tamworth Two**，从本版本起统一更名为 **The Tamworth Chase**，
+中文副标题为《塔姆沃斯追逐》。存档位置改为 `~/.the_tamworth_chase/save.json`；
+旧存档会在首次启动时自动迁移，并且不会被删除。
 
 ---
 
@@ -247,8 +253,9 @@ OFL 允许免费使用、嵌入与再分发，前提是保留许可文本，且�
 
 进度以 JSON 形式保存在仓库之外：
 
-- 默认：`~/.the_tamworth_two/save.json`
-- 覆盖：启动前设置环境变量 `TAMWORTH_TWO_DATA` 指向自定义目录。
+- 默认：`~/.the_tamworth_chase/save.json`
+- 覆盖：启动前设置环境变量 `TAMWORTH_CHASE_DATA` 指向自定义目录；
+  改名前的旧环境变量仍然兼容。
 
 存档把以下分区严格分开：`settings`、`main`（主线）、`tutorial`（教程）、
 `achievements`、`challenges`、`daily`。写入采用原子替换；存档损坏时会回退为全新存档而不是崩溃。

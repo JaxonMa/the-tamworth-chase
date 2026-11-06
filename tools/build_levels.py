@@ -276,7 +276,7 @@ def build(verbose: bool = True) -> Dict[str, object]:
             )
             print("\n".join("   " + row for row in grid))
         levels.append(payload)
-    return {"version": 1, "game": "The Tamworth Two", "levels": levels}
+    return {"version": 1, "game": "The Tamworth Chase", "levels": levels}
 
 
 def main() -> int:

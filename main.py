@@ -1,4 +1,4 @@
-"""Entry point for The Tamworth Two.
+"""Entry point for The Tamworth Chase.
 
 Run with::
 

@@ -151,8 +151,8 @@ class SettingsScene(Scene):
         theme.draw_text(surface, self.fonts, "关于", (info.left + 26, info.top + 22), theme.FONT_H2, theme.INK, bold=True)
         ui.draw_divider(surface, info.top + 70, info.left + 26, info.width - 52)
         lines = [
-            "游戏名：The Tamworth Two",
-            "中文副标题：塔姆沃斯的两个小家伙",
+            "游戏名：The Tamworth Chase",
+            "中文副标题：《塔姆沃斯追逐》",
             "版本：1.0.0",
             "界面字体：CEF Fonts CJK（本地内置）",
             "全部美术由程序绘制，运行时不联网。",

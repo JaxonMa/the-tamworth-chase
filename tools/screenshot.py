@@ -12,8 +12,8 @@ import sys
 from pathlib import Path
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
-os.environ.setdefault("TAMWORTH_TWO_DATA", "/tmp/tamworth_shots_data")
-os.makedirs("/tmp/tamworth_shots_data", exist_ok=True)
+os.environ.setdefault("TAMWORTH_CHASE_DATA", "/tmp/tamworth_chase_shots_data")
+os.makedirs("/tmp/tamworth_chase_shots_data", exist_ok=True)
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 

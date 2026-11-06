@@ -1,4 +1,4 @@
-# The Tamworth Two
+# The Tamworth Chase
 
 *A cozy, hand-drawn grid-chase puzzle game made entirely with Python.*
 
@@ -10,6 +10,13 @@ running out of steps and without falling into a time loop.
 
 The whole game is offline. No accounts, no servers, no telemetry, no network
 requests while it runs.
+
+## Rename note
+
+The project was previously released as **The Tamworth Two**. Starting with this
+version the name is **The Tamworth Chase** (Chinese subtitle 《塔姆沃斯追逐》).
+The save file moved to `~/.the_tamworth_chase/save.json`; the old save is
+migrated automatically on first launch and is never deleted.
 
 ---
 
@@ -281,9 +288,10 @@ Two practical details are handled by `game/theme.py`:
 
 Progress is stored as JSON outside the repository:
 
-- Default: `~/.the_tamworth_two/save.json`
-- Override: set the environment variable `TAMWORTH_TWO_DATA` to a directory
-  before starting the game.
+- Default: `~/.the_tamworth_chase/save.json`
+- Override: set the environment variable `TAMWORTH_CHASE_DATA` to a directory
+  before starting the game. The pre-rename variable is still accepted for
+  compatibility.
 
 The file keeps the following sections apart: `settings`, `main` (campaign),
 `tutorial`, `achievements`, `challenges`, `daily`. Writes are atomic, and a

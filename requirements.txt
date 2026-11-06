@@ -1,4 +1,4 @@
-# The Tamworth Two - runtime and test dependencies.
+# The Tamworth Chase - runtime and test dependencies.
 # The game itself is fully offline; nothing here talks to a network at runtime.
 pygame-ce>=2.5,<2.6    # Windowing, drawing, input, audio mixing
 pytest>=8,<9           # Unit tests only (not required to play)
