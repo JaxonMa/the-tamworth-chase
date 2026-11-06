@@ -96,7 +96,7 @@ class SettingsScene(Scene):
         self.app.sound.play("click")
         if key == "reset_main":
             title = "重置主线进度？"
-            body = "所有关卡的通关记录、最好步数和评价都会清空。\n这个操作无法撤销。"
+            body = "所有关卡的通关记录、最好回合数和评价都会清空。\n这个操作无法撤销。"
             confirm = "确认重置"
             self.pending_reset = "main"
         else:
@@ -153,7 +153,7 @@ class SettingsScene(Scene):
         lines = [
             "游戏名：The Tamworth Chase",
             "中文副标题：《塔姆沃斯追逐》",
-            "版本：1.0.0",
+            "版本：1.1.0",
             "界面字体：CEF Fonts CJK（本地内置）",
             "全部美术由程序绘制，运行时不联网。",
             "",

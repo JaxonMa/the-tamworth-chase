@@ -1,16 +1,15 @@
 {
-  "version": 1,
+  "version": 2,
   "game": "The Tamworth Chase",
   "levels": [
     {
       "id": "level_01",
       "name": "晨露草坪",
       "description": "新的一天从一片开阔的草地开始。",
-      "hint": "把障碍放在牛的正前方，它会向右转身。",
+      "hint": "先按方向键走一步，看看牛怎么动。",
       "tags": [
         "入门"
       ],
-      "obstacle_limit": 1,
       "farmer_facing": "north",
       "cow_facings": [
         "north"
@@ -27,20 +26,24 @@
         "#.TT..##.#",
         "##########"
       ],
-      "step_limit": 30,
-      "s_threshold": 10,
-      "a_threshold": 15,
-      "b_threshold": 22
+      "s_threshold": 8,
+      "a_threshold": 12,
+      "b_threshold": 16,
+      "prediction_steps": 5,
+      "win_condition": "catch",
+      "pen_cells": [],
+      "cows_block_each_other": false,
+      "initial_obstacles": 1,
+      "max_turns": 20
     },
     {
       "id": "level_02",
       "name": "牧场小径",
-      "description": "狭长的小径上，谁先拐弯？",
-      "hint": "挡住农夫，让他提前转向也是好办法。",
+      "description": "狭长的小径上，牛会一直向前走。",
+      "hint": "注意牛撞上围栏后会顺时针转身。",
       "tags": [
         "入门"
       ],
-      "obstacle_limit": 1,
       "farmer_facing": "south",
       "cow_facings": [
         "east"
@@ -57,21 +60,25 @@
         "#....HHHH#",
         "##########"
       ],
-      "step_limit": 33,
-      "s_threshold": 13,
-      "a_threshold": 18,
-      "b_threshold": 25
+      "s_threshold": 5,
+      "a_threshold": 9,
+      "b_threshold": 13,
+      "prediction_steps": 5,
+      "win_condition": "catch",
+      "pen_cells": [],
+      "cows_block_each_other": false,
+      "initial_obstacles": 1,
+      "max_turns": 17
     },
     {
       "id": "level_03",
       "name": "老屋后院",
-      "description": "屋后的岔路不少，别让他们绕远。",
-      "hint": "先预测三步，再决定石头放在哪里。",
+      "description": "屋后的岔路不少，先看牛拐向哪边。",
+      "hint": "用干草垛改变牛的方向，再决定农夫的路线。",
       "tags": [
         "入门",
         "转角"
       ],
-      "obstacle_limit": 2,
       "farmer_facing": "south",
       "cow_facings": [
         "north"
@@ -88,20 +95,24 @@
         "#F.......#",
         "##########"
       ],
-      "step_limit": 30,
       "s_threshold": 10,
-      "a_threshold": 15,
-      "b_threshold": 22
+      "a_threshold": 14,
+      "b_threshold": 18,
+      "prediction_steps": 5,
+      "win_condition": "catch",
+      "pen_cells": [],
+      "cows_block_each_other": false,
+      "initial_obstacles": 2,
+      "max_turns": 22
     },
     {
       "id": "level_04",
       "name": "石堆迷宫",
       "description": "两块石头，能改变两段路线。",
-      "hint": "一块挡住牛，一块留给农夫。",
+      "hint": "一块挡住牛，一块留给自己。",
       "tags": [
         "节奏"
       ],
-      "obstacle_limit": 2,
       "farmer_facing": "south",
       "cow_facings": [
         "west"
@@ -118,21 +129,25 @@
         "##TTTT#..#",
         "##########"
       ],
-      "step_limit": 32,
-      "s_threshold": 12,
-      "a_threshold": 17,
-      "b_threshold": 24
+      "s_threshold": 8,
+      "a_threshold": 12,
+      "b_threshold": 16,
+      "prediction_steps": 5,
+      "win_condition": "catch",
+      "pen_cells": [],
+      "cows_block_each_other": false,
+      "initial_obstacles": 2,
+      "max_turns": 20
     },
     {
       "id": "level_05",
       "name": "对称牧场",
       "description": "左右对称的围栏，藏着不对称的时机。",
-      "hint": "注意两位主角的朝向，先让谁转身？",
+      "hint": "先观察牛的路线，再决定要不要放干草垛。",
       "tags": [
         "对称",
         "节奏"
       ],
-      "obstacle_limit": 2,
       "farmer_facing": "west",
       "cow_facings": [
         "north"
@@ -149,20 +164,24 @@
         "#...TTF..#",
         "##########"
       ],
-      "step_limit": 34,
-      "s_threshold": 14,
-      "a_threshold": 19,
-      "b_threshold": 26
+      "s_threshold": 9,
+      "a_threshold": 13,
+      "b_threshold": 17,
+      "prediction_steps": 5,
+      "win_condition": "catch",
+      "pen_cells": [],
+      "cows_block_each_other": false,
+      "initial_obstacles": 2,
+      "max_turns": 21
     },
     {
       "id": "level_06",
       "name": "蜿蜒沟渠",
       "description": "沟渠之间，只差几步的时间。",
-      "hint": "有时需要让牛多绕一圈。",
+      "hint": "有时需要让牛多绕一圈，自己先到位。",
       "tags": [
         "长路"
       ],
-      "obstacle_limit": 3,
       "farmer_facing": "south",
       "cow_facings": [
         "west"
@@ -179,10 +198,15 @@
         "#...TTF..#",
         "##########"
       ],
-      "step_limit": 38,
-      "s_threshold": 18,
-      "a_threshold": 23,
-      "b_threshold": 30
+      "s_threshold": 15,
+      "a_threshold": 19,
+      "b_threshold": 23,
+      "prediction_steps": 5,
+      "win_condition": "catch",
+      "pen_cells": [],
+      "cows_block_each_other": false,
+      "initial_obstacles": 3,
+      "max_turns": 27
     },
     {
       "id": "level_07",
@@ -192,7 +216,6 @@
       "tags": [
         "窄道"
       ],
-      "obstacle_limit": 3,
       "farmer_facing": "north",
       "cow_facings": [
         "west"
@@ -209,23 +232,29 @@
         "#........#",
         "##########"
       ],
-      "step_limit": 35,
-      "s_threshold": 15,
-      "a_threshold": 20,
-      "b_threshold": 27
+      "s_threshold": 11,
+      "a_threshold": 15,
+      "b_threshold": 19,
+      "prediction_steps": 5,
+      "win_condition": "catch",
+      "pen_cells": [],
+      "cows_block_each_other": false,
+      "initial_obstacles": 3,
+      "max_turns": 23
     },
     {
       "id": "level_08",
       "name": "苔藓高地",
-      "description": "三块苔石，三条岔路。",
-      "hint": "把三块石头用在关键的两个转角上。",
+      "description": "两头牛在苔石间分头行动。",
+      "hint": "两头牛会互相挡路；抓住任意一头就算赢。",
       "tags": [
-        "三石"
+        "双牛",
+        "精算"
       ],
-      "obstacle_limit": 3,
       "farmer_facing": "north",
       "cow_facings": [
-        "east"
+        "east",
+        "west"
       ],
       "grid": [
         "##########",
@@ -234,25 +263,29 @@
         "#...TT...#",
         "##.CTT..##",
         "#........#",
-        "#.#....#.#",
+        "#.#...C#.#",
         "#.HHHHHH.#",
         "#..#..#F.#",
         "##########"
       ],
-      "step_limit": 38,
-      "s_threshold": 18,
-      "a_threshold": 23,
-      "b_threshold": 30
+      "s_threshold": 8,
+      "a_threshold": 12,
+      "b_threshold": 16,
+      "cows_block_each_other": true,
+      "prediction_steps": 5,
+      "win_condition": "catch",
+      "pen_cells": [],
+      "initial_obstacles": 3,
+      "max_turns": 20
     },
     {
       "id": "level_09",
       "name": "荆棘窄门",
       "description": "门只有一扇，时机只有一次。",
-      "hint": "先看牛会绕到哪里，再决定农夫的路线。",
+      "hint": "这一关没有路径预测，靠观察牛的转向。",
       "tags": [
         "精算"
       ],
-      "obstacle_limit": 3,
       "farmer_facing": "north",
       "cow_facings": [
         "north"
@@ -269,29 +302,34 @@
         "#.##..T..#",
         "##########"
       ],
-      "step_limit": 37,
-      "s_threshold": 17,
-      "a_threshold": 22,
-      "b_threshold": 29
+      "s_threshold": 9,
+      "a_threshold": 13,
+      "b_threshold": 17,
+      "prediction_steps": 0,
+      "win_condition": "catch",
+      "pen_cells": [],
+      "cows_block_each_other": false,
+      "initial_obstacles": 3,
+      "max_turns": 21
     },
     {
       "id": "level_10",
-      "name": "最后的围栏",
-      "description": "最后的牧场，慢慢来。",
-      "hint": "三步预测看不出结果时，试着先放两块石头。",
+      "name": "最后的牧场",
+      "description": "最后一片牧场，两头牛分头行动。",
+      "hint": "抓住任意一头牛就行，先看哪一头离你更近。",
       "tags": [
         "终章",
-        "精算"
+        "双牛"
       ],
-      "obstacle_limit": 3,
       "farmer_facing": "east",
       "cow_facings": [
-        "north"
+        "north",
+        "south"
       ],
       "grid": [
         "##########",
         "#........#",
-        "#......#.#",
+        "#......#C#",
         "#......#.#",
         "#..T..#..#",
         "#F.....###",
@@ -300,10 +338,15 @@
         "#....T..C#",
         "##########"
       ],
-      "step_limit": 35,
-      "s_threshold": 15,
-      "a_threshold": 20,
-      "b_threshold": 27
+      "s_threshold": 10,
+      "a_threshold": 14,
+      "b_threshold": 18,
+      "prediction_steps": 5,
+      "win_condition": "catch",
+      "pen_cells": [],
+      "cows_block_each_other": false,
+      "initial_obstacles": 3,
+      "max_turns": 22
     }
   ]
 }

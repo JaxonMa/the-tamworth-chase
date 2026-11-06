@@ -1,36 +1,29 @@
 {
-  "version": 1,
-  "chapter": "editor",
   "title": "编辑器教程",
   "subtitle": "自己造一片牧场",
-  "intro": "三节短课，学会画地形、摆角色和导出 JSON。做完之后，编辑器随时都能用。",
+  "intro": "三节编辑器课：画地形、设置规则、导出与导入。",
   "badge": "编辑器",
-  "accent": "sun",
+  "accent": "clay",
   "lessons": [
     {
       "id": "editor_01",
       "name": "画一面栅栏",
-      "brief": "用栅栏工具在草地上画出三格障碍。",
-      "goal": "画出至少三格栅栏",
+      "brief": "选择栅栏工具，在草地上画出三格。",
+      "goal": "画出至少三格栅栏。",
       "practice": "选择「栅栏」，在草地上点击三次。",
-      "editor_task": {"type": "paint_wall", "count": 3},
       "tips": [
-        {"trigger": "start", "text": "右侧工具栏里选择「栅栏」，然后在草地上点击，就能画出一格栅栏。"},
-        {"trigger": "place", "text": "继续点击，画出至少三格栅栏。右键可以擦除。"}
-      ],
-      "starter_grid": [
-        "##########",
-        "#........#",
-        "#........#",
-        "#........#",
-        "#........#",
-        "#........#",
-        "#........#",
-        "#........#",
-        "#F......C#",
-        "##########"
+        {
+          "trigger": "start",
+          "text": "在右侧选择「栅栏」，然后在草地上点击三格。右键可以擦除。"
+        },
+        {
+          "trigger": "place",
+          "text": "继续点击。画好的栅栏会立刻出现在棋盘上。"
+        }
       ],
       "level": {
+        "id": "editor_01",
+        "name": "画一面栅栏",
         "grid": [
           "##########",
           "#........#",
@@ -44,35 +37,55 @@
           "##########"
         ],
         "farmer_facing": "east",
-        "cow_facings": ["north"],
-        "obstacle_limit": 3,
-        "step_limit": 40
-      }
+        "cow_facings": [
+          "north"
+        ],
+        "max_turns": 40,
+        "initial_obstacles": 3,
+        "prediction_steps": 5,
+        "win_condition": "catch",
+        "pen_cells": [],
+        "cows_block_each_other": false,
+        "s_threshold": 10,
+        "a_threshold": 18,
+        "b_threshold": 26
+      },
+      "editor_task": {
+        "type": "paint_wall",
+        "count": 3
+      },
+      "starter_grid": [
+        "##########",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#F......C#",
+        "##########"
+      ]
     },
     {
       "id": "editor_02",
-      "name": "摆好两位主角",
-      "brief": "移动农夫和牛，并调整它们的朝向。",
-      "goal": "分别移动农夫与牛一次",
-      "practice": "选择「农夫」点一格，再选择「牛」点一格。",
-      "editor_task": {"type": "place_actors"},
+      "name": "设置新的规则",
+      "brief": "把胜利条件改成围栏，再画出两格围栏格。",
+      "goal": "设置围栏胜利，并画出两格围栏格。",
+      "practice": "点「胜利：抓住」切换成围栏，再用围栏格工具画两格。",
       "tips": [
-        {"trigger": "start", "text": "工具栏里选择「农夫」，点击草地就能把他挪过去。"},
-        {"trigger": "place", "text": "再用「牛」工具移动牛。朝向按钮可以调整农夫的方向。"}
-      ],
-      "starter_grid": [
-        "##########",
-        "#........#",
-        "#........#",
-        "#........#",
-        "#........#",
-        "#........#",
-        "#........#",
-        "#........#",
-        "#F......C#",
-        "##########"
+        {
+          "trigger": "start",
+          "text": "先点「胜利：抓住」切换成围栏，再用「围栏格」画两格。"
+        },
+        {
+          "trigger": "place",
+          "text": "金色格子就是围栏。围栏关里，牛要走到这里才算赢。"
+        }
       ],
       "level": {
+        "id": "editor_02",
+        "name": "设置新的规则",
         "grid": [
           "##########",
           "#........#",
@@ -86,52 +99,96 @@
           "##########"
         ],
         "farmer_facing": "east",
-        "cow_facings": ["north"],
-        "obstacle_limit": 3,
-        "step_limit": 40
-      }
+        "cow_facings": [
+          "north"
+        ],
+        "max_turns": 40,
+        "initial_obstacles": 3,
+        "prediction_steps": 5,
+        "win_condition": "catch",
+        "pen_cells": [],
+        "cows_block_each_other": false,
+        "s_threshold": 10,
+        "a_threshold": 18,
+        "b_threshold": 26
+      },
+      "editor_task": {
+        "type": "set_rules",
+        "pen_cells": 2
+      },
+      "starter_grid": [
+        "##########",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#F......C#",
+        "##########"
+      ]
     },
     {
       "id": "editor_03",
       "name": "导出与导入",
-      "brief": "把关卡导出成 JSON 文件，再导入回来。",
-      "goal": "导出一次并导入一次",
+      "brief": "把关卡保存成 JSON，再读回来。",
+      "goal": "导出一次并导入一次。",
       "practice": "先点「导出关卡」，再点「导入关卡」选择刚才的文件。",
-      "editor_task": {"type": "export_import"},
       "tips": [
-        {"trigger": "start", "text": "「导出关卡」会把当前设计保存到 custom_levels 目录，格式是普通 JSON。"},
-        {"trigger": "place", "text": "导出之后点「导入关卡」，选择刚生成的文件就能读回来。"}
-      ],
-      "starter_grid": [
-        "##########",
-        "#........#",
-        "#..##....#",
-        "#........#",
-        "#........#",
-        "#.....##.#",
-        "#........#",
-        "#........#",
-        "#F......C#",
-        "##########"
+        {
+          "trigger": "start",
+          "text": "「导出关卡」会把当前设计写进 custom_levels/，格式是普通 JSON。"
+        },
+        {
+          "trigger": "place",
+          "text": "导出之后点「导入关卡」，选择刚生成的文件就能读回来。"
+        }
       ],
       "level": {
+        "id": "editor_03",
+        "name": "导出与导入",
         "grid": [
           "##########",
           "#........#",
-          "#..##....#",
           "#........#",
           "#........#",
-          "#.....##.#",
+          "#........#",
+          "#........#",
           "#........#",
           "#........#",
           "#F......C#",
           "##########"
         ],
         "farmer_facing": "east",
-        "cow_facings": ["north"],
-        "obstacle_limit": 3,
-        "step_limit": 40
-      }
+        "cow_facings": [
+          "north"
+        ],
+        "max_turns": 40,
+        "initial_obstacles": 3,
+        "prediction_steps": 5,
+        "win_condition": "catch",
+        "pen_cells": [],
+        "cows_block_each_other": false,
+        "s_threshold": 10,
+        "a_threshold": 18,
+        "b_threshold": 26
+      },
+      "editor_task": {
+        "type": "export_import"
+      },
+      "starter_grid": [
+        "##########",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#........#",
+        "#F......C#",
+        "##########"
+      ]
     }
   ]
 }

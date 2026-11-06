@@ -1,0 +1,67 @@
+{
+  "chal_twin": {
+    "obstacles": [],
+    "turns": 7,
+    "actions": [
+      "wait",
+      "east",
+      "north",
+      "north",
+      "north",
+      "west",
+      "west"
+    ],
+    "status": "won"
+  },
+  "chal_pen": {
+    "obstacles": [],
+    "turns": 5,
+    "actions": [
+      "wait",
+      "wait",
+      "wait",
+      "wait",
+      "wait"
+    ],
+    "status": "won"
+  },
+  "chal_blind": {
+    "obstacles": [],
+    "turns": 7,
+    "actions": [
+      "wait",
+      "east",
+      "south",
+      "south",
+      "south",
+      "south",
+      "east"
+    ],
+    "status": "won"
+  },
+  "chal_block": {
+    "obstacles": [],
+    "turns": 6,
+    "actions": [
+      "wait",
+      "east",
+      "east",
+      "east",
+      "east",
+      "east"
+    ],
+    "status": "won"
+  },
+  "chal_tight": {
+    "obstacles": [],
+    "turns": 5,
+    "actions": [
+      "wait",
+      "east",
+      "east",
+      "east",
+      "east"
+    ],
+    "status": "won"
+  }
+}

@@ -2,8 +2,10 @@
   "basics": {
     "basics_01": {
       "obstacles": [],
-      "turns": 3,
+      "turns": 5,
       "actions": [
+        "wait",
+        "east",
         "east",
         "east",
         "east"
@@ -19,14 +21,25 @@
       ],
       "turns": 4,
       "actions": [
-        "north",
-        "west",
-        "west",
-        "west"
+        "wait",
+        "east",
+        "east",
+        "east"
       ],
       "status": "won"
     },
     "basics_03": {
+      "obstacles": [],
+      "turns": 4,
+      "actions": [
+        "wait",
+        "wait",
+        "wait",
+        "wait"
+      ],
+      "status": "won"
+    },
+    "basics_04": {
       "obstacles": [
         [
           2,
@@ -35,43 +48,15 @@
       ],
       "turns": 4,
       "actions": [
-        "north",
-        "west",
-        "west",
-        "west"
-      ],
-      "status": "won"
-    },
-    "basics_04": {
-      "obstacles": [
-        [
-          1,
-          7
-        ]
-      ],
-      "turns": 11,
-      "actions": [
         "wait",
         "east",
         "east",
-        "east",
-        "east",
-        "east",
-        "south",
-        "east",
-        "south",
-        "south",
-        "south"
+        "east"
       ],
       "status": "won"
     },
     "basics_05": {
-      "obstacles": [
-        [
-          5,
-          5
-        ]
-      ],
+      "obstacles": [],
       "turns": 7,
       "actions": [
         "wait",
@@ -79,113 +64,32 @@
         "south",
         "south",
         "south",
-        "east",
+        "south",
         "east"
-      ],
-      "status": "won"
-    },
-    "basics_06": {
-      "obstacles": [
-        [
-          2,
-          5
-        ]
-      ],
-      "turns": 5,
-      "actions": [
-        "south",
-        "south",
-        "west",
-        "west",
-        "west"
       ],
       "status": "won"
     }
   },
   "advanced": {
     "advanced_01": {
-      "obstacles": [
-        [
-          1,
-          2
-        ]
-      ],
-      "turns": 5,
+      "obstacles": [],
+      "turns": 7,
       "actions": [
         "wait",
-        "south",
-        "south",
-        "south",
-        "south"
+        "east",
+        "north",
+        "north",
+        "north",
+        "west",
+        "west"
       ],
       "status": "won"
     },
     "advanced_02": {
-      "obstacles": [
-        [
-          1,
-          8
-        ]
-      ],
-      "turns": 13,
-      "actions": [
-        "wait",
-        "east",
-        "east",
-        "east",
-        "east",
-        "east",
-        "south",
-        "south",
-        "south",
-        "south",
-        "south",
-        "south",
-        "south"
-      ],
-      "status": "won"
-    },
-    "advanced_03": {
       "obstacles": [],
-      "turns": 5,
+      "turns": 1,
       "actions": [
-        "north",
-        "east",
-        "east",
-        "east",
-        "east"
-      ],
-      "status": "won"
-    },
-    "advanced_04": {
-      "obstacles": [],
-      "turns": 8,
-      "actions": [
-        "south",
-        "south",
-        "west",
-        "west",
-        "west",
-        "west",
-        "west",
-        "west"
-      ],
-      "status": "won"
-    },
-    "advanced_05": {
-      "obstacles": [
-        [
-          2,
-          5
-        ]
-      ],
-      "turns": 5,
-      "actions": [
-        "south",
-        "south",
-        "west",
-        "west",
-        "west"
+        "wait"
       ],
       "status": "won"
     }
@@ -193,60 +97,21 @@
   "editor": {
     "editor_01": {
       "obstacles": [],
-      "turns": 12,
-      "actions": [
-        "wait",
-        "north",
-        "north",
-        "north",
-        "north",
-        "east",
-        "east",
-        "east",
-        "east",
-        "east",
-        "east",
-        "east"
-      ],
-      "status": "won"
+      "turns": 0,
+      "actions": [],
+      "status": "playing"
     },
     "editor_02": {
       "obstacles": [],
-      "turns": 12,
-      "actions": [
-        "wait",
-        "north",
-        "north",
-        "north",
-        "north",
-        "east",
-        "east",
-        "east",
-        "east",
-        "east",
-        "east",
-        "east"
-      ],
-      "status": "won"
+      "turns": 0,
+      "actions": [],
+      "status": "playing"
     },
     "editor_03": {
       "obstacles": [],
-      "turns": 12,
-      "actions": [
-        "wait",
-        "north",
-        "north",
-        "north",
-        "north",
-        "east",
-        "east",
-        "east",
-        "east",
-        "east",
-        "east",
-        "east"
-      ],
-      "status": "won"
+      "turns": 0,
+      "actions": [],
+      "status": "playing"
     }
   }
 }

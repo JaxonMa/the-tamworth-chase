@@ -391,36 +391,36 @@ class TutorialChapterScene(Scene):
         # chapter intro panel
         intro_panel = pygame.Rect(80, 150, 380, 570)
         theme.panel(surface, intro_panel)
-        theme.draw_text(
-            surface,
-            self.fonts,
-            self.chapter.subtitle,
-            (intro_panel.left + 26, intro_panel.top + 26),
-            theme.FONT_H2,
-            theme.INK,
-            bold=True,
+        inner_width = intro_panel.width - 52
+        y = intro_panel.top + 24
+        subtitle = self.fonts.wrap(
+            self.chapter.subtitle, theme.FONT_H3, inner_width, theme.INK, bold=True
         )
-        body = self.fonts.wrap(self.chapter.intro, theme.FONT_SMALL, intro_panel.width - 52, theme.INK_SOFT)
-        surface.blit(body, (intro_panel.left + 26, intro_panel.top + 76))
+        surface.blit(subtitle, (intro_panel.left + 26, y))
+        y += subtitle.get_height() + 14
+        body = self.fonts.wrap(self.chapter.intro, theme.FONT_SMALL, inner_width, theme.INK_SOFT)
+        surface.blit(body, (intro_panel.left + 26, y))
+        y += body.get_height() + 24
         if progress is not None:
-            bar = pygame.Rect(intro_panel.left + 26, intro_panel.top + 200, intro_panel.width - 52, 14)
+            bar = pygame.Rect(intro_panel.left + 26, y, inner_width, 14)
             theme.rounded_rect(surface, bar, theme.CREAM_DARK, radius=7)
             filled = pygame.Rect(bar.left, bar.top, int(bar.width * progress.percent), bar.height)
             theme.rounded_rect(surface, filled, theme.LEAF, radius=7)
+            y += 24
             theme.draw_text(
                 surface,
                 self.fonts,
                 f"已完成 {progress.completed} 节 · 跳过 {progress.skipped} 节",
-                (intro_panel.left + 26, intro_panel.top + 226),
+                (intro_panel.left + 26, y),
                 theme.FONT_SMALL,
                 theme.INK_SOFT,
             )
+            y += 42
         tips = [
             "每节课只介绍一个新机制。",
             "可以随时跳过单节课或整个章节。",
             "教程不会获得 S/A/B/C 评价。",
         ]
-        y = intro_panel.top + 282
         for tip in tips:
             pygame.draw.circle(surface, theme.LEAF, (intro_panel.left + 34, y + 10), 4)
             wrapped = self.fonts.wrap(tip, theme.FONT_SMALL, intro_panel.width - 80, theme.INK_SOFT)

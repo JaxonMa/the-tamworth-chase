@@ -58,19 +58,21 @@ def test_tutorial_lessons_are_not_campaign_levels(catalog):
             assert lesson.source == "tutorial"
 
 
-def test_basics_chapter_has_six_lessons(catalog):
+def test_basics_chapter_has_five_lessons(catalog):
     chapter = catalog.get("basics")
     assert chapter is not None
-    assert len(chapter.lessons) == 6
+    assert len(chapter.lessons) == 5
     assert chapter.lessons[0].level_id == "basics_01"
 
 
 def test_tutorial_lesson_solutions_win(catalog):
     for chapter in catalog.all():
+        if chapter.chapter_id == "editor":
+            continue
         solutions = SOLUTIONS.get(chapter.chapter_id, {})
         for lesson in chapter.lessons:
             solution = solutions.get(lesson.level_id)
-            if solution is None:
+            if solution is None or solution.get("status") != "won":
                 continue
             obstacles = [tuple(pos) for pos in solution["obstacles"]]
             sim = Simulation(lesson, obstacles)
@@ -219,3 +221,24 @@ def test_every_lesson_has_tips_and_goal(catalog):
             assert lesson.tips, f"{lesson.level_id} needs guidance tips"
             assert lesson.goal_text or lesson.description
             assert any("\u4e00" <= ch <= "\u9fff" for ch in lesson.name)
+
+
+def test_chapter_counts(catalog):
+    counts = {chapter.chapter_id: len(chapter.lessons) for chapter in catalog.all()}
+    assert counts == {"basics": 5, "advanced": 3, "editor": 3}
+
+
+def test_every_playable_lesson_has_chase_fields(catalog):
+    for chapter in catalog.all():
+        for lesson in chapter.lessons:
+            assert lesson.max_turns >= 5
+            assert lesson.win_condition.value in ("catch", "pen")
+            if lesson.is_pen_level:
+                assert lesson.pen_cells
+            assert lesson.prediction_steps >= 0
+
+
+def test_advanced_loop_lesson_uses_hint_completion(catalog):
+    lesson = catalog.find_lesson("advanced", "advanced_03")
+    assert lesson.extra.get("complete_on_loop") is True
+    assert lesson.win_condition.value == "catch"

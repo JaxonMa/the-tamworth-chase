@@ -1,284 +1,160 @@
 {
-  "version": 1,
-  "chapter": "advanced",
   "title": "进阶教程",
-  "subtitle": "新的牛与新的道具",
-  "intro": "学会和性格各异的牛打交道，并用苹果、喇叭、泥地和路标改变追逐的节奏。",
+  "subtitle": "多头牛、围栏和循环提示",
+  "intro": "三节进阶课：同时应付多头牛，把牛送进围栏，认识不会判负的循环提示。",
   "badge": "进阶",
-  "accent": "clay",
+  "accent": "sky",
   "lessons": [
     {
       "id": "advanced_01",
-      "name": "牧场来了第二头牛",
-      "brief": "抓住任意一头牛就算赢。",
-      "goal": "同时盯着两头牛的路线，抓住其中一头。",
-      "practice": "用两捆干草制造一次相遇。",
+      "name": "两头牛",
+      "brief": "两头牛按固定顺序移动；抓住任意一头即可。",
+      "goal": "抓住任意一头牛。",
+      "practice": "观察两头牛的路线，抓住离你更近的一头。",
       "tips": [
         {
           "trigger": "start",
-          "text": "牧场上有两头牛，抓住任意一头就算胜利。"
+          "text": "场上有两头牛，它们按从左到右的固定顺序各走一步。"
         },
         {
-          "trigger": "place",
-          "text": "两捆干草可以分别影响两条路线。"
-        },
-        {
-          "trigger": "run",
-          "text": "注意两束预测虚线，找到最早的交点。"
+          "trigger": "move",
+          "text": "抓任意一头都算赢。先盯住离你最近的那一头。"
         },
         {
           "trigger": "win",
-          "text": "面对多头牛时，先解决离农夫最近的那一头。"
+          "text": "多头牛时，选择一个目标，别在两条路线之间摇摆。"
         }
       ],
       "level": {
         "id": "advanced_01",
-        "name": "牧场来了第二头牛",
-        "grid": [
-          "##########",
-          "#F.......#",
-          "#........#",
-          "#..###...#",
-          "#........#",
-          "#.......C#",
-          "#........#",
-          "#..C.....#",
-          "#........#",
-          "##########"
-        ],
-        "farmer_facing": "east",
-        "cow_facings": [
-          "north",
-          "west"
-        ],
-        "obstacle_limit": 2,
-        "step_limit": 25,
-        "s_threshold": 5,
-        "a_threshold": 9,
-        "b_threshold": 15
-      }
-    },
-    {
-      "id": "advanced_02",
-      "name": "倔脾气的牛",
-      "brief": "倔牛被挡住时会逆时针转身。",
-      "goal": "利用倔牛与众不同的转身方向。",
-      "practice": "先挡住倔牛，再让农夫绕过去。",
-      "tips": [
-        {
-          "trigger": "start",
-          "text": "这头牛被挡住时会逆时针转身，和普通牛正好相反。"
-        },
-        {
-          "trigger": "place",
-          "text": "挡在它前面，它会转向左边。"
-        },
-        {
-          "trigger": "run",
-          "text": "倔牛会往反方向拐，路线会比你想的更绕。"
-        },
-        {
-          "trigger": "win",
-          "text": "记住它的转向，下一次就能提前预判。"
-        }
-      ],
-      "level": {
-        "id": "advanced_02",
-        "name": "倔脾气的牛",
-        "grid": [
-          "##########",
-          "#F.......#",
-          "#....#...#",
-          "#........#",
-          "#....#..D#",
-          "#........#",
-          "#........#",
-          "#........#",
-          "#........#",
-          "##########"
-        ],
-        "farmer_facing": "east",
-        "cow_facings": [
-          "north"
-        ],
-        "obstacle_limit": 2,
-        "step_limit": 34,
-        "s_threshold": 14,
-        "a_threshold": 18,
-        "b_threshold": 24
-      }
-    },
-    {
-      "id": "advanced_03",
-      "name": "贪吃的牛",
-      "brief": "贪吃牛被挡住时会优先走向旁边的苹果。",
-      "goal": "用一颗苹果把贪吃牛引到农夫面前。",
-      "practice": "选择苹果工具，点在牛身边；再补一捆干草。",
-      "tips": [
-        {
-          "trigger": "start",
-          "text": "贪吃牛被挡住时，会优先走向旁边的苹果。"
-        },
-        {
-          "trigger": "place",
-          "text": "把苹果放在它转向后能碰到的地方。"
-        },
-        {
-          "trigger": "run",
-          "text": "苹果会把它引向农夫，注意时机。"
-        },
-        {
-          "trigger": "win",
-          "text": "用苹果当诱饵，比硬挡更有效。"
-        }
-      ],
-      "level": {
-        "id": "advanced_03",
-        "name": "贪吃的牛",
+        "name": "两头牛",
         "grid": [
           "##########",
           "#........#",
-          "#.#......#",
-          "#..###...#",
+          "#.#....#.#",
+          "#...TT...#",
+          "##.CTT..##",
           "#........#",
-          "#F.......#",
-          "#........#",
-          "#....G...#",
-          "#...#....#",
-          "##########"
-        ],
-        "farmer_facing": "south",
-        "cow_facings": [
-          "north"
-        ],
-        "obstacle_limit": 2,
-        "step_limit": 32,
-        "item_counts": {
-          "apple": 1
-        },
-        "s_threshold": 12,
-        "a_threshold": 16,
-        "b_threshold": 22
-      }
-    },
-    {
-      "id": "advanced_04",
-      "name": "胆小的牛",
-      "brief": "喇叭响起时所有牛掉头，胆小牛还会后退一步。",
-      "goal": "把喇叭放在农夫会经过的位置，吓退胆小牛。",
-      "practice": "选择喇叭工具，放在农夫的必经之路上。",
-      "tips": [
-        {
-          "trigger": "start",
-          "text": "喇叭被踩到时会响：所有牛掉头，胆小牛还会后退一步。"
-        },
-        {
-          "trigger": "place",
-          "text": "把喇叭放在农夫路上，等他自己去踩。"
-        },
-        {
-          "trigger": "run",
-          "text": "喇叭只响一次，时机比位置更重要。"
-        },
-        {
-          "trigger": "win",
-          "text": "胆小牛的后退常常会把它送到农夫身边。"
-        }
-      ],
-      "level": {
-        "id": "advanced_04",
-        "name": "胆小的牛",
-        "grid": [
-          "##########",
-          "#......F.#",
-          "#...#....#",
-          "#........#",
-          "#........#",
-          "#.....S..#",
-          "#.#......#",
-          "#........#",
-          "#........#",
+          "#.#...C#.#",
+          "#.HHHHHH.#",
+          "#..#..#F.#",
           "##########"
         ],
         "farmer_facing": "north",
         "cow_facings": [
+          "east",
           "west"
         ],
-        "obstacle_limit": 1,
-        "step_limit": 27,
-        "item_counts": {
-          "horn": 1
-        },
+        "max_turns": 20,
+        "initial_obstacles": 0,
+        "prediction_steps": 5,
+        "win_condition": "catch",
+        "pen_cells": [],
+        "cows_block_each_other": true,
         "s_threshold": 7,
-        "a_threshold": 11,
-        "b_threshold": 17
+        "a_threshold": 10,
+        "b_threshold": 13
       }
     },
     {
-      "id": "advanced_05",
-      "name": "泥地与路标",
-      "brief": "泥地会让人陷住一回合，路标会强行改变朝向。",
-      "goal": "利用已经摆好的泥地和路标完成追逐。",
-      "practice": "观察机关的位置，用两捆干草补上最后一段路。",
+      "id": "advanced_02",
+      "name": "围栏",
+      "brief": "把所有牛赶进金色围栏格就获胜。",
+      "goal": "让牛走进围栏格。",
+      "practice": "等牛自己走进金色围栏格。",
       "tips": [
         {
           "trigger": "start",
-          "text": "泥地会让人陷住一回合，路标会强行改变朝向。"
+          "text": "这一关的目标不是抓住牛，而是让牛走进金色围栏格。"
         },
         {
-          "trigger": "place",
-          "text": "机关已经摆好，你只需要补上干草垛。"
-        },
-        {
-          "trigger": "run",
-          "text": "看看谁踩进泥地，谁又被路标带走。"
+          "trigger": "wait",
+          "text": "农夫无法进入围栏区。耐心等牛沿自己的路线走进来。"
         },
         {
           "trigger": "win",
-          "text": "道具组合起来，能把整条路线重新编排。"
+          "text": "所有牛都进栏就获胜。围栏关里，牛可以不用被抓住。"
         }
       ],
       "level": {
-        "id": "advanced_05",
-        "name": "泥地与路标",
+        "id": "advanced_02",
+        "name": "围栏",
         "grid": [
-          "##########",
-          "#...F.##.#",
-          "#.....#..#",
-          "#........#",
-          "#........#",
-          "#..####..#",
-          "#.######.#",
-          "#.#.##.#.#",
-          "#C..##...#",
-          "##########"
+          "########",
+          "#......#",
+          "#.####.#",
+          "#.#C.#.#",
+          "#.#..#.#",
+          "#.####.#",
+          "#F.....#",
+          "########"
         ],
         "farmer_facing": "east",
         "cow_facings": [
-          "north"
+          "east"
         ],
-        "obstacle_limit": 2,
-        "step_limit": 27,
-        "placed_items": [
-          {
-            "kind": "mud",
-            "pos": [
-              4,
-              2
-            ]
-          },
-          {
-            "kind": "signpost",
-            "pos": [
-              2,
-              4
-            ],
-            "facing": "south"
-          }
+        "max_turns": 8,
+        "initial_obstacles": 0,
+        "prediction_steps": 3,
+        "win_condition": "pen",
+        "pen_cells": [
+          [
+            3,
+            4
+          ]
         ],
-        "s_threshold": 7,
-        "a_threshold": 11,
-        "b_threshold": 17
+        "cows_block_each_other": false,
+        "s_threshold": 1,
+        "a_threshold": 3,
+        "b_threshold": 5
+      }
+    },
+    {
+      "id": "advanced_03",
+      "name": "循环提示",
+      "brief": "牛的状态重复时会出现提示，但不会判负。",
+      "goal": "观察一次循环提示。",
+      "practice": "连续按空格等待，直到循环提示出现。",
+      "tips": [
+        {
+          "trigger": "start",
+          "text": "连续按空格等待。牛的位置和朝向重复时，会看到循环提示。"
+        },
+        {
+          "trigger": "wait",
+          "text": "继续等。循环提示只是一条提醒，不是失败。"
+        },
+        {
+          "trigger": "loop",
+          "text": "看，牛进入了循环。你可以继续行动，或者回到布置阶段换一条路。"
+        }
+      ],
+      "level": {
+        "id": "advanced_03",
+        "name": "循环提示",
+        "grid": [
+          "#######",
+          "#.....#",
+          "#.###.#",
+          "#.#C#.#",
+          "#.###.#",
+          "#F....#",
+          "#######"
+        ],
+        "farmer_facing": "east",
+        "cow_facings": [
+          "east"
+        ],
+        "max_turns": 20,
+        "initial_obstacles": 0,
+        "prediction_steps": 0,
+        "win_condition": "catch",
+        "pen_cells": [],
+        "cows_block_each_other": false,
+        "s_threshold": 4,
+        "a_threshold": 8,
+        "b_threshold": 12,
+        "complete_on_loop": true
       }
     }
   ]

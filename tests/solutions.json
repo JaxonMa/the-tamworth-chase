@@ -116,16 +116,11 @@
   },
   "level_08": {
     "obstacles": [],
-    "turns": 12,
+    "turns": 7,
     "actions": [
+      "wait",
       "east",
       "north",
-      "north",
-      "north",
-      "west",
-      "north",
-      "north",
-      "west",
       "north",
       "north",
       "west",
@@ -151,8 +146,9 @@
   },
   "level_10": {
     "obstacles": [],
-    "turns": 9,
+    "turns": 10,
     "actions": [
+      "wait",
       "east",
       "east",
       "east",

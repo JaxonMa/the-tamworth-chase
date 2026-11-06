@@ -124,7 +124,7 @@ def test_tutorial_chapter_scene_renders(app):
     app.open_tutorial_chapter("basics")
     _render(app)
     assert app.scene.chapter is not None
-    assert len(app.scene.chapter.lessons) == 6
+    assert len(app.scene.chapter.lessons) == 5
 
 
 def test_tutorial_lesson_flow(app):
@@ -167,3 +167,88 @@ def test_daily_level_is_deterministic(app):
     second = generate_daily()
     assert first.level_id == second.level_id
     assert first.rows == second.rows
+
+
+def test_wait_practice_is_enforced(app):
+    app.start_tutorial_lesson("basics", "basics_03")
+    scene = app.scene
+    scene._start_run()
+    from game.models import Direction
+
+    scene._take_turn(Direction.EAST)
+    scene.animator.clear()
+    scene._take_turn(Direction.EAST)
+    scene.animator.clear()
+    for _ in range(80):
+        app.update(1 / 60)
+        if scene.result_shown:
+            break
+    assert scene.modal is not None
+    assert scene.modal.title == "还差一个练习"
+    assert app.store.lesson_state("basics", "basics_03") != "completed"
+
+
+def test_loop_lesson_completes_on_hint(app):
+    app.start_tutorial_lesson("advanced", "advanced_03")
+    scene = app.scene
+    scene._start_run()
+    for _ in range(6):
+        scene._take_turn(None)
+        scene.animator.clear()
+        if scene.modal is not None:
+            break
+    assert scene.modal is not None
+    assert scene.modal.title == "循环提示"
+    assert app.store.lesson_state("advanced", "advanced_03") == "completed"
+
+
+def test_pen_lesson_completes(app):
+    app.start_tutorial_lesson("advanced", "advanced_02")
+    scene = app.scene
+    scene._start_run()
+    scene._take_turn(None)
+    scene.animator.clear()
+    for _ in range(80):
+        app.update(1 / 60)
+        if scene.result_shown:
+            break
+    assert scene.sim.status.value == "won"
+    assert scene.modal is not None
+    assert app.store.lesson_state("advanced", "advanced_02") == "completed"
+
+
+def test_prediction_practice_gate(app):
+    app.start_tutorial_lesson("basics", "basics_05")
+    scene = app.scene
+    assert scene.show_prediction is False
+    scene._start_run()
+    assert scene.phase == "place"
+    scene._toggle_prediction()
+    assert scene.show_prediction is True
+    scene._start_run()
+    assert scene.phase == "run"
+
+
+def test_undo_during_a_turn(app):
+    app.start_level(app.levels[0])
+    scene = app.scene
+    scene._start_run()
+    scene._take_turn(__import__("game.models", fromlist=["Direction"]).Direction.EAST)
+    scene.animator.clear()
+    assert scene.sim.turns == 1
+    scene._undo()
+    assert scene.sim.turns == 0
+    assert scene.phase == "run"
+
+
+def test_editor_set_rules_tutorial_task(app):
+    lesson = app.catalog.find_lesson("editor", "editor_02")
+    app.start_editor_tutorial("editor", lesson)
+    scene = app.scene
+    scene._action("condition")
+    scene._action("pen")
+    scene._paint((4, 4))
+    scene._paint((4, 5))
+    scene.update(1 / 60)
+    assert scene.task_done
+    assert app.store.lesson_state("editor", "editor_02") == "completed"

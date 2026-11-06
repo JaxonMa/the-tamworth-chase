@@ -1,321 +1,264 @@
 {
-  "version": 1,
-  "chapter": "basics",
   "title": "基础教程",
-  "subtitle": "从认识牧场开始",
-  "intro": "六节短课，从同步移动到时间闭环。每节课只讲一个新机制，随时可以跳过。",
+  "subtitle": "从走一步开始，学会追、等、撤销和预测",
+  "intro": "五节短课，每节只介绍一件事。可以跳过任何一节，也可以随时重玩。",
   "badge": "基础",
   "accent": "leaf",
   "lessons": [
     {
       "id": "basics_01",
-      "name": "一起出发",
-      "brief": "先看看农夫和牛是怎么一起走路的。",
-      "goal": "观察同步移动，让他们自然相遇。",
-      "practice": "点击「开始游戏」，看两位主角一起动起来。",
+      "name": "第一步",
+      "brief": "用方向键移动农夫，牛会在你之后走一步。",
+      "goal": "抓住牛",
+      "practice": "用方向键或 WASD 移动农夫，至少走一步。",
       "tips": [
         {
           "trigger": "start",
-          "text": "农夫和牛每回合同时移动：前方能走就前进，否则顺时针转 90°。"
+          "text": "用方向键或 WASD 移动农夫。你走一步，牛才会走一步。"
         },
         {
-          "trigger": "run",
-          "text": "现在点「开始游戏」，看他们一起动。"
-        },
-        {
-          "trigger": "step",
-          "text": "每一回合两人同时走一步，注意看他们的朝向。"
+          "trigger": "move",
+          "text": "注意：农夫先动，牛后动。牛撞到围栏时会顺时针转身。"
         },
         {
           "trigger": "win",
-          "text": "碰到一起就算抓住！这就是最基础的追逐。"
+          "text": "和牛站在同一格就抓住了。基础教程开始！"
         }
       ],
       "level": {
         "id": "basics_01",
-        "name": "一起出发",
+        "name": "第一步",
         "grid": [
-          "##########",
-          "#......#.#",
-          "#......#.#",
-          "#.......C#",
-          "#........#",
-          "#........#",
-          "#....F...#",
-          "#........#",
-          "#........#",
-          "##########"
+          "#######",
+          "#....C#",
+          "#.....#",
+          "#.....#",
+          "#.....#",
+          "#F....#",
+          "#######"
         ],
         "farmer_facing": "east",
         "cow_facings": [
-          "south"
+          "east"
         ],
-        "obstacle_limit": 0,
-        "step_limit": 13,
-        "s_threshold": 3,
-        "a_threshold": 7,
-        "b_threshold": 13
+        "max_turns": 12,
+        "initial_obstacles": 0,
+        "prediction_steps": 0,
+        "win_condition": "catch",
+        "pen_cells": [],
+        "cows_block_each_other": false,
+        "s_threshold": 5,
+        "a_threshold": 8,
+        "b_threshold": 10
       }
     },
     {
       "id": "basics_02",
-      "name": "第一捆干草",
-      "brief": "把干草垛放在牛的正前方，逼它转弯。",
-      "goal": "用一捆干草改变牛的路线。",
-      "practice": "点击草地放下干草垛，然后开始游戏。",
+      "name": "转过墙角",
+      "brief": "在牛的正前方放下干草垛，逼它右转。",
+      "goal": "用一捆干草改变牛的路线，抓住它。",
+      "practice": "先在牛的正前方放一捆干草，再开始。",
       "tips": [
         {
           "trigger": "start",
-          "text": "这次只靠等待抓不到。点击草地，把干草垛放在牛的正前方。"
+          "text": "把干草垛放在牛的正前方，它会原地右转。"
         },
         {
           "trigger": "place",
-          "text": "干草垛挡住了牛，它只好向右转身。"
+          "text": "放好了。干草垛会挡住牛，让它改变方向。"
         },
         {
           "trigger": "run",
-          "text": "现在开始游戏，看看路线会怎么改变。"
+          "text": "现在开始追逐，看看它拐向哪里。"
         },
         {
           "trigger": "win",
-          "text": "障碍改变了路线，这就是这个游戏的核心。"
+          "text": "墙角加干草，就能把牛的路线折回来。"
         }
       ],
       "level": {
         "id": "basics_02",
-        "name": "第一捆干草",
+        "name": "转过墙角",
         "grid": [
-          "##########",
-          "#........#",
-          "#........#",
-          "#....C#..#",
-          "#........#",
-          "#.#......#",
-          "#.......F#",
-          "#........#",
-          "#........#",
-          "##########"
+          "#######",
+          "#.....#",
+          "#..#C.#",
+          "#..#..#",
+          "#..#..#",
+          "#F....#",
+          "#######"
         ],
         "farmer_facing": "east",
         "cow_facings": [
-          "north"
+          "east"
         ],
-        "obstacle_limit": 1,
-        "step_limit": 27,
-        "require_obstacle": 1,
-        "s_threshold": 7,
-        "a_threshold": 11,
-        "b_threshold": 17
+        "max_turns": 10,
+        "initial_obstacles": 1,
+        "prediction_steps": 0,
+        "win_condition": "catch",
+        "pen_cells": [],
+        "cows_block_each_other": false,
+        "s_threshold": 4,
+        "a_threshold": 6,
+        "b_threshold": 8,
+        "require_obstacle": 1
       }
     },
     {
       "id": "basics_03",
-      "name": "收回来再想想",
-      "brief": "布局阶段可以反复调整，点击干草垛就能收回。",
-      "goal": "学会撤销：先放一捆干草，再收回来。",
-      "practice": "放下一捆干草，然后点击它把它收回来。",
+      "name": "等一等",
+      "brief": "按空格让农夫等待，牛会自己走过来。",
+      "goal": "用等待抓住牛。",
+      "practice": "按空格等待至少一回合，再抓住牛。",
       "tips": [
         {
           "trigger": "start",
-          "text": "先放一捆干草，再点同一格把它收回来。"
+          "text": "按空格可以让农夫原地等待，牛仍然会走一步。"
         },
         {
-          "trigger": "place",
-          "text": "放好了。现在点击干草垛，或按「撤销一步」。"
-        },
-        {
-          "trigger": "remove",
-          "text": "收回来了！布局阶段可以反复调整，直到开始为止。"
-        },
-        {
-          "trigger": "run",
-          "text": "重新放好干草垛，然后开始吧。"
+          "trigger": "wait",
+          "text": "牛正在靠近。继续等，让它自己走进来。"
         },
         {
           "trigger": "win",
-          "text": "调整路线就是解谜的过程。"
+          "text": "等待也是一种策略：不用追，让牛来找你。"
         }
       ],
       "level": {
         "id": "basics_03",
-        "name": "收回来再想想",
+        "name": "等一等",
         "grid": [
-          "##########",
-          "#........#",
-          "#........#",
-          "#....C#..#",
-          "#........#",
-          "#.#......#",
-          "#.......F#",
-          "#........#",
-          "#........#",
-          "##########"
+          "#######",
+          "#.....#",
+          "#######",
+          "#F...C#",
+          "#######",
+          "#.....#",
+          "#######"
         ],
         "farmer_facing": "east",
         "cow_facings": [
-          "north"
+          "west"
         ],
-        "obstacle_limit": 1,
-        "step_limit": 27,
-        "require_undo": true,
-        "s_threshold": 7,
-        "a_threshold": 11,
-        "b_threshold": 17
+        "max_turns": 8,
+        "initial_obstacles": 0,
+        "prediction_steps": 0,
+        "win_condition": "catch",
+        "pen_cells": [],
+        "cows_block_each_other": false,
+        "s_threshold": 4,
+        "a_threshold": 6,
+        "b_threshold": 7,
+        "require_wait": true
       }
     },
     {
       "id": "basics_04",
-      "name": "看清三步",
-      "brief": "虚线是接下来三步的预测，布局会实时改变它。",
-      "goal": "利用前三步预测完成关卡。",
-      "practice": "先观察预测虚线，再放下两块干草。",
+      "name": "撤销一步",
+      "brief": "放错了？按 U 收回干草垛，再重新想。",
+      "goal": "先放下一捆干草并收回，再完成追逐。",
+      "practice": "放一捆干草，按 U 收回，然后再放好开始。",
       "tips": [
         {
           "trigger": "start",
-          "text": "虚线表示接下来 3 步的预测，先看看两位主角会走到哪里。"
+          "text": "放一捆干草，再按 U 把它收回。布局阶段可以反复调整。"
         },
         {
           "trigger": "place",
-          "text": "预测会随布局实时变化，换个位置再看看。"
+          "text": "放好了。现在按 U，或点击干草垛把它收回。"
+        },
+        {
+          "trigger": "undo",
+          "text": "收回来了。撤销之后可以重新放，直到你满意为止。"
         },
         {
           "trigger": "run",
-          "text": "开始之后，每走一步预测都会重新计算。"
+          "text": "再放一捆干草，然后开始追逐。"
         },
         {
           "trigger": "win",
-          "text": "善用预测，可以少走很多弯路。"
+          "text": "会撤销，就能大胆试错。"
         }
       ],
       "level": {
         "id": "basics_04",
-        "name": "看清三步",
+        "name": "撤销一步",
         "grid": [
-          "##########",
-          "#F.......#",
-          "#.####...#",
-          "#....#...#",
-          "#....#..C#",
-          "#....#...#",
-          "#....#####",
-          "#........#",
-          "#........#",
-          "##########"
+          "#######",
+          "#.....#",
+          "#..#C.#",
+          "#..#..#",
+          "#..#..#",
+          "#F....#",
+          "#######"
         ],
         "farmer_facing": "east",
         "cow_facings": [
-          "north"
+          "east"
         ],
-        "obstacle_limit": 2,
-        "step_limit": 32,
-        "s_threshold": 12,
-        "a_threshold": 16,
-        "b_threshold": 22
+        "max_turns": 10,
+        "initial_obstacles": 1,
+        "prediction_steps": 0,
+        "win_condition": "catch",
+        "pen_cells": [],
+        "cows_block_each_other": false,
+        "s_threshold": 4,
+        "a_threshold": 6,
+        "b_threshold": 8,
+        "require_obstacle": 1,
+        "require_undo": true
       }
     },
     {
       "id": "basics_05",
-      "name": "时间闭环",
-      "brief": "如果状态完全重复，时间就会绕成一个圈。",
-      "goal": "先见识一次时间闭环，再打破它。",
-      "practice": "不妨先不加干草，直接开始看看。",
+      "name": "看清前路",
+      "brief": "按 P 打开路径预测，先看牛会走到哪里。",
+      "goal": "打开 6 回合预测，规划路线抓住牛。",
+      "practice": "按 P 打开预测，再开始追逐。",
       "tips": [
         {
           "trigger": "start",
-          "text": "如果两位主角回到完全相同的状态，时间就会绕成闭环。"
+          "text": "这一关的预测能看到 6 回合。按 P 打开它。"
+        },
+        {
+          "trigger": "predict",
+          "text": "半透明脚印就是牛接下来会走的路。先观察，再移动。"
         },
         {
           "trigger": "run",
-          "text": "先不加干草垛，直接开始看看会发生什么。"
-        },
-        {
-          "trigger": "step",
-          "text": "他们在重复同一段路线……"
-        },
-        {
-          "trigger": "fail",
-          "text": "时间闭环了。重复的状态意味着永远抓不到，必须改变路线。"
-        },
-        {
-          "trigger": "place",
-          "text": "加一捆干草，打破这个循环。"
+          "text": "现在开始追逐。每走一步，脚印都会重新计算。"
         },
         {
           "trigger": "win",
-          "text": "打破循环，就能抓到牛。"
+          "text": "先看路，再走路，就能少绕很多圈。"
         }
       ],
       "level": {
         "id": "basics_05",
-        "name": "时间闭环",
+        "name": "看清前路",
         "grid": [
-          "##########",
-          "#F....#..#",
-          "#.....#..#",
-          "#..####..#",
-          "#.....#..#",
-          "#..C..#..#",
-          "#.....#..#",
-          "#........#",
-          "#........#",
-          "##########"
+          "#######",
+          "#F....#",
+          "#..#..#",
+          "#..#C.#",
+          "#..#..#",
+          "#.....#",
+          "#######"
         ],
         "farmer_facing": "east",
         "cow_facings": [
-          "north"
+          "east"
         ],
-        "obstacle_limit": 1,
-        "step_limit": 34,
-        "s_threshold": 14,
-        "a_threshold": 18,
-        "b_threshold": 24
-      }
-    },
-    {
-      "id": "basics_06",
-      "name": "抓牛小考",
-      "brief": "两块干草，一头牛，一节课学到的都用上。",
-      "goal": "用两捆干草抓住牛。",
-      "practice": "结合预测与转角，把两块干草放在关键位置。",
-      "tips": [
-        {
-          "trigger": "start",
-          "text": "最后来一次小测验：两捆干草，抓住牛。"
-        },
-        {
-          "trigger": "place",
-          "text": "位置很重要，先看看预测虚线。"
-        },
-        {
-          "trigger": "win",
-          "text": "基础教程完成！主线关卡里还有更多牧场等着你。"
-        }
-      ],
-      "level": {
-        "id": "basics_06",
-        "name": "抓牛小考",
-        "grid": [
-          "##########",
-          "#...F.##.#",
-          "#.....#..#",
-          "#........#",
-          "#........#",
-          "#..####..#",
-          "#.######.#",
-          "#.#.##.#.#",
-          "#C..##...#",
-          "##########"
-        ],
-        "farmer_facing": "east",
-        "cow_facings": [
-          "north"
-        ],
-        "obstacle_limit": 2,
-        "step_limit": 27,
-        "require_obstacle": 2,
+        "max_turns": 15,
+        "initial_obstacles": 0,
+        "prediction_steps": 6,
+        "win_condition": "catch",
+        "pen_cells": [],
+        "cows_block_each_other": false,
         "s_threshold": 7,
-        "a_threshold": 11,
-        "b_threshold": 17
+        "a_threshold": 10,
+        "b_threshold": 12,
+        "require_prediction": true
       }
     }
   ]

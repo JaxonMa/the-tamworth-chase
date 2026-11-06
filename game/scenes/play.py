@@ -67,6 +67,9 @@ class PlayScene(Scene):
         self.trail_cows: List[List[Pos]] = []
         self.undo_performed = False
         self.prediction_used = self.show_prediction
+        self.waited_once = False
+        self.practice_failed = False
+        self.loop_lesson_done = False
         self.tutorial = None
         self._prediction_cache: Tuple = ()
         self._prediction_key = None
@@ -301,6 +304,8 @@ class PlayScene(Scene):
         if self.phase != "run" or self.animator.busy:
             return
         result = self.sim.order(direction)
+        if direction is None:
+            self.waited_once = True
         if result.blocked:
             self._toast(result.message or "这一下不算回合。")
             self.app.sound.play("error")
@@ -318,6 +323,14 @@ class PlayScene(Scene):
             self._toast("牛进入了循环。它还会继续走，你可以换个方向或去拦它。", 2.8)
             self.app.sound.play("loop")
             self._tutorial_event("loop")
+            if (
+                self.mode == "tutorial"
+                and self.level.extra.get("complete_on_loop")
+                and not self.loop_lesson_done
+            ):
+                self.loop_lesson_done = True
+                self._complete_loop_lesson()
+                return
         if result.status.is_finished:
             self._begin_result()
         else:
@@ -341,8 +354,16 @@ class PlayScene(Scene):
             self.effects.ring(center, theme.SUN, 120, 0.9)
             self.effects.flying_hat(center)
             self.app.sound.play("win")
-            self._record_win()
-            self._tutorial_event("win")
+            if (
+                self.mode == "tutorial"
+                and self.level.extra.get("require_wait")
+                and not self.waited_once
+            ):
+                self.practice_failed = True
+                self.app.sound.play("error")
+            else:
+                self._record_win()
+                self._tutorial_event("win")
         else:
             self.app.sound.play("lose")
             self._tutorial_event("fail")
@@ -385,6 +406,28 @@ class PlayScene(Scene):
                 },
             )
 
+    def _complete_loop_lesson(self) -> None:
+        if self.mode != "tutorial" or self.app.book is None:
+            return
+        self.app.book.complete_lesson(
+            self.chapter, self.level.tutorial_id or self.level.level_id
+        )
+        self.app.sound.play("unlock")
+        self._toast("循环提示不会判负，你可以继续行动。", 3.0)
+        self.modal = ui.Modal(
+            "循环提示",
+            "牛的位置和朝向重复了，所以出现了循环提示。\n"
+            "这不会判负；你可以继续移动农夫，或者回到布置阶段换一条路。",
+            accent=theme.SKY_DEEP,
+            badge="教程",
+            buttons=[
+                ui.Button(pygame.Rect(0, 0, 170, 50), "下一课", "next_lesson", style="primary"),
+                ui.Button(pygame.Rect(0, 0, 150, 50), "返回章节", "leave", style="ghost"),
+            ],
+            width=680,
+            height=350,
+        )
+
     def _undo(self) -> None:
         if self.animator.busy:
             return
@@ -418,6 +461,9 @@ class PlayScene(Scene):
         self.rank = None
         self.new_record = False
         self.undo_performed = False
+        self.waited_once = False
+        self.practice_failed = False
+        self.loop_lesson_done = False
         self.loop_events = 0
         self._seed_trails()
         self._sync_phase()
@@ -508,6 +554,21 @@ class PlayScene(Scene):
     def _show_result(self) -> None:
         self.result_shown = True
         self._refresh_buttons()
+        if self.practice_failed:
+            self.modal = ui.Modal(
+                "还差一个练习",
+                "这一课要用空格等待至少一回合，观察牛自己走过来。\n"
+                "重开本课，按空格等一等再抓住它。",
+                accent=theme.SKY_DEEP,
+                badge="练习",
+                buttons=[
+                    ui.Button(pygame.Rect(0, 0, 170, 50), "重开本课", "retry", style="primary"),
+                    ui.Button(pygame.Rect(0, 0, 150, 50), "返回章节", "leave", style="ghost"),
+                ],
+                width=640,
+                height=330,
+            )
+            return
         if self.sim.status is GameStatus.WON:
             self._show_win_modal()
             return
@@ -634,6 +695,19 @@ class PlayScene(Scene):
         badge, badge_color = badge_map.get(self.mode, ("主线", theme.LEAF))
         width = self.fonts.size_of(title, theme.FONT_H1, True)[0]
         ui.draw_pill(surface, self.fonts, badge, (62 + width + 62, 58), badge_color)
+        status_text = {
+            "place": "布置阶段",
+            "run": "追逐中",
+            "result": "本局结束",
+        }[self.phase]
+        ui.draw_pill(
+            surface,
+            self.fonts,
+            status_text,
+            (62 + width + 170, 58),
+            theme.CREAM_DARK,
+            text_color=theme.INK_SOFT,
+        )
         pygame.draw.line(surface, theme.PANEL_BORDER, (60, 104), (1220, 104), 2)
 
     def _draw_top_bar(self, surface: pygame.Surface) -> None:
@@ -645,7 +719,7 @@ class PlayScene(Scene):
             218,
             112,
             130,
-            "干草垛",
+            "障碍",
             f"{self.sim.obstacle_count} / {self.level.initial_obstacles}",
         )
         for button in (self.undo_button, self.restart_button, self.predict_button):
@@ -754,6 +828,15 @@ class PlayScene(Scene):
             goal = "目标：抓住牛"
         ui.draw_pill(surface, self.fonts, goal, (left + 52, y + 18), theme.LEAF_DARK)
         y += 50
+        if self.sim.loop_hint_last and not self.sim.status.is_finished:
+            ui.draw_pill(
+                surface,
+                self.fonts,
+                "牛进入了循环 · 可继续行动",
+                (left + 110, y + 16),
+                LOOP_COLOR,
+            )
+            y += 40
 
         if self.tutorial is not None and self.tutorial.active:
             self._draw_tutorial_box(surface, left, y, width)
@@ -788,14 +871,26 @@ class PlayScene(Scene):
             self.skip_button.draw(surface, self.fonts)
 
     def _draw_tutorial_box(self, surface: pygame.Surface, x: int, y: int, width: int) -> None:
-        box = pygame.Rect(x, y, width, 132)
+        box = pygame.Rect(x, y, width, 158)
         theme.rounded_rect(surface, box, theme.SKY_PALE, radius=16)
         theme.rounded_rect(surface, box, theme.SKY_DEEP, radius=16, width=2)
         ui.draw_pill(surface, self.fonts, "提示", (box.left + 44, box.top + 22), theme.SKY_DEEP)
         text = self.fonts.wrap(self.tutorial.active or "", theme.FONT_SMALL, width - 48, theme.INK)
         surface.blit(text, (box.left + 20, box.top + 44))
+        if self.level.practice_text:
+            ui.draw_pill(surface, self.fonts, "练习", (box.left + 44, box.top + 112), theme.CREAM_DARK)
+            practice = self.fonts.ellipsize(self.level.practice_text, theme.FONT_TINY, width - 120)
+            theme.draw_text(
+                surface,
+                self.fonts,
+                practice,
+                (box.left + 84, box.top + 112),
+                theme.FONT_TINY,
+                theme.INK_SOFT,
+                anchor="midleft",
+            )
         ratio = self.tutorial.progress_ratio
-        bar = pygame.Rect(box.left + 20, box.bottom - 20, width - 40, 8)
+        bar = pygame.Rect(box.left + 20, box.bottom - 18, width - 40, 8)
         theme.rounded_rect(surface, bar, theme.CREAM_DARK, radius=4)
         filled = pygame.Rect(bar.left, bar.top, int(bar.width * ratio), bar.height)
         theme.rounded_rect(surface, filled, theme.SKY_DEEP, radius=4)
