@@ -25,6 +25,7 @@ def store(tmp_path: Path) -> ProgressStore:
 def test_defaults(store):
     assert store.get_setting("sound") is True
     assert store.get_setting("preview") is True
+    assert store.get_setting("alerts") is True
     assert store.main_levels == {}
     assert store.lesson_state("basics", "b1") == TUTORIAL_NOT_STARTED
 
@@ -33,7 +34,7 @@ def test_save_and_reload(tmp_path: Path):
     path = tmp_path / "save.json"
     first = ProgressStore(path).load()
     first.set_setting("volume", 0.9)
-    first.record_main_clear("level_01", 9, Rank.A, 1)
+    first.record_main_clear("level_01", 9, Rank.A)
     assert path.exists()
 
     second = ProgressStore(path).load()
@@ -44,9 +45,9 @@ def test_save_and_reload(tmp_path: Path):
 
 
 def test_best_turns_keep_minimum(store):
-    store.record_main_clear("level_01", 12, Rank.B, 2)
-    store.record_main_clear("level_01", 8, Rank.S, 1)
-    store.record_main_clear("level_01", 15, Rank.C, 2)
+    store.record_main_clear("level_01", 12, Rank.B)
+    store.record_main_clear("level_01", 8, Rank.S)
+    store.record_main_clear("level_01", 15, Rank.C)
     result = store.main_result("level_01")
     assert result.best_turns == 8
     assert result.rank is Rank.S
@@ -54,7 +55,7 @@ def test_best_turns_keep_minimum(store):
 
 def test_attempts_are_counted(store):
     store.record_main_attempt("level_01")
-    store.record_main_clear("level_01", 10, Rank.A, 0)
+    store.record_main_clear("level_01", 10, Rank.A)
     assert store.main_levels["level_01"]["attempts"] == 2
 
 
@@ -64,12 +65,12 @@ def test_unlock_progression(store):
     assert store.is_main_unlocked(ids, "a") is True
     assert store.is_main_unlocked(ids, "b") is False
 
-    store.record_main_clear("a", 10, Rank.A, 1)
+    store.record_main_clear("a", 10, Rank.A)
     assert store.main_unlocked_count(ids) == 2
     assert store.is_main_unlocked(ids, "b") is True
     assert store.is_main_unlocked(ids, "c") is False
 
-    store.record_main_clear("b", 10, Rank.A, 1)
+    store.record_main_clear("b", 10, Rank.A)
     assert store.main_unlocked_count(ids) == 3
     assert store.is_main_unlocked(ids, "c") is True
 
@@ -83,7 +84,7 @@ def test_tutorial_completion_does_not_unlock_campaign(store):
 
 
 def test_campaign_completion_does_not_touch_tutorial(store):
-    store.record_main_clear("a", 10, Rank.S, 1)
+    store.record_main_clear("a", 10, Rank.S)
     assert store.lesson_state("basics", "b1") == TUTORIAL_NOT_STARTED
     assert store.chapter_summary("basics", ["b1", "b2"]) == (0, 2)
 
@@ -108,7 +109,7 @@ def test_skip_chapter(store):
 
 
 def test_reset_tutorial_keeps_campaign(store):
-    store.record_main_clear("level_01", 8, Rank.S, 1)
+    store.record_main_clear("level_01", 8, Rank.S)
     store.set_lesson_state("basics", "b1", TUTORIAL_COMPLETED)
     store.reset_tutorial()
     assert store.lesson_state("basics", "b1") == TUTORIAL_NOT_STARTED
@@ -116,7 +117,7 @@ def test_reset_tutorial_keeps_campaign(store):
 
 
 def test_reset_main_keeps_tutorial(store):
-    store.record_main_clear("level_01", 8, Rank.S, 1)
+    store.record_main_clear("level_01", 8, Rank.S)
     store.set_lesson_state("basics", "b1", TUTORIAL_COMPLETED)
     store.reset_main()
     assert store.main_result("level_01").cleared is False
@@ -155,7 +156,7 @@ def test_legacy_save_is_migrated_once(tmp_path: Path):
     old_path.parent.mkdir(parents=True)
     legacy = ProgressStore(old_path).load()
     legacy.set_setting("sound", False)
-    legacy.record_main_clear("level_01", 7, Rank.S, 0)
+    legacy.record_main_clear("level_01", 7, Rank.S)
 
     store = ProgressStore(new_path, legacy_path=old_path).load()
     assert store.migrated_from == str(old_path)
@@ -210,10 +211,11 @@ def test_legacy_step_records_are_migrated(tmp_path: Path):
         encoding="utf-8",
     )
     store = ProgressStore(path).load()
-    assert store.data["version"] == 4
+    assert store.data["version"] == 5
     assert "speed" not in store.settings
-    assert json.loads(path.read_text(encoding="utf-8"))["version"] == 4
+    assert json.loads(path.read_text(encoding="utf-8"))["version"] == 5
     result = store.main_result("level_01")
     assert result.best_turns == 9
     assert result.rank is Rank.A
     assert store.daily_result("2026-01-01")["turns"] == 12
+    assert "obstacles" not in store.main_levels["level_01"]

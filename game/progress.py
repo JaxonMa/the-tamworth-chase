@@ -20,7 +20,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 from .models import LevelResult, Rank
 from .paths import data_override, ensure_data_dir, legacy_save_path, save_path
 
-SAVE_VERSION = 4
+SAVE_VERSION = 5
 
 TUTORIAL_NOT_STARTED = "not_started"
 TUTORIAL_IN_PROGRESS = "in_progress"
@@ -39,6 +39,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "volume": 0.6,
     "low_effects": False,
     "preview": True,
+    "alerts": True,
     "seen_welcome": False,
 }
 
@@ -155,6 +156,9 @@ class ProgressStore:
         settings.update(raw.get("settings") or {})
         settings.pop("speed", None)  # real-time speed no longer exists
         base["settings"] = settings
+        for record in base["main"].get("levels", {}).values():
+            if isinstance(record, dict):
+                record.pop("obstacles", None)
         # Renamed counters from step based saves.
         for record in base["main"].get("levels", {}).values():
             if isinstance(record, dict) and "best_steps" in record:
@@ -207,7 +211,6 @@ class ProgressStore:
             cleared=bool(record.get("cleared")),
             best_turns=record.get("best_turns", record.get("best_steps")),
             rank=Rank(rank_raw) if rank_raw in {r.value for r in Rank} else None,
-            obstacles_used=int(record.get("obstacles", 0) or 0),
         )
 
     def record_main_clear(
@@ -215,7 +218,6 @@ class ProgressStore:
         level_id: str,
         turns: int,
         rank: Rank,
-        obstacles_used: int,
         extra: Optional[Mapping[str, Any]] = None,
     ) -> bool:
         """Store a campaign win.  Returns True when a new turn record was set."""
@@ -231,10 +233,6 @@ class ProgressStore:
         best_rank = record.get("rank")
         if best_rank is None or _rank_value(rank) > _rank_value(Rank(best_rank)):
             record["rank"] = rank.value
-        if obstacles_used:
-            record["obstacles"] = min(
-                int(record.get("obstacles", obstacles_used) or obstacles_used), obstacles_used
-            )
         if extra:
             record.update(dict(extra))
         self.save()

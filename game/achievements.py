@@ -23,10 +23,10 @@ class Achievement:
 
 
 ACHIEVEMENTS: Sequence[Achievement] = (
-    Achievement("one_step", "一步抓牛", "只用一个回合就抓住了牛。", "让牛被挡住，农夫只差一步。"),
-    Achievement("no_obstacles", "零障碍通关", "没有放下任何干草垛就抓住了牛。", "有些牧场本来就会相遇。"),
-    Achievement("fenced_cow", "围栏里的牛", "把牛赶进围栏，或把它逼进死角。", "围栏关里让所有牛同时进栏。"),
-    Achievement("loop_free", "一气呵成", "整局没有出现循环提示。", "看准牛的路线，一次走对。"),
+    Achievement("one_step", "一步抓牛", "只用一个回合就抓住了所有牛。", "把农夫停在牛群的必经之路上。"),
+    Achievement("close_call", "最后一回合", "在回合上限的最后一回合完成抓捕。", "别急着放弃，最后一刻也可能翻盘。"),
+    Achievement("flawless", "毫发无损", "整局没有一次前进撞墙。", "先转向，再前进。"),
+    Achievement("loop_free", "一气呵成", "整局没有出现循环提示。", "看准牛的路线，一次开对。"),
     Achievement("all_levels", "牧场主", "通关全部十个主线关卡。", "主线通关后自然获得。"),
 )
 
@@ -65,10 +65,10 @@ class AchievementTracker:
             return []
         if sim.turns <= 1:
             self._unlock("one_step")
-        if sim.obstacle_count == 0:
-            self._unlock("no_obstacles")
-        if sim.penned_count == len(sim.cows) or self._cow_in_corner(level, sim):
-            self._unlock("fenced_cow")
+        if sim.turns == level.max_turns:
+            self._unlock("close_call")
+        if sim.blocked_events == 0:
+            self._unlock("flawless")
         if loops == 0:
             self._unlock("loop_free")
         if mode == "main":
@@ -78,19 +78,6 @@ class AchievementTracker:
             if completed >= 10:
                 self._unlock("all_levels")
         return list(self.newly_unlocked)
-
-    @staticmethod
-    def _cow_in_corner(level: Level, sim: Simulation) -> bool:
-        blocked = set(level.wall_positions) | set(sim.obstacles)
-        for cow in sim.cows:
-            row, col = cow.pos
-            sides = 0
-            for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                if (row + dr, col + dc) in blocked:
-                    sides += 1
-            if sides >= 3:
-                return True
-        return False
 
     # ------------------------------------------------------------------
     def unlocked(self) -> List[Achievement]:

@@ -1,7 +1,7 @@
 {
   "title": "编辑器教程",
-  "subtitle": "自己造一片牧场",
-  "intro": "三节编辑器课：画地形、设置规则、导出与导入。",
+  "subtitle": "自己造一片有出口的牧场",
+  "intro": "三节编辑器课：画地形、设置出口与牛的行为、导出与导入。",
   "badge": "编辑器",
   "accent": "clay",
   "lessons": [
@@ -36,15 +36,24 @@
           "#F......C#",
           "##########"
         ],
-        "farmer_facing": "east",
+        "fj_start_direction": "north",
         "cow_facings": [
           "north"
         ],
+        "cow_behavior": "seek_exit",
+        "exit_cells": [
+          [
+            1,
+            1
+          ]
+        ],
         "max_turns": 40,
-        "initial_obstacles": 3,
         "prediction_steps": 5,
-        "win_condition": "catch",
-        "pen_cells": [],
+        "exit_sight_range": -1,
+        "sight_range": -1,
+        "exit_tiebreak": "right",
+        "flee_tiebreak": "right",
+        "cows_block_sight": false,
         "cows_block_each_other": false,
         "s_threshold": 10,
         "a_threshold": 18,
@@ -69,23 +78,23 @@
     },
     {
       "id": "editor_02",
-      "name": "设置新的规则",
-      "brief": "把胜利条件改成围栏，再画出两格围栏格。",
-      "goal": "设置围栏胜利，并画出两格围栏格。",
-      "practice": "点「胜利：抓住」切换成围栏，再用围栏格工具画两格。",
+      "name": "出口与行为",
+      "brief": "画出出口，并让一头牛看到农夫时先逃跑。",
+      "goal": "画出两格出口，并把一头牛改成「躲避」。",
+      "practice": "用出口格工具画两格，再点「行为」切换成躲避。",
       "tips": [
         {
           "trigger": "start",
-          "text": "先点「胜利：抓住」切换成围栏，再用「围栏格」画两格。"
+          "text": "用「出口格」画两格出口；再用「行为」把一头牛切成「躲避」。"
         },
         {
           "trigger": "place",
-          "text": "金色格子就是围栏。围栏关里，牛要走到这里才算赢。"
+          "text": "金色格子是出口。出口是牛的目标，也是玩家的失败点。"
         }
       ],
       "level": {
         "id": "editor_02",
-        "name": "设置新的规则",
+        "name": "出口与行为",
         "grid": [
           "##########",
           "#........#",
@@ -98,23 +107,32 @@
           "#F......C#",
           "##########"
         ],
-        "farmer_facing": "east",
+        "fj_start_direction": "north",
         "cow_facings": [
           "north"
         ],
+        "cow_behavior": "seek_exit",
+        "exit_cells": [
+          [
+            1,
+            1
+          ]
+        ],
         "max_turns": 40,
-        "initial_obstacles": 3,
         "prediction_steps": 5,
-        "win_condition": "catch",
-        "pen_cells": [],
+        "exit_sight_range": -1,
+        "sight_range": -1,
+        "exit_tiebreak": "right",
+        "flee_tiebreak": "right",
+        "cows_block_sight": false,
         "cows_block_each_other": false,
         "s_threshold": 10,
         "a_threshold": 18,
         "b_threshold": 26
       },
       "editor_task": {
-        "type": "set_rules",
-        "pen_cells": 2
+        "type": "set_exits",
+        "count": 2
       },
       "starter_grid": [
         "##########",
@@ -160,15 +178,24 @@
           "#F......C#",
           "##########"
         ],
-        "farmer_facing": "east",
+        "fj_start_direction": "north",
         "cow_facings": [
           "north"
         ],
+        "cow_behavior": "seek_exit",
+        "exit_cells": [
+          [
+            1,
+            1
+          ]
+        ],
         "max_turns": 40,
-        "initial_obstacles": 3,
         "prediction_steps": 5,
-        "win_condition": "catch",
-        "pen_cells": [],
+        "exit_sight_range": -1,
+        "sight_range": -1,
+        "exit_tiebreak": "right",
+        "flee_tiebreak": "right",
+        "cows_block_sight": false,
         "cows_block_each_other": false,
         "s_threshold": 10,
         "a_threshold": 18,

@@ -44,17 +44,24 @@ class SettingsScene(Scene):
             "preview",
             bool(store.get_setting("preview", True)),
         )
+        self.alerts_toggle = ui.Toggle(
+            pygame.Rect(118, 454, 520, 46),
+            "显示牛的警觉图标",
+            "alerts",
+            bool(store.get_setting("alerts", True)),
+        )
         self.reset_main_button = ui.Button(
-            pygame.Rect(118, 486, 250, 50), "重置主线进度", "reset_main", style="ghost"
+            pygame.Rect(118, 540, 250, 50), "重置主线进度", "reset_main", style="ghost"
         )
         self.reset_tutorial_button = ui.Button(
-            pygame.Rect(388, 486, 250, 50), "重置教程进度", "reset_tutorial", style="ghost"
+            pygame.Rect(388, 540, 250, 50), "重置教程进度", "reset_tutorial", style="ghost"
         )
         self.widgets = [
             self.sound_toggle,
             self.volume_slider,
             self.effects_toggle,
             self.preview_toggle,
+            self.alerts_toggle,
         ]
         self.reset_tutorial_button.enabled = self.app.book is not None
 
@@ -91,6 +98,8 @@ class SettingsScene(Scene):
             self.store.set_setting("low_effects", widget.value)
         elif widget is self.preview_toggle:
             self.store.set_setting("preview", widget.value)
+        elif widget is self.alerts_toggle:
+            self.store.set_setting("alerts", widget.value)
 
     def _ask_reset(self, key: str) -> None:
         self.app.sound.play("click")
@@ -139,26 +148,26 @@ class SettingsScene(Scene):
         draw_header(surface, self.fonts, "设置", "所有设置都保存在本地")
         self.back_button.draw(surface, self.fonts)
 
-        theme.panel(surface, pygame.Rect(80, 150, 620, 420))
+        theme.panel(surface, pygame.Rect(80, 150, 620, 470))
         for widget in self.widgets:
             widget.draw(surface, self.fonts)
-        ui.draw_divider(surface, 458, 118, 520)
+        ui.draw_divider(surface, 516, 118, 520)
         self.reset_main_button.draw(surface, self.fonts)
         self.reset_tutorial_button.draw(surface, self.fonts)
 
-        info = pygame.Rect(740, 150, 460, 420)
+        info = pygame.Rect(740, 150, 460, 470)
         theme.panel(surface, info)
         theme.draw_text(surface, self.fonts, "关于", (info.left + 26, info.top + 22), theme.FONT_H2, theme.INK, bold=True)
         ui.draw_divider(surface, info.top + 70, info.left + 26, info.width - 52)
         lines = [
             "游戏名：The Tamworth Chase",
             "中文副标题：《塔姆沃斯追逐》",
-            "版本：1.1.0",
+            "版本：1.2.0",
             "界面字体：CEF Fonts CJK（本地内置）",
             "全部美术由程序绘制，运行时不联网。",
             "",
-            "操作：方向键/WASD 移动农夫，空格等待，",
-            "U 撤销，R 重开，P 开关路径预测。",
+            "操作：W/↑ 前进，A/← 左转，D/→ 右转，",
+            "空格等待，U 撤销，R 重开，P 预测。",
         ]
         y = info.top + 88
         for line in lines:

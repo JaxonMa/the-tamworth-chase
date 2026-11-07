@@ -12,6 +12,7 @@ import pygame
 from . import art, theme
 from .core import Simulation
 from .models import (
+    GameStatus,
     Level,
     Pos,
     PredictionFrame,
@@ -223,9 +224,6 @@ class BoardView:
     level: Level
     sim: Simulation
     animator: Optional[TurnAnimator] = None
-    hover: Optional[Pos] = None
-    hover_valid: bool = True
-    placement_mode: bool = False
     show_prediction: bool = True
     prediction: Sequence[PredictionFrame] = ()
     highlight: Optional[Pos] = None
@@ -233,11 +231,11 @@ class BoardView:
     overlay_alpha: int = 0
     effects: Optional[EffectSystem] = None
     show_facing_marks: bool = True
+    show_alerts: bool = True
     pulse: float = 0.0
-    hover_sprite: Optional[pygame.Surface] = None
     trails: Sequence[Sequence[Pos]] = ()
     trail_colors: Sequence[Tuple[int, int, int]] = ()
-    pen_cells: Sequence[Pos] = ()
+    near_exits: Sequence[Pos] = ()
 
 
 class BoardRenderer:
@@ -263,15 +261,15 @@ class BoardRenderer:
     def draw(self, surface: pygame.Surface, view: BoardView) -> None:
         self._draw_frame(surface, view.level)
         self._draw_tiles(surface, view)
+        self._draw_exits(surface, view)
         if view.trails:
             self._draw_trails(surface, view)
-        if view.pen_cells:
-            self._draw_pen_cells(surface, view)
         if view.show_prediction and view.prediction:
             self._draw_prediction(surface, view)
+        if view.near_exits:
+            self._draw_near_exits(surface, view)
         self._draw_highlight(surface, view)
         self._draw_placeables(surface, view)
-        self._draw_hover(surface, view)
         self._draw_actors(surface, view)
         if view.effects is not None:
             view.effects.draw(surface, ORIGIN)
@@ -349,64 +347,80 @@ class BoardRenderer:
         )
         surface.blit(layer, rect.topleft)
 
-    def _draw_pen_cells(self, surface: pygame.Surface, view: BoardView) -> None:
-        """Soft straw markers under every designated pen tile."""
-        for pos in view.pen_cells:
-            rect = self.cell_rect(pos)
-            layer = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
-            pygame.draw.rect(layer, (*theme.SUN_LIGHT, 120), layer.get_rect().inflate(-6, -6), border_radius=12)
+    def _draw_exits(self, surface: pygame.Surface, view: BoardView) -> None:
+        """Open golden gates that mark the cows' escape points."""
+        sprite = self.cache.exit_tile()
+        for pos in view.level.exit_cells:
+            surface.blit(sprite, self.cell_rect(pos).topleft)
+
+    def _draw_near_exits(self, surface: pygame.Surface, view: BoardView) -> None:
+        pulse = 0.5 + 0.5 * math.sin(view.pulse * 5.0)
+        for pos in view.near_exits:
+            rect = self.cell_rect(pos).inflate(4, 4)
+            layer = pygame.Surface(rect.size, pygame.SRCALPHA)
             pygame.draw.rect(
                 layer,
-                (*theme.WOOD, 210),
-                layer.get_rect().inflate(-6, -6),
-                width=3,
+                (*theme.CLAY, int(60 + 80 * pulse)),
+                layer.get_rect().inflate(-4, -4),
+                width=4,
                 border_radius=12,
             )
-            for index in range(5):
-                angle = index * 1.7 + pos[0] * 0.4 + pos[1] * 0.7
-                x = CELL // 2 + int(14 * math.cos(angle))
-                y = CELL // 2 + int(14 * math.sin(angle))
-                pygame.draw.line(
-                    layer, (*art.STRAW_DARK, 170), (x - 4, y + 2), (x + 4, y - 2), 2
-                )
             surface.blit(layer, rect.topleft)
 
     def _draw_prediction(self, surface: pygame.Surface, view: BoardView) -> None:
-        """Translucent cow footprints for the next configured number of turns."""
+        """Footprints for the cows' next turns with the farmer held still."""
         frames = view.prediction
         if not frames:
             return
-        paths = [
-            [self.cell_center(cow.pos)] for cow in view.sim.cows
-        ]
+        colors = (theme.CLAY, theme.LEAF_DARK, theme.DENIM)
+        paths = [[self.cell_center(cow.pos)] for cow in view.sim.cows]
+        exited: dict = {}
         for frame in frames:
-            for index, pos in enumerate(frame.cow_positions):
+            if frame.status is GameStatus.LOST_EXIT and frame.escaped_index is not None:
+                index = frame.escaped_index
                 if index < len(paths):
-                    paths[index].append(self.cell_center(pos))
+                    paths[index].append(self.cell_center(frame.cow_positions[index]))
+                    exited[index] = frame.cow_positions[index]
+            for index, pos in enumerate(frame.cow_positions):
+                if index >= len(paths):
+                    continue
+                if frame.caught and index < len(frame.caught) and frame.caught[index]:
+                    continue
+                if index in exited:
+                    continue
+                paths[index].append(self.cell_center(pos))
 
         layer = pygame.Surface(
             (CELL * view.level.width, CELL * view.level.height), pygame.SRCALPHA
         )
         offset = (-ORIGIN[0], -ORIGIN[1])
-        for path in paths:
+        for index, path in enumerate(paths):
+            if len(path) < 2:
+                continue
+            color = colors[index % len(colors)]
             shifted = [(x + offset[0], y + offset[1]) for x, y in path]
-            self._dashed_polyline(layer, shifted, (*theme.CLAY, 135))
+            self._dashed_polyline(layer, shifted, (*color, 135))
         surface.blit(layer, ORIGIN)
 
-        for index, frame in enumerate(frames):
+        for step_index, frame in enumerate(frames):
             for cow_index, pos in enumerate(frame.cow_positions):
+                if frame.caught and cow_index < len(frame.caught) and frame.caught[cow_index]:
+                    continue
+                color = colors[cow_index % len(colors)]
                 center = self.cell_center(pos)
-                token = pygame.Surface((26, 26), pygame.SRCALPHA)
-                color = theme.CLAY if cow_index == 0 else theme.LEAF_DARK
-                # a tiny hoof print: two soft ovals
-                pygame.draw.ellipse(token, (*color, 80), pygame.Rect(6, 9, 7, 10))
-                pygame.draw.ellipse(token, (*color, 80), pygame.Rect(14, 9, 7, 10))
-                pygame.draw.ellipse(token, (*color, 170), pygame.Rect(6, 9, 7, 10), 2)
-                pygame.draw.ellipse(token, (*color, 170), pygame.Rect(14, 9, 7, 10), 2)
-                surface.blit(token, (center[0] - 13, center[1] - 13))
+                token = pygame.Surface((24, 24), pygame.SRCALPHA)
+                pygame.draw.circle(token, (*color, 75), (12, 12), 9)
+                pygame.draw.circle(token, (*color, 190), (12, 12), 9, 2)
+                surface.blit(token, (center[0] - 12, center[1] - 12))
                 if cow_index == 0:
-                    label = self.fonts.render(str(index + 1), 14, theme.CLAY, True)
+                    label = self.fonts.render(str(step_index + 1), 14, color, True)
                     surface.blit(label, (center[0] + 9, center[1] - 17))
+
+        for index, pos in exited.items():
+            center = self.cell_center(pos)
+            ring = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
+            pygame.draw.circle(ring, (*theme.CLAY, 210), (CELL // 2, CELL // 2), CELL // 3, 4)
+            surface.blit(ring, (center[0] - CELL // 2, center[1] - CELL // 2))
 
     @staticmethod
     def _dashed_polyline(surface: pygame.Surface, points: Sequence[Tuple[int, int]], color) -> None:
@@ -429,22 +443,8 @@ class BoardRenderer:
 
     def _draw_placeables(self, surface: pygame.Surface, view: BoardView) -> None:
         sprite = self.cache.prop("obstacle")
-        for pos in view.sim.obstacles:
+        for pos in view.level.obstacles:
             surface.blit(sprite, self.cell_rect(pos).topleft)
-
-    def _draw_hover(self, surface: pygame.Surface, view: BoardView) -> None:
-        if view.hover is None or not view.placement_mode:
-            return
-        rect = self.cell_rect(view.hover)
-        color = theme.PRIMARY_BG if view.hover_valid else theme.CLAY
-        layer = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
-        pygame.draw.rect(layer, (*color, 60), layer.get_rect().inflate(-4, -4), border_radius=14)
-        pygame.draw.rect(layer, (*color, 200), layer.get_rect().inflate(-4, -4), width=3, border_radius=14)
-        surface.blit(layer, rect.topleft)
-        if view.hover_valid:
-            ghost = (view.hover_sprite or self.cache.prop("obstacle")).copy()
-            ghost.set_alpha(150)
-            surface.blit(ghost, rect.topleft)
 
     def _draw_actors(self, surface: pygame.Surface, view: BoardView) -> None:
         sim = view.sim
@@ -463,25 +463,37 @@ class BoardRenderer:
 
         drawables = []
         for index, cow in enumerate(sim.cows):
+            if sim.caught[index]:
+                continue
             visual = cow_visuals[index]
             sprite = self.cache.cow(visual.facing)
-            drawables.append((visual.row, visual.col, sprite, visual.wobble, index * 0.02))
+            drawables.append((visual.row, visual.col, sprite, visual.wobble, index * 0.02, index))
         farmer_sprite = self.cache.farmer(farmer_visual.facing)
-        drawables.append((farmer_visual.row, farmer_visual.col, farmer_sprite, farmer_visual.wobble, 0.5))
+        drawables.append((farmer_visual.row, farmer_visual.col, farmer_sprite, farmer_visual.wobble, 0.5, -1))
         drawables.sort(key=lambda item: (item[0], item[1]))
 
-        for row, col, sprite, wobble, _ in drawables:
+        for row, col, sprite, wobble, _, index in drawables:
             center = self.cell_center((row, col))
             image = sprite
             if abs(wobble) > 0.5:
                 image = pygame.transform.rotozoom(sprite, wobble, 1.0)
             rect = image.get_rect(center=center)
             surface.blit(image, rect.topleft)
+            if index >= 0 and view.show_alerts and sim.cow_is_fleeing(index):
+                self._draw_alert(surface, center)
 
         if view.show_facing_marks:
             self._draw_facing_mark(surface, farmer_visual, theme.WOOD_DARK, 0.85)
             for visual in cow_visuals:
                 self._draw_facing_mark(surface, visual, theme.CLAY_DARK, 0.7)
+
+    def _draw_alert(self, surface: pygame.Surface, center: Tuple[int, int]) -> None:
+        bubble = pygame.Rect(0, 0, 22, 22)
+        bubble.center = (center[0] + 15, center[1] - 18)
+        pygame.draw.circle(surface, theme.WHITE_WARM, bubble.center, 11)
+        pygame.draw.circle(surface, theme.CLAY, bubble.center, 11, 2)
+        mark = self.fonts.render("!", 16, theme.CLAY, True)
+        surface.blit(mark, mark.get_rect(center=bubble.center))
 
     def _draw_facing_mark(
         self, surface: pygame.Surface, visual: VisualActor, color, alpha: float

@@ -10,14 +10,15 @@ import pygame
 from .. import theme, ui
 from ..editor import EditorModel, PAINT_TILES, export_level, import_level, list_custom_levels
 from ..levels import LevelError
-from ..models import Direction, Level, Pos, TileKind, WinCondition
+from ..models import CowBehavior, Direction, Level, Pos, TileKind
 from ..render import CELL, ORIGIN, draw_grid
 from .base import Scene, draw_background, draw_footer, make_back_button
 
 TOOL_TERRAIN = "terrain"
 TOOL_FARMER = "farmer"
 TOOL_COW = "cow"
-TOOL_PEN = "pen"
+TOOL_EXIT = "exit"
+TOOL_OBSTACLE = "obstacle"
 
 TERRAIN_LABELS = {
     TileKind.GRASS: "草地",
@@ -29,8 +30,8 @@ TERRAIN_LABELS = {
 
 TASK_TEXT = {
     "paint_wall": "在草地上画出 {count} 格栅栏。",
-    "place_actors": "移动农夫和牛，给它们换个位置。",
-    "set_rules": "把胜利条件改成围栏，并画出两格围栏格。",
+    "set_exits": "画出 {count} 格出口，并把一头牛改成「躲避」行为。",
+    "set_rules": "调整回合上限和预测步数。",
     "export_import": "导出一份关卡，再把它导入回来。",
 }
 
@@ -55,6 +56,7 @@ class EditorScene(Scene):
         self.painted_walls: set = set()
         self.farmer_moved = False
         self.cow_moved = False
+        self.behavior_changed = False
         self.exported_path: Optional[Path] = None
         self.imported_once = False
         self.buttons: List[ui.Button] = []
@@ -74,8 +76,8 @@ class EditorScene(Scene):
                     "name": self.level.name,
                     "grid": starter,
                     "max_turns": 30,
-                    "initial_obstacles": 3,
                     "prediction_steps": 5,
+                    "exit_cells": [[1, 1]],
                 }
                 try:
                     self.model = EditorModel.from_level(
@@ -104,7 +106,7 @@ class EditorScene(Scene):
         for index, kind in enumerate(PAINT_TILES):
             self.terrain_buttons.append(
                 ui.Button(
-                    pygame.Rect(764 + index * 89, 150, 82, 40),
+                    pygame.Rect(764 + index * 89, 150, 82, 38),
                     TERRAIN_LABELS[kind],
                     f"paint:{kind.value}",
                     style="ghost",
@@ -112,75 +114,75 @@ class EditorScene(Scene):
                 )
             )
         self.actor_buttons = [
-            ui.Button(pygame.Rect(764, 200, 84, 42), "农夫", "actor:farmer", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(855, 200, 84, 42), "牛", "actor:cow", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(946, 200, 84, 42), "加牛", "actor:add", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(1037, 200, 84, 42), "减牛", "actor:remove", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(1128, 200, 84, 42), "换牛", "actor:cycle", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(764, 196, 84, 38), "农夫", "actor:farmer", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(855, 196, 84, 38), "牛", "actor:cow", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(946, 196, 84, 38), "加牛", "actor:add", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(1037, 196, 84, 38), "减牛", "actor:remove", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(1128, 196, 84, 38), "换牛", "actor:cycle", style="ghost", font_size=theme.FONT_TINY),
         ]
-        self.pen_button = ui.Button(
-            pygame.Rect(764, 250, 150, 42), "围栏格", "pen", style="ghost", font_size=theme.FONT_TINY
+        self.exit_button = ui.Button(
+            pygame.Rect(764, 242, 140, 38), "出口格", "tool:exit", style="ghost", font_size=theme.FONT_TINY
         )
-        self.condition_button = ui.Button(
-            pygame.Rect(924, 250, 284, 42),
-            "胜利：抓住",
-            "condition",
-            style="ghost",
-            font_size=theme.FONT_TINY,
+        self.obstacle_button = ui.Button(
+            pygame.Rect(912, 242, 140, 38), "固定障碍", "tool:obstacle", style="ghost", font_size=theme.FONT_TINY
+        )
+        self.behavior_button = ui.Button(
+            pygame.Rect(1060, 242, 148, 38), "牛行为", "behavior", style="ghost", font_size=theme.FONT_TINY
         )
         self.facing_button = ui.Button(
-            pygame.Rect(764, 300, 220, 42),
-            "农夫朝向：东",
-            "cycle_facing",
-            style="ghost",
-            font_size=theme.FONT_TINY,
+            pygame.Rect(764, 288, 216, 38), "农夫朝向", "cycle_facing", style="ghost", font_size=theme.FONT_TINY
         )
         self.cow_facing_button = ui.Button(
-            pygame.Rect(994, 300, 214, 42),
-            "牛朝向：北",
-            "cycle_cow_facing",
-            style="ghost",
-            font_size=theme.FONT_TINY,
+            pygame.Rect(988, 288, 220, 38), "牛朝向", "cycle_cow_facing", style="ghost", font_size=theme.FONT_TINY
         )
-        self.block_button = ui.Button(
-            pygame.Rect(764, 348, 444, 40),
-            "牛互相阻挡：关",
-            "toggle_block",
-            style="ghost",
-            font_size=theme.FONT_TINY,
+        self.exit_tie_button = ui.Button(
+            pygame.Rect(764, 334, 216, 38), "出口平局：右", "tie_exit", style="ghost", font_size=theme.FONT_TINY
         )
-        self.obstacle_minus = ui.Button(pygame.Rect(764, 404, 46, 38), "−", "obstacle:-", style="ghost")
-        self.obstacle_plus = ui.Button(pygame.Rect(962, 404, 46, 38), "+", "obstacle:+", style="ghost")
-        self.turns_minus = ui.Button(pygame.Rect(764, 450, 46, 38), "−", "turns:-", style="ghost")
-        self.turns_plus = ui.Button(pygame.Rect(962, 450, 46, 38), "+", "turns:+", style="ghost")
-        self.predict_minus = ui.Button(pygame.Rect(764, 496, 46, 38), "−", "predict:-", style="ghost")
-        self.predict_plus = ui.Button(pygame.Rect(962, 496, 46, 38), "+", "predict:+", style="ghost")
+        self.flee_tie_button = ui.Button(
+            pygame.Rect(988, 334, 220, 38), "逃跑平局：右", "tie_flee", style="ghost", font_size=theme.FONT_TINY
+        )
+        self.block_sight_button = ui.Button(
+            pygame.Rect(764, 380, 216, 38), "牛挡视线：关", "block_sight", style="ghost", font_size=theme.FONT_TINY
+        )
+        self.block_cows_button = ui.Button(
+            pygame.Rect(988, 380, 220, 38), "牛互相阻挡：关", "block_cows", style="ghost", font_size=theme.FONT_TINY
+        )
+        self.rule_minus: List[ui.Button] = []
+        self.rule_plus: List[ui.Button] = []
+        for index in range(4):
+            y = 438 + index * 42
+            self.rule_minus.append(
+                ui.Button(pygame.Rect(764, y, 42, 34), "−", f"rule:{index}:-", style="ghost")
+            )
+            self.rule_plus.append(
+                ui.Button(pygame.Rect(962, y, 42, 34), "+", f"rule:{index}:+", style="ghost")
+            )
         self.play_button = ui.Button(
-            pygame.Rect(764, 612, 210, 52), "试玩", "play", style="primary", font_size=theme.FONT_H3
+            pygame.Rect(764, 664, 210, 50), "试玩", "play", style="primary", font_size=theme.FONT_H3
         )
         self.export_button = ui.Button(
-            pygame.Rect(990, 612, 218, 52), "导出关卡", "export", style="default", font_size=theme.FONT_H3
+            pygame.Rect(990, 664, 218, 50), "导出关卡", "export", style="default", font_size=theme.FONT_H3
         )
         self.import_button = ui.Button(
-            pygame.Rect(764, 676, 210, 44), "导入关卡", "import", style="ghost"
+            pygame.Rect(764, 724, 210, 42), "导入关卡", "import", style="ghost"
         )
         self.clear_button = ui.Button(
-            pygame.Rect(990, 676, 218, 44), "清空重来", "clear", style="ghost"
+            pygame.Rect(990, 724, 218, 42), "清空重来", "clear", style="ghost"
         )
         self.buttons = [
             *self.terrain_buttons,
             *self.actor_buttons,
-            self.pen_button,
-            self.condition_button,
+            self.exit_button,
+            self.obstacle_button,
+            self.behavior_button,
             self.facing_button,
             self.cow_facing_button,
-            self.block_button,
-            self.obstacle_minus,
-            self.obstacle_plus,
-            self.turns_minus,
-            self.turns_plus,
-            self.predict_minus,
-            self.predict_plus,
+            self.exit_tie_button,
+            self.flee_tie_button,
+            self.block_sight_button,
+            self.block_cows_button,
+            *self.rule_minus,
+            *self.rule_plus,
             self.play_button,
             self.export_button,
             self.import_button,
@@ -232,11 +234,9 @@ class EditorScene(Scene):
             if event.button == 1:
                 self._paint(cell)
             elif event.button == 3:
-                if self.tool == TOOL_PEN:
-                    self.model.pen_cells.discard(cell)
-                else:
-                    self.model.set_tile(cell, TileKind.GRASS)
-                    self.model.pen_cells.discard(cell)
+                self.model.set_tile(cell, TileKind.GRASS)
+                self.model.exits.discard(cell)
+                self.model.obstacles.discard(cell)
 
     def _paint(self, cell: Pos) -> None:
         if self.tool == TOOL_FARMER:
@@ -249,11 +249,18 @@ class EditorScene(Scene):
                 self.cow_moved = True
                 self.app.sound.play("place")
             return
-        if self.tool == TOOL_PEN:
-            if self.model.toggle_pen(cell):
+        if self.tool == TOOL_EXIT:
+            if self.model.toggle_exit(cell):
                 self.app.sound.play("place")
             else:
-                self._toast("围栏格不能放在障碍或角色脚下。")
+                self._toast("出口不能放在障碍或角色脚下。")
+                self.app.sound.play("error")
+            return
+        if self.tool == TOOL_OBSTACLE:
+            if self.model.toggle_obstacle(cell):
+                self.app.sound.play("place")
+            else:
+                self._toast("固定障碍不能放在墙或角色脚下。")
                 self.app.sound.play("error")
             return
         if self.model.set_tile(cell, self.brush):
@@ -287,34 +294,37 @@ class EditorScene(Scene):
         elif action == "actor:cycle":
             self.model.cycle_active_cow()
             self.app.sound.play("click")
-        elif action == "pen":
-            self.tool = TOOL_PEN
+        elif action == "tool:exit":
+            self.tool = TOOL_EXIT
             self.app.sound.play("click")
-            if self.model.win_condition is not WinCondition.PEN:
-                self._toast("先在右侧把胜利条件改成「围栏」。")
-        elif action == "condition":
-            self.model.cycle_win_condition()
+        elif action == "tool:obstacle":
+            self.tool = TOOL_OBSTACLE
             self.app.sound.play("click")
-            if self.model.win_condition is WinCondition.PEN and not self.model.pen_cells:
-                self._toast("现在用「围栏格」工具画出至少一格围栏。")
+        elif action == "behavior":
+            self.model.cycle_behavior()
+            self.behavior_changed = True
+            self.app.sound.play("click")
         elif action == "cycle_facing":
             self.model.cycle_facing()
             self.app.sound.play("click")
         elif action == "cycle_cow_facing":
             self.model.cycle_cow_facing()
             self.app.sound.play("click")
-        elif action == "toggle_block":
-            self.model.toggle_cow_blocking()
+        elif action == "tie_exit":
+            self.model.cycle_exit_tiebreak()
             self.app.sound.play("click")
-        elif action.startswith("obstacle:"):
-            delta = 1 if action.endswith("+") else -1
-            self.model.initial_obstacles = max(0, min(9, self.model.initial_obstacles + delta))
-        elif action.startswith("turns:"):
-            delta = 5 if action.endswith("+") else -5
-            self.model.max_turns = max(5, min(120, self.model.max_turns + delta))
-        elif action.startswith("predict:"):
-            delta = 1 if action.endswith("+") else -1
-            self.model.prediction_steps = max(0, min(20, self.model.prediction_steps + delta))
+        elif action == "tie_flee":
+            self.model.cycle_flee_tiebreak()
+            self.app.sound.play("click")
+        elif action == "block_sight":
+            self.model.toggle_block_sight()
+            self.app.sound.play("click")
+        elif action == "block_cows":
+            self.model.toggle_block_each_other()
+            self.app.sound.play("click")
+        elif action.startswith("rule:"):
+            _, index_text, sign = action.split(":")
+            self._change_rule(int(index_text), 1 if sign == "+" else -1)
         elif action == "play":
             self._test_play()
         elif action == "export":
@@ -324,8 +334,18 @@ class EditorScene(Scene):
         elif action == "clear":
             self.model = EditorModel()
             self.painted_walls.clear()
-            self.farmer_moved = self.cow_moved = False
+            self.farmer_moved = self.cow_moved = self.behavior_changed = False
             self._toast("牧场已经清空。")
+
+    def _change_rule(self, index: int, delta: int) -> None:
+        if index == 0:
+            self.model.max_turns = max(5, min(120, self.model.max_turns + delta * 5))
+        elif index == 1:
+            self.model.prediction_steps = max(0, min(20, self.model.prediction_steps + delta))
+        elif index == 2:
+            self.model.sight_range = max(-1, min(20, self.model.sight_range + delta))
+        else:
+            self.model.exit_sight_range = max(-1, min(20, self.model.exit_sight_range + delta))
 
     def _test_play(self) -> None:
         problems = self.model.validate()
@@ -438,16 +458,16 @@ class EditorScene(Scene):
         if kind == "paint_wall":
             target = int(task.get("count", 3))
             return (min(len(self.painted_walls), target), target)
-        if kind == "place_actors":
-            done = int(self.farmer_moved) + int(self.cow_moved)
-            return (done, 2)
+        if kind == "set_exits":
+            target = int(task.get("count", 2))
+            exits = min(len(self.model.exits), target)
+            behavior = 1 if any(
+                cow[2] is CowBehavior.SEEK_EXIT_AND_FLEE for cow in self.model.cows
+            ) else 0
+            return (exits + behavior, target + 1)
         if kind == "set_rules":
-            target = int(task.get("pen_cells", 2))
-            done = 0
-            if self.model.win_condition is WinCondition.PEN:
-                done += 1
-            if len(self.model.pen_cells) >= target:
-                done += 1
+            done = int(self.model.max_turns >= int(task.get("max_turns", 20)))
+            done += int(self.model.prediction_steps >= int(task.get("prediction_steps", 5)))
             return (done, 2)
         if kind == "export_import":
             done = int(self.exported_path is not None) + int(self.imported_once)
@@ -501,12 +521,7 @@ class EditorScene(Scene):
         theme.draw_text(surface, self.fonts, title, (62, 34), theme.FONT_H1, theme.INK, bold=True)
         ui.draw_pill(surface, self.fonts, badge, (62 + 300, 58), badge_color)
         theme.draw_text(
-            surface,
-            self.fonts,
-            self.model.name,
-            (62 + 400, 50),
-            theme.FONT_SMALL,
-            theme.INK_SOFT,
+            surface, self.fonts, self.model.name, (62 + 400, 50), theme.FONT_SMALL, theme.INK_SOFT
         )
         pygame.draw.line(surface, theme.PANEL_BORDER, (60, 104), (1220, 104), 2)
         self.back_button.draw(surface, self.fonts)
@@ -516,7 +531,7 @@ class EditorScene(Scene):
         draw_footer(
             surface,
             self.fonts,
-            "左键绘制 · 右键擦除 · 围栏格用来标记牛的终点 · 导出文件保存在 custom_levels/",
+            "左键绘制 · 右键擦除 · 出口与固定障碍在右侧选择 · 导出文件保存在 custom_levels/",
         )
         if self.toast_timer > 0 and self.toast_text:
             self._draw_toast(surface)
@@ -525,10 +540,7 @@ class EditorScene(Scene):
 
     def _draw_board(self, surface: pygame.Surface) -> None:
         frame = pygame.Rect(
-            ORIGIN[0] - 14,
-            ORIGIN[1] - 14,
-            CELL * self.model.width + 28,
-            CELL * self.model.height + 28,
+            ORIGIN[0] - 14, ORIGIN[1] - 14, CELL * self.model.width + 28, CELL * self.model.height + 28
         )
         theme.soft_shadow(surface, frame, radius=26, alpha=42, offset=(0, 7))
         theme.rounded_rect(surface, frame, theme.WOOD_LIGHT, radius=26)
@@ -539,54 +551,26 @@ class EditorScene(Scene):
             return self.model.tiles[row][col]
 
         draw_grid(surface, self.cache, self.model.width, self.model.height, kind_at)
-        for pos in self.model.pen_cells:
-            rect = pygame.Rect(
-                ORIGIN[0] + pos[1] * CELL, ORIGIN[1] + pos[0] * CELL, CELL, CELL
-            )
-            layer = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
-            pygame.draw.rect(
-                layer, (*theme.SUN, 70), layer.get_rect().inflate(-8, -8), border_radius=10
-            )
-            pygame.draw.rect(
-                layer,
-                (*theme.SUN, 220),
-                layer.get_rect().inflate(-8, -8),
-                width=3,
-                border_radius=10,
-            )
-            surface.blit(layer, rect.topleft)
+        exit_sprite = self.cache.exit_tile()
+        for pos in self.model.exits:
+            surface.blit(exit_sprite, (ORIGIN[0] + pos[1] * CELL, ORIGIN[1] + pos[0] * CELL))
+        for pos in self.model.obstacles:
+            sprite = self.cache.prop("obstacle")
+            surface.blit(sprite, (ORIGIN[0] + pos[1] * CELL, ORIGIN[1] + pos[0] * CELL))
         if self.hover is not None:
-            rect = pygame.Rect(
-                ORIGIN[0] + self.hover[1] * CELL, ORIGIN[1] + self.hover[0] * CELL, CELL, CELL
-            )
+            rect = pygame.Rect(ORIGIN[0] + self.hover[1] * CELL, ORIGIN[1] + self.hover[0] * CELL, CELL, CELL)
             layer = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
+            pygame.draw.rect(layer, (*theme.SUN, 70), layer.get_rect().inflate(-4, -4), border_radius=12)
             pygame.draw.rect(
-                layer, (*theme.SUN, 70), layer.get_rect().inflate(-4, -4), border_radius=12
-            )
-            pygame.draw.rect(
-                layer,
-                (*theme.SUN, 200),
-                layer.get_rect().inflate(-4, -4),
-                width=2,
-                border_radius=12,
+                layer, (*theme.SUN, 200), layer.get_rect().inflate(-4, -4), width=2, border_radius=12
             )
             surface.blit(layer, rect.topleft)
-        for index, (pos, facing) in enumerate(self.model.cows):
+        for index, (pos, facing, _behavior) in enumerate(self.model.cows):
             sprite = self.cache.cow(facing)
-            surface.blit(
-                sprite,
-                sprite.get_rect(
-                    center=(ORIGIN[0] + pos[1] * CELL + CELL // 2, ORIGIN[1] + pos[0] * CELL + CELL // 2)
-                ),
-            )
+            center = (ORIGIN[0] + pos[1] * CELL + CELL // 2, ORIGIN[1] + pos[0] * CELL + CELL // 2)
+            surface.blit(sprite, sprite.get_rect(center=center))
             if index == self.model.active_cow:
-                pygame.draw.circle(
-                    surface,
-                    theme.SUN,
-                    (ORIGIN[0] + pos[1] * CELL + CELL // 2, ORIGIN[1] + pos[0] * CELL + CELL // 2),
-                    CELL // 2 - 3,
-                    2,
-                )
+                pygame.draw.circle(surface, theme.SUN, center, CELL // 2 - 3, 2)
         sprite = self.cache.farmer(self.model.farmer_facing)
         surface.blit(
             sprite,
@@ -609,7 +593,6 @@ class EditorScene(Scene):
                 else "ghost"
             )
             button.draw(surface, self.fonts)
-
         for button in self.actor_buttons:
             active = (
                 (button.key == "actor:farmer" and self.tool == TOOL_FARMER)
@@ -617,62 +600,59 @@ class EditorScene(Scene):
             )
             button.style = "primary" if active else "ghost"
             button.draw(surface, self.fonts)
-
-        self.pen_button.style = "primary" if self.tool == TOOL_PEN else "ghost"
-        self.pen_button.draw(surface, self.fonts)
-        self.condition_button.text = (
-            "胜利：围栏" if self.model.win_condition is WinCondition.PEN else "胜利：抓住"
-        )
-        self.condition_button.draw(surface, self.fonts)
+        self.exit_button.style = "primary" if self.tool == TOOL_EXIT else "ghost"
+        self.exit_button.draw(surface, self.fonts)
+        self.obstacle_button.style = "primary" if self.tool == TOOL_OBSTACLE else "ghost"
+        self.obstacle_button.draw(surface, self.fonts)
+        active_cow = self.model.cows[self.model.active_cow] if self.model.cows else None
+        behavior = active_cow[2] if active_cow else CowBehavior.SEEK_EXIT
+        self.behavior_button.text = f"行为：{'躲避' if behavior is CowBehavior.SEEK_EXIT_AND_FLEE else '奔出口'}"
+        self.behavior_button.draw(surface, self.fonts)
         self.facing_button.text = f"农夫朝向：{self.model.farmer_facing.label}"
         self.facing_button.draw(surface, self.fonts)
-        active = min(self.model.active_cow, len(self.model.cows) - 1) if self.model.cows else 0
-        cow_facing = self.model.cows[active][1] if self.model.cows else Direction.NORTH
+        cow_facing = active_cow[1] if active_cow else Direction.NORTH
         self.cow_facing_button.text = f"牛朝向：{cow_facing.label}"
         self.cow_facing_button.draw(surface, self.fonts)
-        self.block_button.text = (
+        self.exit_tie_button.text = f"出口平局：{'左' if self.model.exit_tiebreak.value == 'left' else '右'}"
+        self.exit_tie_button.draw(surface, self.fonts)
+        self.flee_tie_button.text = f"逃跑平局：{'左' if self.model.flee_tiebreak.value == 'left' else '右'}"
+        self.flee_tie_button.draw(surface, self.fonts)
+        self.block_sight_button.text = f"牛挡视线：{'开' if self.model.cows_block_sight else '关'}"
+        self.block_sight_button.draw(surface, self.fonts)
+        self.block_cows_button.text = (
             f"牛互相阻挡：{'开' if self.model.cows_block_each_other else '关'}"
         )
-        self.block_button.draw(surface, self.fonts)
+        self.block_cows_button.draw(surface, self.fonts)
 
-        for title, value, y in (
-            ("障碍数量", self.model.initial_obstacles, 404),
-            ("回合上限", self.model.max_turns, 450),
-            ("预测步数", self.model.prediction_steps, 496),
-        ):
+        rules = [
+            ("回合上限", self.model.max_turns),
+            ("预测步数", self.model.prediction_steps),
+            ("视野距离", self.model.sight_range if self.model.sight_range >= 0 else "∞"),
+            ("出口视野", self.model.exit_sight_range if self.model.exit_sight_range >= 0 else "∞"),
+        ]
+        for index, (label, value) in enumerate(rules):
+            y = 438 + index * 42
             theme.draw_text(
-                surface, self.fonts, title, (left + 58, y + 20), theme.FONT_SMALL, theme.INK, anchor="midleft"
+                surface, self.fonts, label, (left + 50, y + 17), theme.FONT_SMALL, theme.INK,
+                anchor="midleft",
             )
             theme.draw_text(
-                surface,
-                self.fonts,
-                str(value),
-                (left + 165, y + 20),
-                theme.FONT_H3,
-                theme.CLAY_DARK,
-                anchor="center",
-                bold=True,
+                surface, self.fonts, str(value), (left + 150, y + 17), theme.FONT_H3,
+                theme.CLAY_DARK, anchor="center", bold=True,
             )
-        for button in (
-            self.obstacle_minus,
-            self.obstacle_plus,
-            self.turns_minus,
-            self.turns_plus,
-            self.predict_minus,
-            self.predict_plus,
-        ):
-            button.draw(surface, self.fonts)
+            self.rule_minus[index].draw(surface, self.fonts)
+            self.rule_plus[index].draw(surface, self.fonts)
 
         if self.tutorial_lesson is not None:
-            self._draw_task_box(surface, left, 544)
+            self._draw_task_box(surface, left, 594)
         else:
             hint = self.fonts.wrap(
-                "画围栏、摆好农夫和牛，再设置回合与胜利条件；用试玩验证是否成立。",
+                "画地形、摆农夫与牛、设置出口和行为，再用试玩验证。",
                 theme.FONT_SMALL,
                 444,
                 theme.INK_SOFT,
             )
-            surface.blit(hint, (left, 550))
+            surface.blit(hint, (left, 598))
 
         for button in (self.play_button, self.export_button, self.import_button, self.clear_button):
             button.draw(surface, self.fonts)
@@ -683,19 +663,14 @@ class EditorScene(Scene):
         theme.rounded_rect(surface, box, theme.SKY_DEEP, radius=14, width=2)
         task = self._task() or {}
         text = TASK_TEXT.get(str(task.get("type")), "完成编辑器练习。").format(
-            count=task.get("count", 3), pen_cells=task.get("pen_cells", 2)
+            count=task.get("count", 3)
         )
         wrapped = self.fonts.wrap(text, theme.FONT_SMALL, 400, theme.INK)
         surface.blit(wrapped, (box.left + 16, box.top + 6))
         done, total = self._task_progress()
         theme.draw_text(
-            surface,
-            self.fonts,
-            f"{done} / {total}",
-            (box.right - 16, box.bottom - 8),
-            theme.FONT_TINY,
-            theme.INK_SOFT,
-            anchor="bottomright",
+            surface, self.fonts, f"{done} / {total}", (box.right - 16, box.bottom - 8),
+            theme.FONT_TINY, theme.INK_SOFT, anchor="bottomright",
         )
 
     def _draw_toast(self, surface: pygame.Surface) -> None:

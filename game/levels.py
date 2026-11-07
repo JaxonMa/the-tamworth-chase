@@ -1,17 +1,15 @@
 """Loading, validation and serialisation of level data.
 
-Levels are plain JSON so that the editor, the tutorial chapter files and the
-main campaign all share a single schema.  Player facing text inside the JSON is
-Chinese; every internal key is English.
+Levels are plain JSON.  Player facing text is Chinese; keys are English.
 
-The chase schema is:
+The chase-and-escape schema keeps the grid as the main terrain definition and
+also understands the optional ``walls`` and ``obstacles`` coordinate lists from
+the design document.  ``walls`` coordinates are folded into the grid as fence
+tiles; ``obstacles`` are fixed hay bales that block movement and sight.
 
-``max_turns``, ``initial_obstacles``, ``prediction_steps``,
-``win_condition`` (``catch`` / ``pen``), ``pen_cells`` and
-``cows_block_each_other``.  Older files used ``step_limit`` and
-``obstacle_limit``; those are still read as fallbacks, while fields that only
-made sense for the removed automatic simulation (``speed``, ``pause``, items and
-cow personalities) are ignored.
+Missing new fields fall back to sensible defaults so older custom levels still
+load.  If an old level has no exit, a deterministic fallback exit is chosen and
+marked in ``extra["legacy_exit"]``.
 """
 
 from __future__ import annotations
@@ -25,11 +23,12 @@ from .models import (
     FARMER_CHAR,
     LEGACY_COW_CHARS,
     TILE_CHARS,
+    CowBehavior,
     Direction,
     Level,
     TileKind,
+    TieBreak,
     Tip,
-    WinCondition,
 )
 from .paths import project_root
 
@@ -45,6 +44,10 @@ _FACING_BY_NAME = {
     "east": Direction.EAST,
     "south": Direction.SOUTH,
     "west": Direction.WEST,
+    "up": Direction.NORTH,
+    "right": Direction.EAST,
+    "down": Direction.SOUTH,
+    "left": Direction.WEST,
     "n": Direction.NORTH,
     "e": Direction.EAST,
     "s": Direction.SOUTH,
@@ -54,11 +57,14 @@ _FACING_BY_NAME = {
 _LEGACY_KEYS = {
     "step_limit",
     "obstacle_limit",
+    "initial_obstacles",
     "cow_personalities",
     "apples",
     "items",
     "placed_items",
     "item_counts",
+    "win_condition",
+    "pen_cells",
     "speed",
     "pause",
     "auto_move",
@@ -98,6 +104,24 @@ def _parse_bool(value: Any, default: bool = False) -> bool:
     return bool(value)
 
 
+def _parse_tiebreak(value: Any, default: TieBreak = TieBreak.RIGHT) -> TieBreak:
+    if value is None:
+        return default
+    text = str(value).strip().lower()
+    if text in ("left", "l", "0"):
+        return TieBreak.LEFT
+    if text in ("right", "r", "1"):
+        return TieBreak.RIGHT
+    raise LevelError(f"无法识别的平局方向：{value!r}")
+
+
+def _parse_behavior(value: Any) -> CowBehavior:
+    try:
+        return CowBehavior(str(value))
+    except ValueError as exc:
+        raise LevelError(f"无法识别的牛行为：{value}") from exc
+
+
 def parse_level(
     data: Mapping[str, Any],
     *,
@@ -106,7 +130,6 @@ def parse_level(
     order: int = 0,
     tutorial_id: str = "",
 ) -> Level:
-    """Build a :class:`Level` from a decoded JSON mapping."""
     if not isinstance(data, Mapping):
         raise LevelError("关卡数据必须是一个 JSON 对象")
     level_id = str(data.get("id") or data.get("level_id") or "").strip()
@@ -123,9 +146,7 @@ def parse_level(
         raise LevelError(f"关卡 {name} 的网格为空")
     for index, row in enumerate(rows):
         if len(row) != width:
-            raise LevelError(
-                f"关卡 {name} 第 {index + 1} 行的长度是 {len(row)}，应为 {width}"
-            )
+            raise LevelError(f"关卡 {name} 第 {index + 1} 行的长度是 {len(row)}，应为 {width}")
     height = len(rows)
 
     tiles: List[List[TileKind]] = []
@@ -156,7 +177,27 @@ def parse_level(
     if not cow_positions:
         raise LevelError(f"关卡 {name} 里没有牛（需要一个大写 C）")
 
-    # Facing data may be a single value or a list matching the cow order.
+    blocked_actors = {farmer_start, *cow_positions}
+
+    # Optional fixed wall coordinates are folded into the grid.
+    for item in data.get("walls") or []:
+        pos = _parse_pos(item, name)
+        if not (0 <= pos[0] < height and 0 <= pos[1] < width):
+            raise LevelError(f"关卡 {name} 的墙 {pos} 在牧场外面")
+        if pos in blocked_actors:
+            raise LevelError(f"关卡 {name} 的墙 {pos} 与角色重叠")
+        tiles[pos[0]][pos[1]] = TileKind.FENCE
+
+    obstacles: List[Tuple[int, int]] = []
+    for item in data.get("obstacles") or []:
+        pos = _parse_pos(item, name)
+        if not (0 <= pos[0] < height and 0 <= pos[1] < width):
+            raise LevelError(f"关卡 {name} 的固定障碍 {pos} 在牧场外面")
+        if pos in blocked_actors or tiles[pos[0]][pos[1]].blocking:
+            raise LevelError(f"关卡 {name} 的固定障碍 {pos} 落在不可放置的位置")
+        if pos not in obstacles:
+            obstacles.append(pos)
+
     raw_cow_facings = data.get("cow_facings")
     if raw_cow_facings is None:
         cow_facings = [Direction.EAST for _ in cow_positions]
@@ -167,8 +208,18 @@ def parse_level(
     else:
         cow_facings = [_parse_facing(raw_cow_facings) for _ in cow_positions]
 
-    def _int_field(key: str, legacy_key: str, default: int, minimum: int = 0) -> int:
-        value = data.get(key, data.get(legacy_key, default))
+    raw_behaviors = data.get("cow_behavior")
+    if raw_behaviors is None:
+        cow_behaviors = [CowBehavior.SEEK_EXIT for _ in cow_positions]
+    elif isinstance(raw_behaviors, Sequence) and not isinstance(raw_behaviors, str):
+        if len(raw_behaviors) != len(cow_positions):
+            raise LevelError(f"关卡 {name} 的 cow_behavior 数量与牛的数量不一致")
+        cow_behaviors = [_parse_behavior(item) for item in raw_behaviors]
+    else:
+        cow_behaviors = [_parse_behavior(raw_behaviors) for _ in cow_positions]
+
+    def _int_field(key: str, default: int, minimum: int = 0) -> int:
+        value = data.get(key, default)
         try:
             number = int(value)
         except (TypeError, ValueError) as exc:
@@ -177,36 +228,43 @@ def parse_level(
             raise LevelError(f"关卡 {name} 的 {key} 不能小于 {minimum}")
         return number
 
-    max_turns = _int_field("max_turns", "step_limit", 30, 1)
-    initial_obstacles = _int_field("initial_obstacles", "obstacle_limit", 3, 0)
-    prediction_steps = _int_field("prediction_steps", "__missing__", 5, 0)
+    max_turns = _int_field("max_turns", data.get("step_limit", 30), 1)
+    prediction_steps = _int_field("prediction_steps", 5, 0)
     if prediction_steps > 20:
         raise LevelError(f"关卡 {name} 的 prediction_steps 不能大于 20")
+    exit_sight_range = _int_field("exit_sight_range", -1, -1)
+    sight_range = _int_field("sight_range", -1, -1)
 
-    raw_condition = str(data.get("win_condition") or WinCondition.CATCH.value).strip().lower()
-    try:
-        win_condition = WinCondition(raw_condition)
-    except ValueError as exc:
-        raise LevelError(f"关卡 {name} 的 win_condition 只能是 catch 或 pen") from exc
+    exit_tiebreak = _parse_tiebreak(data.get("exit_tiebreak"), TieBreak.RIGHT)
+    flee_tiebreak = _parse_tiebreak(data.get("flee_tiebreak"), TieBreak.RIGHT)
 
-    pen_cells: List[Tuple[int, int]] = []
-    for item in data.get("pen_cells") or []:
-        pen_cells.append(_parse_pos(item, name))
-    if win_condition is WinCondition.PEN and not pen_cells:
-        raise LevelError(f"关卡 {name} 是围栏模式，但没有 pen_cells")
-    for pos in pen_cells:
+    exits: List[Tuple[int, int]] = []
+    for item in data.get("exit_cells") or []:
+        pos = _parse_pos(item, name)
         if not (0 <= pos[0] < height and 0 <= pos[1] < width):
-            raise LevelError(f"关卡 {name} 的围栏格 {pos} 在牧场外面")
-        if tiles[pos[0]][pos[1]].blocking:
-            raise LevelError(f"关卡 {name} 的围栏格 {pos} 落在障碍上")
+            raise LevelError(f"关卡 {name} 的出口 {pos} 在牧场外面")
+        if tiles[pos[0]][pos[1]].blocking or pos in obstacles:
+            raise LevelError(f"关卡 {name} 的出口 {pos} 落在障碍上")
+        if pos in blocked_actors:
+            raise LevelError(f"关卡 {name} 的出口 {pos} 与角色重叠")
+        if pos not in exits:
+            exits.append(pos)
 
-    s_threshold = _int_field("s_threshold", "__missing__", max(1, max_turns // 3), 1)
-    a_threshold = _int_field(
-        "a_threshold", "__missing__", max(s_threshold + 1, max_turns // 2), 1
+    legacy_exit = False
+    if not exits:
+        exit_pos = _fallback_exit(tiles, farmer_start, cow_positions, obstacles)
+        if exit_pos is None:
+            raise LevelError(f"关卡 {name} 没有可用的出口")
+        exits.append(exit_pos)
+        legacy_exit = True
+
+    farmer_facing = _parse_facing(
+        data.get("fj_start_direction", data.get("farmer_facing")), Direction.NORTH
     )
-    b_threshold = _int_field(
-        "b_threshold", "__missing__", max(a_threshold + 1, max_turns * 3 // 4), 1
-    )
+
+    s_threshold = _int_field("s_threshold", max(1, max_turns // 3), 1)
+    a_threshold = _int_field("a_threshold", max(s_threshold + 1, max_turns // 2), 1)
+    b_threshold = _int_field("b_threshold", max(a_threshold + 1, max_turns * 3 // 4), 1)
 
     tips_raw = data.get("tips") or []
     tips: List[Tip] = []
@@ -227,12 +285,21 @@ def parse_level(
         "title",
         "grid",
         "rows",
+        "fj_start_direction",
+        "farmer_facing",
+        "cow_facings",
+        "cow_behavior",
+        "exit_cells",
         "max_turns",
-        "initial_obstacles",
         "prediction_steps",
-        "win_condition",
-        "pen_cells",
+        "exit_sight_range",
+        "sight_range",
+        "exit_tiebreak",
+        "flee_tiebreak",
+        "cows_block_sight",
         "cows_block_each_other",
+        "walls",
+        "obstacles",
         "s_threshold",
         "a_threshold",
         "b_threshold",
@@ -242,9 +309,11 @@ def parse_level(
         "tips",
         "goal",
         "practice",
-        "cow_facings",
-        "farmer_facing",
     } | _LEGACY_KEYS
+
+    extra = {k: v for k, v in data.items() if k not in known}
+    if legacy_exit:
+        extra["legacy_exit"] = True
 
     return Level(
         level_id=level_id,
@@ -253,15 +322,20 @@ def parse_level(
         height=height,
         tiles=tuple(tuple(row) for row in tiles),
         farmer_start=farmer_start,
-        farmer_facing=_parse_facing(data.get("farmer_facing"), Direction.EAST),
+        farmer_facing=farmer_facing,
         cow_positions=tuple(cow_positions),
         cow_facings=tuple(cow_facings),
+        cow_behaviors=tuple(cow_behaviors),
+        exit_cells=tuple(exits),
         max_turns=max_turns,
-        initial_obstacles=initial_obstacles,
         prediction_steps=prediction_steps,
-        win_condition=win_condition,
-        pen_cells=tuple(dict.fromkeys(pen_cells)),
+        exit_sight_range=exit_sight_range,
+        sight_range=sight_range,
+        exit_tiebreak=exit_tiebreak,
+        flee_tiebreak=flee_tiebreak,
+        cows_block_sight=_parse_bool(data.get("cows_block_sight"), False),
         cows_block_each_other=_parse_bool(data.get("cows_block_each_other"), False),
+        obstacles=tuple(obstacles),
         s_threshold=s_threshold,
         a_threshold=a_threshold,
         b_threshold=b_threshold,
@@ -275,7 +349,37 @@ def parse_level(
         goal_text=str(data.get("goal") or ""),
         tips=tuple(tips),
         practice_text=str(data.get("practice") or ""),
-        extra={k: v for k, v in data.items() if k not in known},
+        extra=extra,
+    )
+
+
+def _fallback_exit(
+    tiles: Sequence[Sequence[TileKind]],
+    farmer: Tuple[int, int],
+    cow_positions: Sequence[Tuple[int, int]],
+    obstacles: Sequence[Tuple[int, int]],
+) -> Optional[Tuple[int, int]]:
+    """Pick a deterministic far corner for legacy levels without exits."""
+    height = len(tiles)
+    width = len(tiles[0])
+    blocked = set(obstacles)
+    for r, row in enumerate(tiles):
+        for c, tile in enumerate(row):
+            if tile.blocking:
+                blocked.add((r, c))
+    candidates = [
+        (r, c)
+        for r in range(height)
+        for c in range(width)
+        if (r, c) not in blocked
+        and (r, c) != farmer
+        and (r, c) not in cow_positions
+    ]
+    if not candidates:
+        return None
+    return max(
+        candidates,
+        key=lambda p: (abs(p[0] - farmer[0]) + abs(p[1] - farmer[1]), p[0], p[1]),
     )
 
 
@@ -289,7 +393,6 @@ def _parse_pos(value: Any, level_name: str) -> Tuple[int, int]:
 
 
 def load_level_file(path: Path, *, source: str = "main") -> Tuple[Level, ...]:
-    """Load a level bundle from ``path`` (``{"levels": [...]}``)."""
     try:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
@@ -309,15 +412,11 @@ def load_level_file(path: Path, *, source: str = "main") -> Tuple[Level, ...]:
 
 
 def load_levels(path: Optional[Path] = None) -> Tuple[Level, ...]:
-    """Load the main campaign."""
     target = Path(path) if path else project_root() / LEVELS_FILE
     return load_level_file(target, source="main")
 
 
-def load_tutorials(
-    chapter: Optional[str] = None, path: Optional[Path] = None
-) -> Dict[str, Tuple[Level, ...]]:
-    """Load one or all tutorial chapters, keyed by chapter id."""
+def load_tutorials(chapter: Optional[str] = None, path: Optional[Path] = None) -> Dict[str, Tuple[Level, ...]]:
     chapters = [chapter] if chapter else list(TUTORIAL_FILES)
     result: Dict[str, Tuple[Level, ...]] = {}
     for key in chapters:
@@ -327,10 +426,7 @@ def load_tutorials(
 
 
 def level_to_dict(level: Level) -> Dict[str, Any]:
-    """Serialise a level back to the JSON schema (used by the editor)."""
-    overlay: Dict[Tuple[int, int], str] = {}
-    for pos in level.cow_positions:
-        overlay[pos] = COW_CHAR
+    overlay: Dict[Tuple[int, int], str] = {pos: COW_CHAR for pos in level.cow_positions}
     overlay[level.farmer_start] = FARMER_CHAR
 
     grid: List[str] = []
@@ -349,18 +445,24 @@ def level_to_dict(level: Level) -> Dict[str, Any]:
         "description": level.description,
         "hint": level.hint,
         "grid": grid,
-        "farmer_facing": level.farmer_facing.name.lower(),
+        "fj_start_direction": level.farmer_facing.name.lower(),
         "cow_facings": [f.name.lower() for f in level.cow_facings],
+        "cow_behavior": [b.value for b in level.cow_behaviors],
+        "exit_cells": [list(pos) for pos in level.exit_cells],
         "max_turns": level.max_turns,
-        "initial_obstacles": level.initial_obstacles,
         "prediction_steps": level.prediction_steps,
-        "win_condition": level.win_condition.value,
-        "pen_cells": [list(pos) for pos in level.pen_cells],
+        "exit_sight_range": level.exit_sight_range,
+        "sight_range": level.sight_range,
+        "exit_tiebreak": level.exit_tiebreak.value,
+        "flee_tiebreak": level.flee_tiebreak.value,
+        "cows_block_sight": level.cows_block_sight,
         "cows_block_each_other": level.cows_block_each_other,
         "s_threshold": level.s_threshold,
         "a_threshold": level.a_threshold,
         "b_threshold": level.b_threshold,
     }
+    if level.obstacles:
+        payload["obstacles"] = [list(pos) for pos in level.obstacles]
     if level.tags:
         payload["tags"] = list(level.tags)
     if level.tips:

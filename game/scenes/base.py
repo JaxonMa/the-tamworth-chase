@@ -127,12 +127,19 @@ def make_thumbnail(cache: art.ArtCache, level, cell: int = 9) -> pygame.Surface:
         pygame.draw.circle(
             surface, theme.COW_BROWN, (cc * cell + cell // 2, cr * cell + cell // 2), max(2, cell // 3)
         )
-    for pr, pc in level.pen_cells:
+    for er, ec in level.exit_cells:
         pygame.draw.rect(
             surface,
             theme.SUN,
-            pygame.Rect(pc * cell + 1, pr * cell + 1, cell - 2, cell - 2),
+            pygame.Rect(ec * cell + 1, er * cell + 1, cell - 2, cell - 2),
             1,
+        )
+    for orow, ocol in level.obstacles:
+        pygame.draw.circle(
+            surface,
+            theme.WOOD_DARK,
+            (ocol * cell + cell // 2, orow * cell + cell // 2),
+            max(1, cell // 4),
         )
     return surface
 

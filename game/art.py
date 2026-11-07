@@ -577,6 +577,27 @@ def build_cow(size: int, facing: Direction) -> pygame.Surface:
 # ---------------------------------------------------------------------------
 # Props
 # ---------------------------------------------------------------------------
+def build_exit(size: int) -> pygame.Surface:
+    """A small open gate that reads as the cows' escape point."""
+    work = size * 3
+    canvas = _actor_canvas(work)
+    u = work / 64.0
+    _shadow(canvas, int(32 * u), int(56 * u), int(24 * u), int(7 * u), 55)
+    # dark opening
+    _rounded(canvas, theme.LEAF_DARK, (12 * u, 12 * u, 40 * u, 46 * u), int(10 * u))
+    _rounded(canvas, theme.LEAF, (16 * u, 16 * u, 32 * u, 40 * u), int(8 * u))
+    # wooden posts and lintel
+    _rounded(canvas, theme.WOOD_DARK, (6 * u, 10 * u, 8 * u, 48 * u), int(3 * u))
+    _rounded(canvas, theme.WOOD_DARK, (50 * u, 10 * u, 8 * u, 48 * u), int(3 * u))
+    _rounded(canvas, theme.WOOD_DARK, (6 * u, 8 * u, 52 * u, 8 * u), int(3 * u))
+    _rounded(canvas, theme.WOOD, (8 * u, 10 * u, 48 * u, 5 * u), int(2 * u))
+    # golden arrow pointing out
+    _polygon(canvas, theme.SUN_LIGHT,
+             [(26 * u, 30 * u), (36 * u, 30 * u), (36 * u, 25 * u),
+              (44 * u, 34 * u), (36 * u, 43 * u), (36 * u, 38 * u), (26 * u, 38 * u)])
+    return pygame.transform.smoothscale(canvas, (size, size))
+
+
 def build_obstacle(size: int) -> pygame.Surface:
     """A hay bale - the obstacle the player places."""
     work = size * 3
@@ -727,6 +748,13 @@ class ArtCache:
         if sprite is None:
             sprite = build_farmer(self.cell, facing)
             self._farmers[facing] = sprite
+        return sprite
+
+    def exit_tile(self) -> pygame.Surface:
+        sprite = self._props.get("exit")
+        if sprite is None:
+            sprite = build_exit(self.cell)
+            self._props["exit"] = sprite
         return sprite
 
     def cow(self, facing: Direction) -> pygame.Surface:

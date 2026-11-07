@@ -1,16 +1,146 @@
 {
-  "version": 2,
+  "version": 3,
   "game": "The Tamworth Chase",
   "group": "challenge",
   "levels": [
     {
       "id": "chal_twin",
       "name": "双牛同场",
-      "description": "两头牛按固定顺序移动，抓住任意一头就算赢。",
-      "hint": "先盯住离你最近的那一头。",
-      "tags": ["挑战", "双牛"],
-      "farmer_facing": "north",
-      "cow_facings": ["east", "west"],
+      "description": "两头牛同时奔向出口，抓住全部才算赢。",
+      "hint": "先盯住离出口最近的那一头。",
+      "tags": [
+        "挑战"
+      ],
+      "grid": [
+        "##########",
+        "#........#",
+        "#......#C#",
+        "#......#.#",
+        "#..T..#..#",
+        "#F.....###",
+        "#........#",
+        "#....##..#",
+        "#....T..C#",
+        "##########"
+      ],
+      "fj_start_direction": "east",
+      "cow_facings": [
+        "north",
+        "south"
+      ],
+      "cow_behavior": "seek_exit_and_flee",
+      "exit_cells": [
+        [
+          1,
+          1
+        ]
+      ],
+      "max_turns": 25,
+      "prediction_steps": 5,
+      "exit_sight_range": -1,
+      "sight_range": 6,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
+      "cows_block_each_other": false,
+      "s_threshold": 25,
+      "a_threshold": 27,
+      "b_threshold": 29
+    },
+    {
+      "id": "chal_flee",
+      "name": "会躲的牛",
+      "description": "这头牛看到农夫就会优先逃跑。",
+      "hint": "把它逼向墙角，再找机会靠近。",
+      "tags": [
+        "挑战"
+      ],
+      "grid": [
+        "##########",
+        "#........#",
+        "#...C....#",
+        "#....HHHH#",
+        "##HH..HH##",
+        "#........#",
+        "#...TTTT.#",
+        "#........#",
+        "#...TTF..#",
+        "##########"
+      ],
+      "fj_start_direction": "south",
+      "cow_facings": [
+        "west"
+      ],
+      "cow_behavior": "seek_exit_and_flee",
+      "exit_cells": [
+        [
+          4,
+          5
+        ]
+      ],
+      "max_turns": 21,
+      "prediction_steps": 5,
+      "exit_sight_range": -1,
+      "sight_range": 6,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
+      "cows_block_each_other": false,
+      "s_threshold": 21,
+      "a_threshold": 23,
+      "b_threshold": 25
+    },
+    {
+      "id": "chal_blind",
+      "name": "无预测牧场",
+      "description": "没有路径预测，只能靠观察牛的转向。",
+      "hint": "记住：看不到出口时，牛会沿墙右转巡逻。",
+      "tags": [
+        "挑战"
+      ],
+      "grid": [
+        "##########",
+        "##.T.#.C.#",
+        "##.T.#...#",
+        "#.T.#....#",
+        "#.#.#....#",
+        "#..#..#.##",
+        "#F.#.....#",
+        "#........#",
+        "#.##..T..#",
+        "##########"
+      ],
+      "fj_start_direction": "north",
+      "cow_facings": [
+        "north"
+      ],
+      "cow_behavior": "seek_exit",
+      "exit_cells": [
+        [
+          1,
+          2
+        ]
+      ],
+      "max_turns": 12,
+      "prediction_steps": 0,
+      "exit_sight_range": -1,
+      "sight_range": -1,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
+      "cows_block_each_other": false,
+      "s_threshold": 12,
+      "a_threshold": 14,
+      "b_threshold": 16
+    },
+    {
+      "id": "chal_block",
+      "name": "牛挤牛",
+      "description": "两头牛会互相挡路，顺序决定它们的路线。",
+      "hint": "注意两头牛的移动先后。",
+      "tags": [
+        "挑战"
+      ],
       "grid": [
         "##########",
         "#........#",
@@ -23,124 +153,72 @@
         "#..#..#F.#",
         "##########"
       ],
-      "max_turns": 18,
-      "initial_obstacles": 2,
+      "fj_start_direction": "north",
+      "cow_facings": [
+        "east",
+        "west"
+      ],
+      "cow_behavior": "seek_exit_and_flee",
+      "exit_cells": [
+        [
+          1,
+          7
+        ]
+      ],
+      "max_turns": 19,
       "prediction_steps": 5,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "exit_sight_range": -1,
+      "sight_range": 6,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": true,
-      "s_threshold": 7,
-      "a_threshold": 10,
-      "b_threshold": 13
-    },
-    {
-      "id": "chal_pen",
-      "name": "把牛送进栏",
-      "description": "农夫进不了围栏区，只能等牛自己走进去。",
-      "hint": "数一数牛走几步会踩到金色格子。",
-      "tags": ["挑战", "围栏"],
-      "farmer_facing": "east",
-      "cow_facings": ["east"],
-      "grid": [
-        "########",
-        "#......#",
-        "#.####.#",
-        "#.#C.#.#",
-        "#.#..#.#",
-        "#.####.#",
-        "#F.....#",
-        "########"
-      ],
-      "max_turns": 8,
-      "initial_obstacles": 0,
-      "prediction_steps": 3,
-      "win_condition": "pen",
-      "pen_cells": [[4, 3]],
-      "cows_block_each_other": false,
-      "s_threshold": 5,
-      "a_threshold": 6,
-      "b_threshold": 7
-    },
-    {
-      "id": "chal_blind",
-      "name": "无预测牧场",
-      "description": "这一关没有路径预测，只能靠观察牛的转向。",
-      "hint": "牛撞墙后会顺时针转，提前站在它下一格。",
-      "tags": ["挑战", "盲走"],
-      "farmer_facing": "east",
-      "cow_facings": ["east"],
-      "grid": [
-        "#######",
-        "#F....#",
-        "#..#..#",
-        "#..#C.#",
-        "#..#..#",
-        "#.....#",
-        "#######"
-      ],
-      "max_turns": 14,
-      "initial_obstacles": 1,
-      "prediction_steps": 0,
-      "win_condition": "catch",
-      "pen_cells": [],
-      "cows_block_each_other": false,
-      "s_threshold": 7,
-      "a_threshold": 10,
-      "b_threshold": 12
-    },
-    {
-      "id": "chal_block",
-      "name": "牛挤牛",
-      "description": "两头牛会互相挡路，后面的牛只好原地转身。",
-      "hint": "注意它们移动的先后顺序。",
-      "tags": ["挑战", "多牛"],
-      "farmer_facing": "north",
-      "cow_facings": ["east", "east"],
-      "grid": [
-        "########",
-        "#......#",
-        "#..C...#",
-        "#..C...#",
-        "#......#",
-        "#F.....#",
-        "########"
-      ],
-      "max_turns": 16,
-      "initial_obstacles": 2,
-      "prediction_steps": 4,
-      "win_condition": "catch",
-      "pen_cells": [],
-      "cows_block_each_other": true,
-      "s_threshold": 6,
-      "a_threshold": 9,
-      "b_threshold": 12
+      "s_threshold": 19,
+      "a_threshold": 21,
+      "b_threshold": 23
     },
     {
       "id": "chal_tight",
       "name": "一步不让",
       "description": "回合数刚好够用，每一步都不能浪费。",
-      "hint": "第一回合先等一等，让牛靠近。",
-      "tags": ["挑战", "极限"],
-      "farmer_facing": "east",
-      "cow_facings": ["east"],
+      "hint": "第一回合先转向，别急着前进。",
+      "tags": [
+        "挑战"
+      ],
       "grid": [
-        "#######",
-        "#....C#",
-        "#.....#",
-        "#.....#",
-        "#.....#",
-        "#F....#",
-        "#######"
+        "##########",
+        "#........#",
+        "#........#",
+        "#.F......#",
+        "#........#",
+        "#........#",
+        "#.....##C#",
+        "#.TT.###.#",
+        "#.TT..##.#",
+        "##########"
+      ],
+      "fj_start_direction": "north",
+      "cow_facings": [
+        "north"
+      ],
+      "cow_behavior": "seek_exit",
+      "exit_cells": [
+        [
+          1,
+          1
+        ]
       ],
       "max_turns": 8,
-      "initial_obstacles": 1,
-      "prediction_steps": 2,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "prediction_steps": 5,
+      "exit_sight_range": -1,
+      "sight_range": -1,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": false,
-      "s_threshold": 5,
-      "a_threshold": 6,
-      "b_threshold": 7
+      "s_threshold": 8,
+      "a_threshold": 10,
+      "b_threshold": 12
     }
   ]
 }

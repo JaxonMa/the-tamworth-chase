@@ -1,4 +1,4 @@
-"""Tutorial state machine, progress isolation, skipping and replay tests."""
+"""Tutorial catalogue, state machine, isolation and hint tests."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import pytest
 
 from game.core import Simulation
 from game.levels import load_levels
-from game.models import Direction, GameStatus, Rank
+from game.models import Action, CowBehavior, GameStatus, Rank
 from game.progress import (
     TUTORIAL_COMPLETED,
     TUTORIAL_IN_PROGRESS,
@@ -38,16 +38,9 @@ def book(store: ProgressStore, catalog: TutorialCatalog) -> TutorialBook:
     return TutorialBook(store, catalog)
 
 
-# ---------------------------------------------------------------------------
-# Catalogue
-# ---------------------------------------------------------------------------
-def test_catalog_has_independent_chapters(catalog):
-    chapters = catalog.all()
-    assert chapters, "at least one tutorial chapter must exist"
-    for chapter in chapters:
-        assert chapter.lesson_ids
-        assert chapter.title
-        assert chapter.file_name.startswith(chapter.chapter_id)
+def test_chapter_counts(catalog):
+    counts = {chapter.chapter_id: len(chapter.lessons) for chapter in catalog.all()}
+    assert counts == {"basics": 6, "advanced": 3, "editor": 3}
 
 
 def test_tutorial_lessons_are_not_campaign_levels(catalog):
@@ -58,35 +51,60 @@ def test_tutorial_lessons_are_not_campaign_levels(catalog):
             assert lesson.source == "tutorial"
 
 
-def test_basics_chapter_has_five_lessons(catalog):
-    chapter = catalog.get("basics")
-    assert chapter is not None
-    assert len(chapter.lessons) == 5
-    assert chapter.lessons[0].level_id == "basics_01"
+def test_every_playable_lesson_has_exit_and_behavior(catalog):
+    for chapter in catalog.all():
+        for lesson in chapter.lessons:
+            assert lesson.exit_cells
+            assert lesson.max_turns >= 5
+            assert len(lesson.cow_behaviors) == len(lesson.cow_positions)
+            if lesson.cow_behaviors:
+                assert all(isinstance(b, CowBehavior) for b in lesson.cow_behaviors)
 
 
-def test_tutorial_lesson_solutions_win(catalog):
+def test_lesson_solutions_win(catalog):
     for chapter in catalog.all():
         if chapter.chapter_id == "editor":
             continue
-        solutions = SOLUTIONS.get(chapter.chapter_id, {})
         for lesson in chapter.lessons:
-            solution = solutions.get(lesson.level_id)
+            solution = SOLUTIONS[chapter.chapter_id].get(lesson.level_id)
             if solution is None or solution.get("status") != "won":
                 continue
-            obstacles = [tuple(pos) for pos in solution["obstacles"]]
-            sim = Simulation(lesson, obstacles)
-            sim.start()
+            sim = Simulation(lesson)
             for action in solution["actions"]:
-                direction = None if action == "wait" else Direction[action.upper()]
-                sim.order(direction)
+                sim.apply_action(Action(action))
             assert sim.status is GameStatus.WON, lesson.level_id
             assert sim.turns <= lesson.max_turns
 
 
-# ---------------------------------------------------------------------------
-# State machine
-# ---------------------------------------------------------------------------
+def test_practice_metadata_is_present(catalog):
+    by_id = {lesson.level_id: lesson for chapter in catalog.all() for lesson in chapter.lessons}
+    assert by_id["basics_01"].extra.get("require_turn") is True
+    assert by_id["basics_02"].extra.get("require_block") is True
+    assert by_id["basics_03"].extra.get("require_wait") is True
+    assert by_id["basics_06"].extra.get("require_undo") is True
+    assert by_id["basics_06"].extra.get("require_prediction") is True
+    assert by_id["basics_06"].prediction_steps == 6
+
+
+def test_advanced_lessons_cover_flee_and_multi(catalog):
+    advanced = catalog.get("advanced")
+    assert advanced is not None
+    assert len(advanced.lessons) == 3
+    behaviors = {b for lesson in advanced.lessons for b in lesson.cow_behaviors}
+    assert CowBehavior.SEEK_EXIT_AND_FLEE in behaviors
+    assert any(len(lesson.cow_positions) > 1 for lesson in advanced.lessons)
+    mixed = advanced.lessons[2]
+    assert CowBehavior.SEEK_EXIT in mixed.cow_behaviors
+    assert CowBehavior.SEEK_EXIT_AND_FLEE in mixed.cow_behaviors
+
+
+def test_editor_tasks(catalog):
+    editor = catalog.get("editor")
+    assert editor is not None
+    types = {lesson.extra.get("editor_task", {}).get("type") for lesson in editor.lessons}
+    assert {"paint_wall", "set_exits", "export_import"} <= types
+
+
 def test_initial_states(book, catalog):
     chapter = catalog.all()[0]
     assert book.lesson_status(chapter.chapter_id, chapter.lesson_ids[0]).state == TUTORIAL_NOT_STARTED
@@ -160,9 +178,6 @@ def test_replaying_completed_lesson_keeps_completion(book, catalog):
     assert book.lesson_status("basics", lesson_id).replayable is True
 
 
-# ---------------------------------------------------------------------------
-# Isolation from the campaign
-# ---------------------------------------------------------------------------
 def test_tutorial_progress_does_not_unlock_campaign(book, store, catalog):
     level_ids = [level.level_id for level in load_levels()]
     assert store.main_unlocked_count(level_ids) == 1
@@ -174,13 +189,13 @@ def test_tutorial_progress_does_not_unlock_campaign(book, store, catalog):
 
 def test_campaign_progress_does_not_touch_tutorial(book, store, catalog):
     level_ids = [level.level_id for level in load_levels()]
-    store.record_main_clear(level_ids[0], 8, Rank.S, 1)
+    store.record_main_clear(level_ids[0], 8, Rank.S)
     assert book.lesson_status("basics", catalog.get("basics").lesson_ids[0]).state == TUTORIAL_NOT_STARTED
 
 
 def test_tutorial_settings_reset_leaves_campaign(book, store):
     level_ids = [level.level_id for level in load_levels()]
-    store.record_main_clear(level_ids[0], 8, Rank.A, 1)
+    store.record_main_clear(level_ids[0], 8, Rank.A)
     book.complete_lesson("basics", "basics_01")
     book.reset_all()
     assert store.main_result(level_ids[0]).cleared is True
@@ -193,16 +208,10 @@ def test_campaign_reset_leaves_tutorial(book, store):
     assert store.lesson_state("basics", "basics_01") == TUTORIAL_COMPLETED
 
 
-# ---------------------------------------------------------------------------
-# Hint session
-# ---------------------------------------------------------------------------
-def test_hint_session_runs_in_order(catalog):
+def test_hint_session_tolerates_action_order(catalog):
     lesson = catalog.find_lesson("basics", "basics_02")
     session = TutorialSession(lesson)
     assert session.start() is not None
-    assert session.notify("place") is not None
-    assert session.notify("step") is None  # not the next trigger
-    assert session.notify("run") is not None
     assert session.notify("win") is not None
     assert session.completed is True
 
@@ -215,30 +224,9 @@ def test_hint_session_skip(catalog):
     assert session.skipped is True
 
 
-def test_every_lesson_has_tips_and_goal(catalog):
+def test_every_lesson_has_tips_and_chinese_name(catalog):
     for chapter in catalog.all():
         for lesson in chapter.lessons:
             assert lesson.tips, f"{lesson.level_id} needs guidance tips"
             assert lesson.goal_text or lesson.description
             assert any("\u4e00" <= ch <= "\u9fff" for ch in lesson.name)
-
-
-def test_chapter_counts(catalog):
-    counts = {chapter.chapter_id: len(chapter.lessons) for chapter in catalog.all()}
-    assert counts == {"basics": 5, "advanced": 3, "editor": 3}
-
-
-def test_every_playable_lesson_has_chase_fields(catalog):
-    for chapter in catalog.all():
-        for lesson in chapter.lessons:
-            assert lesson.max_turns >= 5
-            assert lesson.win_condition.value in ("catch", "pen")
-            if lesson.is_pen_level:
-                assert lesson.pen_cells
-            assert lesson.prediction_steps >= 0
-
-
-def test_advanced_loop_lesson_uses_hint_completion(catalog):
-    lesson = catalog.find_lesson("advanced", "advanced_03")
-    assert lesson.extra.get("complete_on_loop") is True
-    assert lesson.win_condition.value == "catch"

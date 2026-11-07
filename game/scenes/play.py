@@ -1,8 +1,4 @@
-"""The main gameplay screen: laying out hay, chasing the herd, reading results.
-
-The scene owns presentation and input only.  Every rule lives in
-:mod:`game.core`; persistence lives in :mod:`game.progress`.
-"""
+"""The gameplay screen for the tank-driving, exit-escape chase."""
 
 from __future__ import annotations
 
@@ -13,16 +9,17 @@ import pygame
 from .. import theme, ui
 from ..animation import TurnAnimator
 from ..core import Simulation
-from ..models import Direction, GameStatus, Level, Pos, Rank
+from ..models import Action, GameStatus, Level, Pos, Rank
 from ..render import BoardRenderer, BoardView, EffectSystem
 from .base import Scene, draw_footer
 
 RESULT_DELAY = 0.95
 LOOP_COLOR = theme.SKY_DEEP
+EXIT_COLOR = theme.CLAY
 
 
 class PlayScene(Scene):
-    """Renders and drives one turn-based attempt."""
+    """Renders and drives one escape attempt."""
 
     def __init__(
         self,
@@ -52,28 +49,31 @@ class PlayScene(Scene):
         self.show_prediction = bool(self.store.get_setting("preview", True))
         if level.extra.get("require_prediction"):
             self.show_prediction = False
-        self.phase = "place"
-        self.hover: Optional[Pos] = None
-        self.hover_valid = True
+        self.show_alerts = bool(self.store.get_setting("alerts", True))
+        self.phase = "run"
+        self.turns_since_result = 0.0
         self.result_timer = 0.0
         self.result_shown = False
+        self.practice_failed = False
         self.rank: Optional[Rank] = None
         self.new_record = False
         self.modal: Optional[ui.Modal] = None
         self.toast_text = ""
         self.toast_timer = 0.0
         self.loop_events = 0
+        self.forward_count = 0
+        self.left_count = 0
+        self.right_count = 0
+        self.wait_count = 0
+        self.blocked_count = 0
+        self.undo_count = 0
+        self.prediction_used = self.show_prediction
         self.trail_farmer: List[Pos] = []
         self.trail_cows: List[List[Pos]] = []
-        self.undo_performed = False
-        self.prediction_used = self.show_prediction
-        self.waited_once = False
-        self.practice_failed = False
-        self.loop_lesson_done = False
-        self.tutorial = None
         self._prediction_cache: Tuple = ()
         self._prediction_key = None
         self.buttons: List[ui.Button] = []
+        self.tutorial = None
         self._seed_trails()
         self._build_buttons()
 
@@ -82,20 +82,16 @@ class PlayScene(Scene):
     # ------------------------------------------------------------------
     def _build_buttons(self) -> None:
         self.undo_button = ui.Button(
-            pygame.Rect(356, 112, 108, 44), "撤销 U", "undo", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(336, 112, 90, 44), "撤销", "undo", style="ghost", font_size=theme.FONT_TINY
         )
         self.restart_button = ui.Button(
-            pygame.Rect(472, 112, 108, 44), "重开 R", "restart", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(434, 112, 90, 44), "重开", "restart", style="ghost", font_size=theme.FONT_TINY
         )
         self.predict_button = ui.Button(
-            pygame.Rect(588, 112, 122, 44), "预测 开", "predict", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(532, 112, 100, 44), "预测 开", "predict", style="ghost", font_size=theme.FONT_TINY
         )
-        self.start_button = ui.Button(
-            pygame.Rect(764, 590, 444, 54),
-            "开始追逐",
-            "start",
-            style="primary",
-            font_size=theme.FONT_H3,
+        self.alert_button = ui.Button(
+            pygame.Rect(640, 112, 90, 44), "警觉 开", "alerts", style="ghost", font_size=theme.FONT_TINY
         )
         self.skip_button = ui.Button(
             pygame.Rect(764, 664, 444, 40),
@@ -108,7 +104,7 @@ class PlayScene(Scene):
             self.undo_button,
             self.restart_button,
             self.predict_button,
-            self.start_button,
+            self.alert_button,
         ]
         if self.mode == "tutorial":
             self.buttons.append(self.skip_button)
@@ -130,16 +126,7 @@ class PlayScene(Scene):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-    def _sync_phase(self) -> None:
-        if self.sim.status is GameStatus.READY:
-            self.phase = "place"
-        elif self.sim.status.is_finished:
-            self.phase = "result"
-        else:
-            self.phase = "run"
-
     def _refresh_buttons(self) -> None:
-        self._sync_phase()
         self.undo_button.enabled = self.sim.can_undo and not self.animator.busy
         self.restart_button.enabled = True
         self.predict_button.enabled = self.level.prediction_steps > 0
@@ -147,21 +134,8 @@ class PlayScene(Scene):
             self.predict_button.text = "预测 无"
         else:
             self.predict_button.text = "预测 开" if self.show_prediction else "预测 关"
-        if self.phase == "place":
-            self.start_button.text = "开始追逐"
-        elif self.phase == "result":
-            self.start_button.text = "再玩一次"
-        else:
-            self.start_button.text = "重新布置"
-
-    def _cell_at(self, pos: Tuple[int, int]) -> Optional[Pos]:
-        local_x = pos[0] - theme.BOARD_ORIGIN[0]
-        local_y = pos[1] - theme.BOARD_ORIGIN[1]
-        if not (0 <= local_x < theme.CELL_SIZE * self.level.width):
-            return None
-        if not (0 <= local_y < theme.CELL_SIZE * self.level.height):
-            return None
-        return (local_y // theme.CELL_SIZE, local_x // theme.CELL_SIZE)
+        self.alert_button.text = "警觉 开" if self.show_alerts else "警觉 关"
+        self.skip_button.enabled = not self.sim.status.is_finished
 
     def _seed_trails(self) -> None:
         self.trail_farmer = [self.sim.farmer.pos]
@@ -207,134 +181,101 @@ class PlayScene(Scene):
 
         if event.type == pygame.KEYDOWN:
             self._handle_key(event)
-            return
-
-        if event.type == pygame.MOUSEMOTION:
-            cell = self._cell_at(event.pos)
-            self.hover = cell
-            if cell is not None and self.phase == "place":
-                self.hover_valid = (
-                    cell not in self.sim.obstacles and self.sim.can_place_obstacle(cell).ok
-                )
-            else:
-                self.hover_valid = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            cell = self._cell_at(event.pos)
-            if cell is None or self.phase != "place":
-                return
-            if event.button == 1:
-                if cell in self.sim.obstacles:
-                    self._remove_at(cell)
-                else:
-                    self._place_at(cell)
-            elif event.button == 3:
-                self._remove_at(cell)
 
     def _handle_key(self, event: pygame.event.Event) -> None:
         if event.key == pygame.K_ESCAPE:
             self._leave()
             return
-        if event.key == pygame.K_r:
-            self._restart()
-            return
         if event.key == pygame.K_u:
             self._undo()
+            return
+        if event.key == pygame.K_r:
+            self._restart()
             return
         if event.key == pygame.K_p:
             self._toggle_prediction()
             return
-        if self.phase == "place" and event.key == pygame.K_SPACE:
-            self._start_run()
+        if self.animator.busy or self.phase != "run":
             return
-        if self.phase != "run" or self.animator.busy:
-            return
-        mapping = {
-            pygame.K_UP: Direction.NORTH,
-            pygame.K_w: Direction.NORTH,
-            pygame.K_RIGHT: Direction.EAST,
-            pygame.K_d: Direction.EAST,
-            pygame.K_DOWN: Direction.SOUTH,
-            pygame.K_s: Direction.SOUTH,
-            pygame.K_LEFT: Direction.WEST,
-            pygame.K_a: Direction.WEST,
-        }
-        if event.key == pygame.K_SPACE:
-            self._take_turn(None)
-        elif event.key in mapping:
-            self._take_turn(mapping[event.key])
+        if event.key in (pygame.K_w, pygame.K_UP):
+            self._take_action(Action.FORWARD)
+        elif event.key in (pygame.K_a, pygame.K_LEFT):
+            self._take_action(Action.TURN_LEFT)
+        elif event.key in (pygame.K_d, pygame.K_RIGHT):
+            self._take_action(Action.TURN_RIGHT)
+        elif event.key == pygame.K_SPACE:
+            self._take_action(Action.WAIT)
 
     # ------------------------------------------------------------------
     # Actions
     # ------------------------------------------------------------------
     def _button_action(self, action: str) -> None:
-        if action == "start":
-            if self.sim.status.is_finished or self.phase == "run":
-                self._restart()
-            else:
-                self._start_run()
-        elif action == "undo":
+        if action == "undo":
             self._undo()
         elif action == "restart":
             self._restart()
         elif action == "predict":
             self._toggle_prediction()
+        elif action == "alerts":
+            self._toggle_alerts()
         elif action == "skip":
             self._skip_tutorial()
 
-    def _start_run(self) -> None:
-        if self.sim.status is not GameStatus.READY:
-            return
-        required = int(self.level.extra.get("require_obstacle", 0) or 0)
-        if self.sim.obstacle_count < required:
-            self._toast(f"试着先放 {required} 个干草垛，再开始吧。")
-            self.app.sound.play("error")
-            return
-        if self.level.extra.get("require_undo") and not self.undo_performed:
-            self._toast("先放一捆干草，再把它收回来试试。")
-            self.app.sound.play("error")
-            return
-        if self.level.extra.get("require_prediction") and not self.prediction_used:
-            self._toast("先按 P 打开路径预测，看看牛会往哪里走。")
-            self.app.sound.play("error")
-            return
-        self.sim.start()
-        self.phase = "run"
-        self._tutorial_event("run")
-        self.app.sound.play("start")
-        self._refresh_buttons()
-
-    def _take_turn(self, direction: Optional[Direction]) -> None:
+    def _take_action(self, action: Action) -> None:
         if self.phase != "run" or self.animator.busy:
             return
-        result = self.sim.order(direction)
-        if direction is None:
-            self.waited_once = True
-        if result.blocked:
-            self._toast(result.message or "这一下不算回合。")
-            self.app.sound.play("error")
-            self._tutorial_event("blocked")
-            self._refresh_buttons()
-            return
+        if action is Action.FORWARD:
+            self.forward_count += 1
+        elif action is Action.TURN_LEFT:
+            self.left_count += 1
+        elif action is Action.TURN_RIGHT:
+            self.right_count += 1
+        else:
+            self.wait_count += 1
+
+        result = self.sim.apply_action(action)
         self.animator.play(result)
         self.trail_farmer.append(self.sim.farmer.pos)
         for index, cow in enumerate(self.sim.cows):
             if index < len(self.trail_cows):
                 self.trail_cows[index].append(cow.pos)
-        self._tutorial_event("wait" if direction is None else "move")
+
+        if result.blocked:
+            self.blocked_count += 1
+            self._toast(result.message)
+            self.app.sound.play("error")
+            self._tutorial_event("blocked")
+        elif action is Action.FORWARD:
+            self._tutorial_event("forward")
+        elif action is Action.TURN_LEFT:
+            self._tutorial_event("turn_left")
+        elif action is Action.TURN_RIGHT:
+            self._tutorial_event("turn_right")
+        else:
+            self._tutorial_event("wait")
+
+        if result.caught_now:
+            for index in result.caught_now:
+                if index < len(self.sim.cows):
+                    pos = self.sim.cows[index].pos
+                    center = self.board_center(pos)
+                    self.effects.ring(center, theme.SUN, 70, 0.6)
+            self._toast(f"抓住了 {len(result.caught_now)} 头牛！", 1.6)
+            self.app.sound.play("place")
+            self._tutorial_event("catch")
+
         if result.loop_hint:
             self.loop_events += 1
-            self._toast("牛进入了循环。它还会继续走，你可以换个方向或去拦它。", 2.8)
+            self._toast("局面进入循环。你仍然可以继续操作，换一个方向试试。", 2.8)
             self.app.sound.play("loop")
             self._tutorial_event("loop")
-            if (
-                self.mode == "tutorial"
-                and self.level.extra.get("complete_on_loop")
-                and not self.loop_lesson_done
-            ):
-                self.loop_lesson_done = True
-                self._complete_loop_lesson()
-                return
-        if result.status.is_finished:
+
+        if result.escaped_index is not None:
+            self._toast("牛从出口逃走了", 3.0)
+            self.app.sound.play("lose")
+            self._tutorial_event("exit")
+            self._begin_result()
+        elif result.status.is_finished:
             self._begin_result()
         else:
             self._tutorial_event("step")
@@ -346,40 +287,51 @@ class PlayScene(Scene):
         self.phase = "result"
         self.result_timer = 0.0
         self.result_shown = False
-        status = self.sim.status
-        self.rank = self.level.rank_for(self.sim.turns) if status is GameStatus.WON else None
-        center = (
-            theme.BOARD_ORIGIN[0] + (self.sim.farmer.pos[1] + 0.5) * theme.CELL_SIZE,
-            theme.BOARD_ORIGIN[1] + (self.sim.farmer.pos[0] + 0.5) * theme.CELL_SIZE,
-        )
-        if status is GameStatus.WON:
-            self.effects.burst_petals(center, 26 if not self.effects.low_effects else 0)
-            self.effects.ring(center, theme.SUN, 120, 0.9)
+        self.rank = self.level.rank_for(self.sim.turns) if self.sim.status is GameStatus.WON else None
+        center = self.board_center(self.sim.farmer.pos)
+        if self.sim.status is GameStatus.LOST_EXIT and self.sim.last_tick is not None:
+            escaped = self.sim.last_tick.escaped_index
+            if escaped is not None and escaped < len(self.sim.cows):
+                center = self.board_center(self.sim.cows[escaped].pos)
+        if self.sim.status is GameStatus.WON:
+            self.effects.burst_petals(center, 28 if not self.effects.low_effects else 0)
+            self.effects.ring(center, theme.SUN, 130, 0.9)
             self.effects.flying_hat(center)
             self.app.sound.play("win")
-            if (
-                self.mode == "tutorial"
-                and self.level.extra.get("require_wait")
-                and not self.waited_once
-            ):
+            if self._practice_missing():
                 self.practice_failed = True
                 self.app.sound.play("error")
             else:
                 self._record_win()
                 self._tutorial_event("win")
+        elif self.sim.status is GameStatus.LOST_EXIT:
+            self.effects.ring(center, theme.CLAY, 90, 0.7)
+            self.app.sound.play("lose")
         else:
             self.app.sound.play("lose")
-            self._tutorial_event("fail")
         self._refresh_buttons()
+
+    def _practice_missing(self) -> bool:
+        if self.mode != "tutorial":
+            return False
+        extra = self.level.extra
+        if extra.get("require_turn") and (self.left_count == 0 or self.right_count == 0):
+            return True
+        if extra.get("require_block") and self.blocked_count == 0:
+            return True
+        if extra.get("require_wait") and self.wait_count == 0:
+            return True
+        if extra.get("require_undo") and self.undo_count == 0:
+            return True
+        if extra.get("require_prediction") and not self.prediction_used:
+            return True
+        return False
 
     def _record_win(self) -> None:
         turns = self.sim.turns
         rank = self.level.rank_for(turns)
-        obstacles_used = self.sim.obstacle_count
         if self.mode == "main":
-            self.new_record = self.store.record_main_clear(
-                self.level.level_id, turns, rank, obstacles_used
-            )
+            self.new_record = self.store.record_main_clear(self.level.level_id, turns, rank)
             self.app.on_level_cleared(
                 self.level, self.sim, rank, loops=self.loop_events, mode="main"
             )
@@ -409,28 +361,6 @@ class PlayScene(Scene):
                 },
             )
 
-    def _complete_loop_lesson(self) -> None:
-        if self.mode != "tutorial" or self.app.book is None:
-            return
-        self.app.book.complete_lesson(
-            self.chapter, self.level.tutorial_id or self.level.level_id
-        )
-        self.app.sound.play("unlock")
-        self._toast("循环提示不会判负，你可以继续行动。", 3.0)
-        self.modal = ui.Modal(
-            "循环提示",
-            "牛的位置和朝向重复了，所以出现了循环提示。\n"
-            "这不会判负；你可以继续移动农夫，或者回到布置阶段换一条路。",
-            accent=theme.SKY_DEEP,
-            badge="教程",
-            buttons=[
-                ui.Button(pygame.Rect(0, 0, 170, 50), "下一课", "next_lesson", style="primary"),
-                ui.Button(pygame.Rect(0, 0, 150, 50), "返回章节", "leave", style="ghost"),
-            ],
-            width=680,
-            height=350,
-        )
-
     def _undo(self) -> None:
         if self.animator.busy:
             return
@@ -438,21 +368,19 @@ class PlayScene(Scene):
             self._toast("没有可以撤销的步骤了。")
             self.app.sound.play("error")
             return
-        self.undo_performed = True
+        self.undo_count += 1
         self.animator.clear()
         self.modal = None
         self.result_shown = False
         self.result_timer = 0.0
+        self.practice_failed = False
         self.rank = None
         self.new_record = False
         self._seed_trails()
-        self._sync_phase()
+        self.phase = "run"
         self._tutorial_event("undo")
         self.app.sound.play("undo")
-        if self.sim.status is GameStatus.READY:
-            self._toast("已撤销到布置阶段。")
-        else:
-            self._toast(f"已撤销，回到第 {self.sim.turns} 回合。")
+        self._toast(f"已撤销，回到第 {self.sim.turns} 回合。")
         self._refresh_buttons()
 
     def _restart(self) -> None:
@@ -461,15 +389,18 @@ class PlayScene(Scene):
         self.modal = None
         self.result_shown = False
         self.result_timer = 0.0
+        self.practice_failed = False
         self.rank = None
         self.new_record = False
-        self.undo_performed = False
-        self.waited_once = False
-        self.practice_failed = False
-        self.loop_lesson_done = False
+        self.forward_count = 0
+        self.left_count = 0
+        self.right_count = 0
+        self.wait_count = 0
+        self.blocked_count = 0
+        self.undo_count = 0
         self.loop_events = 0
+        self.phase = "run"
         self._seed_trails()
-        self._sync_phase()
         if self.mode == "tutorial":
             from ..tutorial import TutorialSession
 
@@ -490,24 +421,10 @@ class PlayScene(Scene):
         self.app.sound.play("click")
         self._refresh_buttons()
 
-    def _place_at(self, cell: Pos) -> None:
-        result = self.sim.place_obstacle(cell)
-        if result.ok:
-            self.app.sound.play("place")
-            self._tutorial_event("place")
-            self.hover_valid = cell not in self.sim.obstacles
-        else:
-            self._toast(result.message)
-            self.app.sound.play("error")
-        self._refresh_buttons()
-
-    def _remove_at(self, cell: Pos) -> None:
-        if self.sim.remove_obstacle(cell):
-            self.undo_performed = True
-            self.app.sound.play("undo")
-            self._tutorial_event("remove")
-        if self.phase == "place":
-            self.hover_valid = self.sim.can_place_obstacle(cell).ok
+    def _toggle_alerts(self) -> None:
+        self.show_alerts = not self.show_alerts
+        self.store.set_setting("alerts", self.show_alerts)
+        self.app.sound.play("click")
         self._refresh_buttons()
 
     def _skip_tutorial(self) -> None:
@@ -560,8 +477,8 @@ class PlayScene(Scene):
         if self.practice_failed:
             self.modal = ui.Modal(
                 "还差一个练习",
-                "这一课要用空格等待至少一回合，观察牛自己走过来。\n"
-                "重开本课，按空格等一等再抓住它。",
+                f"这一课还要完成：{self.level.practice_text or '指定动作'}。\n"
+                "重开本课，完成练习后再抓住全部牛。",
                 accent=theme.SKY_DEEP,
                 badge="练习",
                 buttons=[
@@ -575,30 +492,30 @@ class PlayScene(Scene):
         if self.sim.status is GameStatus.WON:
             self._show_win_modal()
             return
-        remaining = len(self.sim.cows) - self.sim.penned_count
-        if self.level.is_pen_level:
-            detail = f"还有 {remaining} 头牛没有进围栏。"
+        if self.sim.status is GameStatus.LOST_EXIT:
+            title = "牛从出口逃走了"
+            body = "一头牛抵达了金色出口，本局失败。\n可以撤销到上一回合，或重新开始。"
         else:
-            detail = "牛还没有被抓住。"
+            title = "回合数用完了"
+            body = f"本关最多 {self.level.max_turns} 回合，牛还没有全部抓住。\n可以撤销到上一回合，或重新开始。"
         self.modal = ui.Modal(
-            "回合用尽",
-            f"{detail}本关最多 {self.level.max_turns} 回合。\n"
-            "可以撤销到上一回合继续，也可以重新布置干草垛。",
-            accent=theme.CLAY,
+            title,
+            body,
+            accent=EXIT_COLOR,
             buttons=[
                 ui.Button(pygame.Rect(0, 0, 190, 50), "撤销到上一回合", "undo_result", style="primary"),
                 ui.Button(pygame.Rect(0, 0, 170, 50), "重开本关", "retry", style="default"),
                 ui.Button(pygame.Rect(0, 0, 130, 50), "返回", "leave", style="ghost"),
             ],
             width=680,
-            height=340,
+            height=350,
         )
 
     def _show_win_modal(self) -> None:
         turns = self.sim.turns
         rank = self.rank or self.level.rank_for(turns)
         if self.mode == "tutorial":
-            body = f"用了 {turns} 回合完成本课。\n{rank.comment}"
+            body = f"用了 {turns} 回合，抓住全部牛。\n{rank.comment}"
             self.modal = ui.Modal(
                 "教程完成",
                 body,
@@ -614,9 +531,8 @@ class PlayScene(Scene):
             )
             return
         record_text = "新的最好成绩！" if self.new_record else ""
-        title = "全部进栏！" if self.sim.last_tick and self.sim.last_tick.penned else "抓到啦！"
         body = (
-            f"用了 {turns} 回合，放下了 {self.sim.obstacle_count} 个干草垛。\n"
+            f"用了 {turns} 回合，抓住了 {len(self.sim.cows)} 头牛。\n"
             f"{rank.comment}\n{record_text}"
         )
         buttons = [ui.Button(pygame.Rect(0, 0, 150, 50), "再玩一次", "retry", style="ghost")]
@@ -626,7 +542,7 @@ class PlayScene(Scene):
             )
         buttons.append(ui.Button(pygame.Rect(0, 0, 150, 50), "返回", "leave", style="ghost"))
         self.modal = ui.Modal(
-            title,
+            "全部抓住！",
             body,
             accent=theme.SUN,
             badge=f"评价 {rank.value}",
@@ -669,6 +585,12 @@ class PlayScene(Scene):
         if self.modal is not None:
             self.modal.draw(surface, self.fonts)
 
+    def board_center(self, pos: Pos) -> Tuple[int, int]:
+        return (
+            theme.BOARD_ORIGIN[0] + int((pos[1] + 0.5) * theme.CELL_SIZE),
+            theme.BOARD_ORIGIN[1] + int((pos[0] + 0.5) * theme.CELL_SIZE),
+        )
+
     def _draw_background(self, surface: pygame.Surface) -> None:
         theme.vertical_gradient(
             surface,
@@ -698,11 +620,7 @@ class PlayScene(Scene):
         badge, badge_color = badge_map.get(self.mode, ("主线", theme.LEAF))
         width = self.fonts.size_of(title, theme.FONT_H1, True)[0]
         ui.draw_pill(surface, self.fonts, badge, (62 + width + 62, 58), badge_color)
-        status_text = {
-            "place": "布置阶段",
-            "run": "追逐中",
-            "result": "本局结束",
-        }[self.phase]
+        status_text = "追逐中" if self.phase == "run" else "本局结束"
         ui.draw_pill(
             surface,
             self.fonts,
@@ -714,50 +632,29 @@ class PlayScene(Scene):
         pygame.draw.line(surface, theme.PANEL_BORDER, (60, 104), (1220, 104), 2)
 
     def _draw_top_bar(self, surface: pygame.Surface) -> None:
-        self._draw_stat(
-            surface, 60, 112, 150, "回合", f"{self.sim.turns} / {self.level.max_turns}"
-        )
+        self._draw_stat(surface, 60, 112, 140, "回合", f"{self.sim.turns} / {self.level.max_turns}")
         self._draw_stat(
             surface,
-            218,
+            208,
             112,
-            130,
-            "障碍",
-            f"{self.sim.obstacle_count} / {self.level.initial_obstacles}",
+            120,
+            "牛",
+            f"{self.sim.caught_count} / {len(self.sim.cows)}",
         )
-        for button in (self.undo_button, self.restart_button, self.predict_button):
+        for button in (self.undo_button, self.restart_button, self.predict_button, self.alert_button):
             button.draw(surface, self.fonts)
 
-    def _draw_stat(
-        self,
-        surface: pygame.Surface,
-        x: int,
-        y: int,
-        width: int,
-        label: str,
-        value: str,
-    ) -> None:
+    def _draw_stat(self, surface, x, y, width, label, value):
         rect = pygame.Rect(x, y, width, 44)
         theme.rounded_rect(surface, rect, theme.PANEL_BG, radius=12)
         theme.rounded_rect(surface, rect, theme.PANEL_BORDER, radius=12, width=2)
         theme.draw_text(
-            surface,
-            self.fonts,
-            label,
-            (rect.left + 10, rect.centery),
-            theme.FONT_TINY,
-            theme.INK_LIGHT,
-            anchor="midleft",
+            surface, self.fonts, label, (rect.left + 10, rect.centery), theme.FONT_TINY,
+            theme.INK_LIGHT, anchor="midleft",
         )
         theme.draw_text(
-            surface,
-            self.fonts,
-            value,
-            (rect.right - 10, rect.centery),
-            theme.FONT_H3,
-            theme.INK,
-            anchor="midright",
-            bold=True,
+            surface, self.fonts, value, (rect.right - 10, rect.centery), theme.FONT_H3,
+            theme.INK, anchor="midright", bold=True,
         )
 
     def _draw_board(self, surface: pygame.Surface) -> None:
@@ -765,17 +662,15 @@ class PlayScene(Scene):
             level=self.level,
             sim=self.sim,
             animator=self.animator,
-            hover=self.hover if self.phase == "place" else None,
-            hover_valid=self.hover_valid,
-            placement_mode=self.phase == "place",
             show_prediction=self.show_prediction and not self.sim.status.is_finished,
             prediction=self._prediction(),
             effects=self.effects,
             pulse=self.time,
             highlight=self._highlight_cell(),
+            show_alerts=self.show_alerts,
             trails=tuple([self.trail_farmer] + self.trail_cows),
             trail_colors=[theme.DENIM, theme.CLAY, theme.LEAF_DARK],
-            pen_cells=self.level.pen_cells,
+            near_exits=self.sim.near_exit(3),
         )
         self.renderer.draw(surface, view)
 
@@ -802,12 +697,8 @@ class PlayScene(Scene):
             "editor": "自建关卡",
         }
         theme.draw_text(
-            surface,
-            self.fonts,
-            label_map.get(self.mode, "本关目标"),
-            (left, y),
-            theme.FONT_SMALL,
-            theme.INK_LIGHT,
+            surface, self.fonts, label_map.get(self.mode, "本关目标"), (left, y),
+            theme.FONT_SMALL, theme.INK_LIGHT,
         )
         y += 26
         theme.draw_text(
@@ -825,133 +716,86 @@ class PlayScene(Scene):
             surface.blit(wrapped, (left, y))
             y += wrapped.get_height() + 10
 
-        if self.level.is_pen_level:
-            goal = f"目标：{self.sim.penned_count} / {len(self.sim.cows)} 头牛进栏"
-        elif len(self.sim.cows) > 1:
-            goal = "目标：抓住任意一头"
-        else:
-            goal = "目标：抓住牛"
-        ui.draw_pill(surface, self.fonts, goal, (left + 52, y + 18), theme.LEAF_DARK)
+        ui.draw_pill(
+            surface, self.fonts, "目标：抓住全部牛", (left + 76, y + 18), theme.LEAF_DARK
+        )
         y += 50
-        if self.sim.loop_hint_last and not self.sim.status.is_finished:
+        if self.sim.near_exit(3) and not self.sim.status.is_finished:
             ui.draw_pill(
-                surface,
-                self.fonts,
-                "牛进入了循环 · 可继续行动",
-                (left + 110, y + 16),
-                LOOP_COLOR,
+                surface, self.fonts, "出口就在附近！", (left + 80, y + 12), EXIT_COLOR
             )
-            y += 40
+            y += 34
 
         if self.tutorial is not None and self.tutorial.active:
             self._draw_tutorial_box(surface, left, y, width)
-        elif self.phase == "place":
-            helper = self.fonts.wrap(
-                "点击草地放干草垛，点击干草垛可以收回。开始后不能改布局，但可以按 U 撤销回布置阶段。",
-                theme.FONT_SMALL,
-                width,
-                theme.INK_LIGHT,
-            )
-            surface.blit(helper, (left, y))
-        elif self.phase == "run":
-            helper = self.fonts.wrap(
-                "方向键 / WASD 移动农夫，空格原地等待。牛会在你之后走一步。",
-                theme.FONT_SMALL,
-                width,
-                theme.INK_LIGHT,
-            )
-            surface.blit(helper, (left, y))
         else:
-            helper = self.fonts.wrap(
-                "可以撤销到上一回合继续，或重新布置干草垛。",
-                theme.FONT_SMALL,
-                width,
-                theme.INK_LIGHT,
-            )
-            surface.blit(helper, (left, y))
-
-        if self.tutorial is None:
             card = pygame.Rect(left, 438, width, 124)
             theme.rounded_rect(surface, card, theme.CREAM, radius=14)
             theme.rounded_rect(surface, card, theme.PANEL_BORDER, radius=14, width=2)
             theme.draw_text(
-                surface,
-                self.fonts,
-                "本关规则",
-                (card.left + 16, card.top + 10),
-                theme.FONT_TINY,
-                theme.INK_LIGHT,
+                surface, self.fonts, "本关规则", (card.left + 16, card.top + 10),
+                theme.FONT_TINY, theme.INK_LIGHT,
             )
             lines = [
-                "每回合：农夫先动，牛后动。",
+                "W/↑ 前进 · A/← 左转 · D/→ 右转",
                 f"回合上限 {self.level.max_turns} · 预测 {self.level.prediction_steps} 步",
-                "空格等待 · U 撤销 · R 重开",
+                "空格等待 · U 撤销 · R 重开 · P 预测",
             ]
             line_y = card.top + 34
             for line in lines:
                 theme.draw_text(
-                    surface,
-                    self.fonts,
-                    line,
-                    (card.left + 16, line_y),
-                    theme.FONT_SMALL,
-                    theme.INK_SOFT,
+                    surface, self.fonts, line, (card.left + 16, line_y),
+                    theme.FONT_SMALL, theme.INK_SOFT,
                 )
                 line_y += 26
 
-        self.start_button.draw(surface, self.fonts)
         if self.mode == "tutorial":
-            self.skip_button.enabled = not self.sim.status.is_finished
             self.skip_button.draw(surface, self.fonts)
 
     def _draw_tutorial_box(self, surface: pygame.Surface, x: int, y: int, width: int) -> None:
-        box = pygame.Rect(x, y, width, 158)
+        box = pygame.Rect(x, y, width, 176)
         theme.rounded_rect(surface, box, theme.SKY_PALE, radius=16)
         theme.rounded_rect(surface, box, theme.SKY_DEEP, radius=16, width=2)
         ui.draw_pill(surface, self.fonts, "提示", (box.left + 44, box.top + 22), theme.SKY_DEEP)
         text = self.fonts.wrap(self.tutorial.active or "", theme.FONT_SMALL, width - 48, theme.INK)
         surface.blit(text, (box.left + 20, box.top + 44))
         if self.level.practice_text:
-            ui.draw_pill(surface, self.fonts, "练习", (box.left + 44, box.top + 112), theme.CREAM_DARK)
-            practice = self.fonts.ellipsize(self.level.practice_text, theme.FONT_TINY, width - 120)
-            theme.draw_text(
-                surface,
-                self.fonts,
-                practice,
-                (box.left + 84, box.top + 112),
-                theme.FONT_TINY,
-                theme.INK_SOFT,
-                anchor="midleft",
+            ui.draw_pill(surface, self.fonts, "练习", (box.left + 44, box.top + 108), theme.CREAM_DARK)
+            practice = self.fonts.wrap(
+                self.level.practice_text, theme.FONT_TINY, width - 110, theme.INK_SOFT
             )
+            surface.blit(practice, (box.left + 84, box.top + 98))
+            if practice.get_height() > 40:
+                bar_y = box.bottom - 14
+            else:
+                bar_y = box.bottom - 16
+        else:
+            bar_y = box.bottom - 16
         ratio = self.tutorial.progress_ratio
-        bar = pygame.Rect(box.left + 20, box.bottom - 18, width - 40, 8)
+        bar = pygame.Rect(box.left + 20, bar_y, width - 40, 8)
         theme.rounded_rect(surface, bar, theme.CREAM_DARK, radius=4)
         filled = pygame.Rect(bar.left, bar.top, int(bar.width * ratio), bar.height)
         theme.rounded_rect(surface, filled, theme.SKY_DEEP, radius=4)
 
     def _draw_footer(self, surface: pygame.Surface) -> None:
-        if self.phase == "place":
-            text = "点击草地放干草垛 · 右键收回 · 空格开始 · U 撤销 · R 重开"
-        else:
-            text = "方向键/WASD 移动 · 空格等待 · U 撤销 · R 重开 · P 预测"
-        draw_footer(surface, self.fonts, text)
+        draw_footer(
+            surface,
+            self.fonts,
+            "W/↑ 前进 · A/← 左转 · D/→ 右转 · 空格等待 · U 撤销 · R 重开 · P 预测",
+        )
         if self.show_prediction and self.level.prediction_steps > 0 and self.toast_timer <= 0:
-            theme.draw_text(
-                surface,
-                self.fonts,
-                f"半透明脚印 = 牛接下来 {self.level.prediction_steps} 回合的路线（假设农夫等待）",
-                (theme.BOARD_ORIGIN[0], 760),
+            text = self.fonts.wrap(
+                f"半透明脚印 = 牛接下来 {self.level.prediction_steps} 回合的路线（基于 Farmer John 当前位置与朝向不变）",
                 theme.FONT_TINY,
+                theme.BOARD_SIZE,
                 theme.INK_LIGHT,
             )
+            surface.blit(text, (theme.BOARD_ORIGIN[0], 752))
 
     def _draw_toast(self, surface: pygame.Surface) -> None:
         body = self.fonts.wrap(self.toast_text, theme.FONT_SMALL, 460, theme.WHITE_WARM)
         rect = pygame.Rect(0, 0, body.get_width() + 40, body.get_height() + 24)
-        rect.center = (
-            theme.BOARD_ORIGIN[0] + theme.BOARD_SIZE // 2,
-            770,
-        )
+        rect.center = (theme.BOARD_ORIGIN[0] + theme.BOARD_SIZE // 2, 770)
         theme.soft_shadow(surface, rect, radius=14, alpha=60, offset=(0, 4))
         theme.rounded_rect(surface, rect, theme.CLAY, radius=14)
         surface.blit(body, (rect.left + 20, rect.top + 12))

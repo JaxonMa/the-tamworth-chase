@@ -318,7 +318,9 @@ class TutorialSession:
     def notify(self, event: str) -> Optional[str]:
         """Inform the session that ``event`` happened.
 
-        Returns the newly displayed tip text, or ``None`` when nothing changed.
+        The next matching tip is shown even if the player performed actions in a
+        slightly different order; unshown earlier tips are skipped.  This keeps
+        the guidance from getting stuck when the player experiments.
         """
         self.fired_events.append(event)
         new_text = self._fire_all_matching(event)
@@ -327,16 +329,14 @@ class TutorialSession:
         return new_text
 
     def _fire_all_matching(self, event: str) -> Optional[str]:
-        changed = None
-        while self.index < len(self.tips) and self.tips[self.index].trigger == event:
-            tip = self.tips[self.index]
-            self.active = tip.text
-            self.history.append(tip.text)
-            self.index += 1
-            changed = tip.text
-            # A tip may also be informational: stop after showing one per event.
-            break
-        return changed
+        for index in range(self.index, len(self.tips)):
+            tip = self.tips[index]
+            if tip.trigger == event:
+                self.index = index + 1
+                self.active = tip.text
+                self.history.append(tip.text)
+                return tip.text
+        return None
 
     def skip(self) -> None:
         self.skipped = True

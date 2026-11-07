@@ -13,7 +13,7 @@ from .base import Scene, draw_footer
 
 TITLE = "The Tamworth Chase"
 SUBTITLE = "《塔姆沃斯追逐》"
-TAGLINE = "在牧场上一步步追上那头牛。"
+TAGLINE = "守住出口，赶在牛逃走之前抓住它们。"
 
 
 class MenuScene(Scene):

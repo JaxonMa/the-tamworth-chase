@@ -1,18 +1,14 @@
 {
-  "version": 2,
+  "version": 3,
   "game": "The Tamworth Chase",
   "levels": [
     {
       "id": "level_01",
       "name": "晨露草坪",
       "description": "新的一天从一片开阔的草地开始。",
-      "hint": "先按方向键走一步，看看牛怎么动。",
+      "hint": "把农夫开到牛和出口之间；撞墙前进会浪费回合。",
       "tags": [
         "入门"
-      ],
-      "farmer_facing": "north",
-      "cow_facings": [
-        "north"
       ],
       "grid": [
         "##########",
@@ -26,27 +22,36 @@
         "#.TT..##.#",
         "##########"
       ],
-      "s_threshold": 8,
-      "a_threshold": 12,
-      "b_threshold": 16,
+      "fj_start_direction": "north",
+      "cow_facings": [
+        "north"
+      ],
+      "cow_behavior": "seek_exit",
+      "exit_cells": [
+        [
+          1,
+          1
+        ]
+      ],
+      "max_turns": 16,
       "prediction_steps": 5,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "exit_sight_range": -1,
+      "sight_range": -1,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": false,
-      "initial_obstacles": 1,
-      "max_turns": 20
+      "s_threshold": 8,
+      "a_threshold": 11,
+      "b_threshold": 14
     },
     {
       "id": "level_02",
       "name": "牧场小径",
-      "description": "狭长的小径上，牛会一直向前走。",
-      "hint": "注意牛撞上围栏后会顺时针转身。",
+      "description": "狭长的小径上，牛会一直寻找出口。",
+      "hint": "先看出口在哪，再决定向左还是向右。",
       "tags": [
         "入门"
-      ],
-      "farmer_facing": "south",
-      "cow_facings": [
-        "east"
       ],
       "grid": [
         "##########",
@@ -60,28 +65,37 @@
         "#....HHHH#",
         "##########"
       ],
-      "s_threshold": 5,
-      "a_threshold": 9,
-      "b_threshold": 13,
+      "fj_start_direction": "south",
+      "cow_facings": [
+        "east"
+      ],
+      "cow_behavior": "seek_exit",
+      "exit_cells": [
+        [
+          2,
+          1
+        ]
+      ],
+      "max_turns": 14,
       "prediction_steps": 5,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "exit_sight_range": -1,
+      "sight_range": -1,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": false,
-      "initial_obstacles": 1,
-      "max_turns": 17
+      "s_threshold": 6,
+      "a_threshold": 9,
+      "b_threshold": 12
     },
     {
       "id": "level_03",
       "name": "老屋后院",
-      "description": "屋后的岔路不少，先看牛拐向哪边。",
-      "hint": "用干草垛改变牛的方向，再决定农夫的路线。",
+      "description": "屋后的岔路不少，牛会沿墙巡逻。",
+      "hint": "用固定地形挡住牛的直线，逼它绕路。",
       "tags": [
         "入门",
         "转角"
-      ],
-      "farmer_facing": "south",
-      "cow_facings": [
-        "north"
       ],
       "grid": [
         "##########",
@@ -95,27 +109,36 @@
         "#F.......#",
         "##########"
       ],
-      "s_threshold": 10,
-      "a_threshold": 14,
-      "b_threshold": 18,
+      "fj_start_direction": "south",
+      "cow_facings": [
+        "north"
+      ],
+      "cow_behavior": "seek_exit",
+      "exit_cells": [
+        [
+          3,
+          1
+        ]
+      ],
+      "max_turns": 20,
       "prediction_steps": 5,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "exit_sight_range": -1,
+      "sight_range": -1,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": false,
-      "initial_obstacles": 2,
-      "max_turns": 22
+      "s_threshold": 12,
+      "a_threshold": 15,
+      "b_threshold": 18
     },
     {
       "id": "level_04",
       "name": "石堆迷宫",
-      "description": "两块石头，能改变两段路线。",
-      "hint": "一块挡住牛，一块留给自己。",
+      "description": "石堆之间，牛和农夫都在找路。",
+      "hint": "转向不消耗位置，但会消耗回合。",
       "tags": [
         "节奏"
-      ],
-      "farmer_facing": "south",
-      "cow_facings": [
-        "west"
       ],
       "grid": [
         "##########",
@@ -129,28 +152,37 @@
         "##TTTT#..#",
         "##########"
       ],
-      "s_threshold": 8,
-      "a_threshold": 12,
-      "b_threshold": 16,
+      "fj_start_direction": "south",
+      "cow_facings": [
+        "west"
+      ],
+      "cow_behavior": "seek_exit",
+      "exit_cells": [
+        [
+          1,
+          1
+        ]
+      ],
+      "max_turns": 22,
       "prediction_steps": 5,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "exit_sight_range": -1,
+      "sight_range": -1,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": false,
-      "initial_obstacles": 2,
-      "max_turns": 20
+      "s_threshold": 14,
+      "a_threshold": 17,
+      "b_threshold": 20
     },
     {
       "id": "level_05",
       "name": "对称牧场",
-      "description": "左右对称的围栏，藏着不对称的时机。",
-      "hint": "先观察牛的路线，再决定要不要放干草垛。",
+      "description": "左右对称的围栏，出口只在一边。",
+      "hint": "判断牛会先往哪边拐，然后提前拦截。",
       "tags": [
         "对称",
         "节奏"
-      ],
-      "farmer_facing": "west",
-      "cow_facings": [
-        "north"
       ],
       "grid": [
         "##########",
@@ -164,27 +196,36 @@
         "#...TTF..#",
         "##########"
       ],
-      "s_threshold": 9,
-      "a_threshold": 13,
-      "b_threshold": 17,
+      "fj_start_direction": "west",
+      "cow_facings": [
+        "north"
+      ],
+      "cow_behavior": "seek_exit",
+      "exit_cells": [
+        [
+          3,
+          8
+        ]
+      ],
+      "max_turns": 17,
       "prediction_steps": 5,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "exit_sight_range": -1,
+      "sight_range": -1,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": false,
-      "initial_obstacles": 2,
-      "max_turns": 21
+      "s_threshold": 9,
+      "a_threshold": 12,
+      "b_threshold": 15
     },
     {
       "id": "level_06",
       "name": "蜿蜒沟渠",
-      "description": "沟渠之间，只差几步的时间。",
-      "hint": "有时需要让牛多绕一圈，自己先到位。",
+      "description": "沟渠之间，牛开始主动躲避农夫。",
+      "hint": "这头牛看到农夫会先逃跑；别把它逼向出口。",
       "tags": [
         "长路"
-      ],
-      "farmer_facing": "south",
-      "cow_facings": [
-        "west"
       ],
       "grid": [
         "##########",
@@ -198,27 +239,36 @@
         "#...TTF..#",
         "##########"
       ],
-      "s_threshold": 15,
-      "a_threshold": 19,
-      "b_threshold": 23,
+      "fj_start_direction": "south",
+      "cow_facings": [
+        "west"
+      ],
+      "cow_behavior": "seek_exit_and_flee",
+      "exit_cells": [
+        [
+          4,
+          5
+        ]
+      ],
+      "max_turns": 29,
       "prediction_steps": 5,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "exit_sight_range": -1,
+      "sight_range": 6,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": false,
-      "initial_obstacles": 3,
-      "max_turns": 27
+      "s_threshold": 21,
+      "a_threshold": 24,
+      "b_threshold": 27
     },
     {
       "id": "level_07",
       "name": "双屋之间",
-      "description": "两间小屋，一条窄缝。",
-      "hint": "窄缝是唯一的近路，也可能是陷阱。",
+      "description": "两间小屋，一条窄缝，还有一头会躲的牛。",
+      "hint": "利用屋角改变牛的逃跑方向。",
       "tags": [
         "窄道"
-      ],
-      "farmer_facing": "north",
-      "cow_facings": [
-        "west"
       ],
       "grid": [
         "##########",
@@ -232,29 +282,37 @@
         "#........#",
         "##########"
       ],
-      "s_threshold": 11,
-      "a_threshold": 15,
-      "b_threshold": 19,
+      "fj_start_direction": "north",
+      "cow_facings": [
+        "west"
+      ],
+      "cow_behavior": "seek_exit_and_flee",
+      "exit_cells": [
+        [
+          1,
+          1
+        ]
+      ],
+      "max_turns": 27,
       "prediction_steps": 5,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "exit_sight_range": -1,
+      "sight_range": 6,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": false,
-      "initial_obstacles": 3,
-      "max_turns": 23
+      "s_threshold": 19,
+      "a_threshold": 22,
+      "b_threshold": 25
     },
     {
       "id": "level_08",
       "name": "苔藓高地",
-      "description": "两头牛在苔石间分头行动。",
-      "hint": "两头牛会互相挡路；抓住任意一头就算赢。",
+      "description": "两头会躲的牛在苔石间分头行动。",
+      "hint": "抓住全部牛才算赢；先解决离出口近的那头。",
       "tags": [
         "双牛",
         "精算"
-      ],
-      "farmer_facing": "north",
-      "cow_facings": [
-        "east",
-        "west"
       ],
       "grid": [
         "##########",
@@ -268,15 +326,29 @@
         "#..#..#F.#",
         "##########"
       ],
-      "s_threshold": 8,
-      "a_threshold": 12,
-      "b_threshold": 16,
-      "cows_block_each_other": true,
+      "fj_start_direction": "north",
+      "cow_facings": [
+        "east",
+        "west"
+      ],
+      "cow_behavior": "seek_exit_and_flee",
+      "exit_cells": [
+        [
+          1,
+          7
+        ]
+      ],
+      "max_turns": 27,
       "prediction_steps": 5,
-      "win_condition": "catch",
-      "pen_cells": [],
-      "initial_obstacles": 3,
-      "max_turns": 20
+      "exit_sight_range": -1,
+      "sight_range": 6,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
+      "cows_block_each_other": true,
+      "s_threshold": 19,
+      "a_threshold": 22,
+      "b_threshold": 25
     },
     {
       "id": "level_09",
@@ -285,10 +357,6 @@
       "hint": "这一关没有路径预测，靠观察牛的转向。",
       "tags": [
         "精算"
-      ],
-      "farmer_facing": "north",
-      "cow_facings": [
-        "north"
       ],
       "grid": [
         "##########",
@@ -302,29 +370,37 @@
         "#.##..T..#",
         "##########"
       ],
-      "s_threshold": 9,
-      "a_threshold": 13,
-      "b_threshold": 17,
+      "fj_start_direction": "north",
+      "cow_facings": [
+        "north"
+      ],
+      "cow_behavior": "seek_exit",
+      "exit_cells": [
+        [
+          1,
+          2
+        ]
+      ],
+      "max_turns": 20,
       "prediction_steps": 0,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "exit_sight_range": -1,
+      "sight_range": -1,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": false,
-      "initial_obstacles": 3,
-      "max_turns": 21
+      "s_threshold": 12,
+      "a_threshold": 15,
+      "b_threshold": 18
     },
     {
       "id": "level_10",
       "name": "最后的牧场",
-      "description": "最后一片牧场，两头牛分头行动。",
-      "hint": "抓住任意一头牛就行，先看哪一头离你更近。",
+      "description": "最后一片牧场，两头牛都想逃向出口。",
+      "hint": "先封住出口方向，再逐个抓住。",
       "tags": [
         "终章",
         "双牛"
-      ],
-      "farmer_facing": "east",
-      "cow_facings": [
-        "north",
-        "south"
       ],
       "grid": [
         "##########",
@@ -338,15 +414,29 @@
         "#....T..C#",
         "##########"
       ],
-      "s_threshold": 10,
-      "a_threshold": 14,
-      "b_threshold": 18,
+      "fj_start_direction": "east",
+      "cow_facings": [
+        "north",
+        "south"
+      ],
+      "cow_behavior": "seek_exit_and_flee",
+      "exit_cells": [
+        [
+          1,
+          1
+        ]
+      ],
+      "max_turns": 33,
       "prediction_steps": 5,
-      "win_condition": "catch",
-      "pen_cells": [],
+      "exit_sight_range": -1,
+      "sight_range": 6,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
       "cows_block_each_other": false,
-      "initial_obstacles": 3,
-      "max_turns": 22
+      "s_threshold": 25,
+      "a_threshold": 28,
+      "b_threshold": 31
     }
   ]
 }

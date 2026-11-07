@@ -176,7 +176,7 @@ class LevelSelectScene(Scene):
         detail = (
             f"最好成绩 {card.best_turns} 回合"
             if card.best_turns is not None
-            else ("干草垛 " + str(card.level.initial_obstacles) + " · 回合 " + str(card.level.max_turns))
+            else ("牛 " + str(len(card.level.cow_positions)) + " · 回合 " + str(card.level.max_turns))
         )
         theme.draw_text(
             surface,

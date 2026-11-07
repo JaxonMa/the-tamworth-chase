@@ -1,160 +1,181 @@
 {
   "title": "进阶教程",
-  "subtitle": "多头牛、围栏和循环提示",
-  "intro": "三节进阶课：同时应付多头牛，把牛送进围栏，认识不会判负的循环提示。",
+  "subtitle": "会躲的牛与多头牛的压力",
+  "intro": "三节进阶课：看到农夫先逃跑的牛、两头牛，以及同时抓牛和防逃。",
   "badge": "进阶",
   "accent": "sky",
   "lessons": [
     {
       "id": "advanced_01",
-      "name": "两头牛",
-      "brief": "两头牛按固定顺序移动；抓住任意一头即可。",
-      "goal": "抓住任意一头牛。",
-      "practice": "观察两头牛的路线，抓住离你更近的一头。",
+      "name": "会躲的牛",
+      "brief": "seek_exit_and_flee：看到农夫时，牛会优先拉开距离。",
+      "goal": "抓住这头会躲的牛。",
+      "practice": "留意牛头顶的警觉图标：它说明牛正在逃跑。",
       "tips": [
         {
           "trigger": "start",
-          "text": "场上有两头牛，它们按从左到右的固定顺序各走一步。"
+          "text": "这头牛看到农夫会先逃跑。留意它头顶的警觉图标。"
         },
         {
-          "trigger": "move",
-          "text": "抓任意一头都算赢。先盯住离你最近的那一头。"
+          "trigger": "step",
+          "text": "它想拉开距离。把它逼向角落，再找机会靠近。"
         },
         {
           "trigger": "win",
-          "text": "多头牛时，选择一个目标，别在两条路线之间摇摆。"
+          "text": "会躲的牛也会被墙角困住。进阶教程开始！"
         }
       ],
       "level": {
         "id": "advanced_01",
-        "name": "两头牛",
+        "name": "会躲的牛",
         "grid": [
-          "##########",
-          "#........#",
-          "#.#....#.#",
-          "#...TT...#",
-          "##.CTT..##",
-          "#........#",
-          "#.#...C#.#",
-          "#.HHHHHH.#",
-          "#..#..#F.#",
-          "##########"
+          "#######",
+          "#.....#",
+          "#.....#",
+          "#F...C#",
+          "#.....#",
+          "#.....#",
+          "#######"
         ],
-        "farmer_facing": "north",
+        "fj_start_direction": "east",
         "cow_facings": [
-          "east",
-          "west"
+          "east"
         ],
-        "max_turns": 20,
-        "initial_obstacles": 0,
-        "prediction_steps": 5,
-        "win_condition": "catch",
-        "pen_cells": [],
-        "cows_block_each_other": true,
-        "s_threshold": 7,
-        "a_threshold": 10,
-        "b_threshold": 13
+        "cow_behavior": "seek_exit_and_flee",
+        "exit_cells": [
+          [
+            3,
+            3
+          ]
+        ],
+        "max_turns": 15,
+        "prediction_steps": 0,
+        "exit_sight_range": -1,
+        "sight_range": 6,
+        "exit_tiebreak": "right",
+        "flee_tiebreak": "right",
+        "cows_block_sight": false,
+        "cows_block_each_other": false,
+        "s_threshold": 6,
+        "a_threshold": 9,
+        "b_threshold": 12
       }
     },
     {
       "id": "advanced_02",
-      "name": "围栏",
-      "brief": "把所有牛赶进金色围栏格就获胜。",
-      "goal": "让牛走进围栏格。",
-      "practice": "等牛自己走进金色围栏格。",
+      "name": "两头牛",
+      "brief": "两头牛按固定顺序移动，全部抓住才算赢。",
+      "goal": "抓住全部两头牛。",
+      "practice": "先抓离出口更近的那一头，再回头找另一头。",
       "tips": [
         {
           "trigger": "start",
-          "text": "这一关的目标不是抓住牛，而是让牛走进金色围栏格。"
+          "text": "两头牛都会奔向出口。按顺序移动，全部抓住才算赢。"
         },
         {
-          "trigger": "wait",
-          "text": "农夫无法进入围栏区。耐心等牛沿自己的路线走进来。"
+          "trigger": "step",
+          "text": "先解决离出口更近的那头；另一头会继续走。"
         },
         {
           "trigger": "win",
-          "text": "所有牛都进栏就获胜。围栏关里，牛可以不用被抓住。"
+          "text": "两头都抓住了！多牛关卡需要分配注意力。"
         }
       ],
       "level": {
         "id": "advanced_02",
-        "name": "围栏",
+        "name": "两头牛",
         "grid": [
-          "########",
-          "#......#",
-          "#.####.#",
-          "#.#C.#.#",
-          "#.#..#.#",
-          "#.####.#",
-          "#F.....#",
-          "########"
+          "#######",
+          "#.....#",
+          "#.C.C.#",
+          "#.....#",
+          "#.....#",
+          "#F....#",
+          "#######"
         ],
-        "farmer_facing": "east",
+        "fj_start_direction": "north",
         "cow_facings": [
+          "east",
           "east"
         ],
-        "max_turns": 8,
-        "initial_obstacles": 0,
-        "prediction_steps": 3,
-        "win_condition": "pen",
-        "pen_cells": [
+        "cow_behavior": "seek_exit_and_flee",
+        "exit_cells": [
           [
-            3,
-            4
+            5,
+            5
           ]
         ],
-        "cows_block_each_other": false,
-        "s_threshold": 1,
-        "a_threshold": 3,
-        "b_threshold": 5
+        "max_turns": 28,
+        "prediction_steps": 0,
+        "exit_sight_range": -1,
+        "sight_range": 6,
+        "exit_tiebreak": "right",
+        "flee_tiebreak": "right",
+        "cows_block_sight": false,
+        "cows_block_each_other": true,
+        "s_threshold": 18,
+        "a_threshold": 22,
+        "b_threshold": 26
       }
     },
     {
       "id": "advanced_03",
-      "name": "循环提示",
-      "brief": "牛的状态重复时会出现提示，但不会判负。",
-      "goal": "观察一次循环提示。",
-      "practice": "连续按空格等待，直到循环提示出现。",
+      "name": "双重压力",
+      "brief": "一头牛只奔出口，另一头会躲；它们的行为不一样。",
+      "goal": "抓住全部牛，同时别让任何一头到出口。",
+      "practice": "先看两头牛的行为，再决定先追哪一头。",
       "tips": [
         {
           "trigger": "start",
-          "text": "连续按空格等待。牛的位置和朝向重复时，会看到循环提示。"
+          "text": "一头牛只奔向出口，另一头看到农夫会逃跑。先看它们的行为，再决定目标。"
         },
         {
-          "trigger": "wait",
-          "text": "继续等。循环提示只是一条提醒，不是失败。"
+          "trigger": "step",
+          "text": "用预测确认哪一头更接近出口，先拦住它。"
         },
         {
-          "trigger": "loop",
-          "text": "看，牛进入了循环。你可以继续行动，或者回到布置阶段换一条路。"
+          "trigger": "win",
+          "text": "抓牛与防逃同时完成。进阶教程结束！"
         }
       ],
       "level": {
         "id": "advanced_03",
-        "name": "循环提示",
+        "name": "双重压力",
         "grid": [
           "#######",
           "#.....#",
-          "#.###.#",
-          "#.#C#.#",
-          "#.###.#",
+          "#.C.C.#",
+          "#.....#",
+          "#.....#",
           "#F....#",
           "#######"
         ],
-        "farmer_facing": "east",
+        "fj_start_direction": "north",
         "cow_facings": [
+          "east",
           "east"
         ],
-        "max_turns": 20,
-        "initial_obstacles": 0,
+        "cow_behavior": [
+          "seek_exit",
+          "seek_exit_and_flee"
+        ],
+        "exit_cells": [
+          [
+            5,
+            5
+          ]
+        ],
+        "max_turns": 24,
         "prediction_steps": 0,
-        "win_condition": "catch",
-        "pen_cells": [],
-        "cows_block_each_other": false,
-        "s_threshold": 4,
-        "a_threshold": 8,
-        "b_threshold": 12,
-        "complete_on_loop": true
+        "exit_sight_range": -1,
+        "sight_range": 6,
+        "exit_tiebreak": "right",
+        "flee_tiebreak": "right",
+        "cows_block_sight": false,
+        "cows_block_each_other": true,
+        "s_threshold": 16,
+        "a_threshold": 20,
+        "b_threshold": 23
       }
     }
   ]

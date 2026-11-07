@@ -11,7 +11,7 @@ from game.achievements import ACHIEVEMENTS, AchievementTracker
 from game.core import Simulation
 from game.daily import _solvable, date_key, generate_daily, seed_for
 from game.levels import parse_level
-from game.models import Direction, GameStatus, Rank
+from game.models import Action, GameStatus, Rank
 from game.progress import ProgressStore
 
 
@@ -20,70 +20,77 @@ def store(tmp_path: Path) -> ProgressStore:
     return ProgressStore(tmp_path / "save.json").load()
 
 
-def one_step_level():
+def one_step_level(max_turns: int = 5):
     return parse_level(
         {
             "id": "one_step",
             "name": "一步",
-            "grid": ["#######", "#FC...#", "#.....#", "#.....#", "#######"],
-            "cow_facings": ["north"],
-            "max_turns": 5,
+            "grid": ["#######", "#...C.#", "#...F.#", "#.....#", "#######"],
+            "fj_start_direction": "north",
+            "cow_facings": ["west"],
+            "exit_cells": [[1, 1]],
+            "max_turns": max_turns,
         }
     )
 
 
-def pen_level():
-    return parse_level(
-        {
-            "id": "pen",
-            "name": "围栏",
-            "grid": ["#######", "#F....#", "#.C...#", "#.....#", "#######"],
-            "cow_facings": ["east"],
-            "win_condition": "pen",
-            "pen_cells": [[2, 3]],
-            "max_turns": 5,
-        }
-    )
+def win_sim(level):
+    sim = Simulation(level)
+    sim.apply_action(Action.FORWARD)
+    assert sim.status is GameStatus.WON
+    return sim
 
 
 def test_one_step_achievement(store):
     level = one_step_level()
-    sim = Simulation(level)
-    sim.start()
-    sim.order(Direction.EAST)
-    assert sim.status is GameStatus.WON and sim.turns == 1
+    sim = win_sim(level)
     tracker = AchievementTracker(store)
     tracker.on_level_cleared(level, sim, sim.rank, store, loops=0, mode="main")
     assert store.has_achievement("one_step")
-    assert store.has_achievement("no_obstacles")
+    assert store.has_achievement("flawless")
+
+
+def test_close_call_achievement(store):
+    level = one_step_level(max_turns=1)
+    sim = win_sim(level)
+    tracker = AchievementTracker(store)
+    tracker.on_level_cleared(level, sim, sim.rank, store, loops=0, mode="main")
+    assert store.has_achievement("close_call")
+
+
+def test_flawless_requires_no_blocked_forward(store):
+    level = parse_level(
+        {
+            "id": "blocked",
+            "name": "撞墙",
+            "grid": ["#######", "#F....#", "#...C.#", "#.....#", "#######"],
+            "fj_start_direction": "north",
+            "cow_facings": ["west"],
+            "exit_cells": [[1, 5]],
+            "max_turns": 20,
+        }
+    )
+    sim = Simulation(level)
+    sim.apply_action(Action.FORWARD)  # blocked by the border
+    sim.farmer = sim.farmer.turned(sim.farmer.facing.clockwise())
+    # The test only needs a WON state with blocked_events > 0.
+    sim.status = GameStatus.WON
+    tracker = AchievementTracker(store)
+    tracker.on_level_cleared(level, sim, Rank.B, store, loops=0, mode="main")
+    assert not store.has_achievement("flawless")
 
 
 def test_loop_free_requires_no_loops(store):
     level = one_step_level()
-    sim = Simulation(level)
-    sim.start()
-    sim.order(Direction.EAST)
+    sim = win_sim(level)
     tracker = AchievementTracker(store)
     tracker.on_level_cleared(level, sim, sim.rank, store, loops=2, mode="main")
     assert not store.has_achievement("loop_free")
 
 
-def test_fenced_cow_achievement(store):
-    level = pen_level()
-    sim = Simulation(level)
-    sim.start()
-    sim.order(None)
-    assert sim.status is GameStatus.WON and sim.all_penned
-    tracker = AchievementTracker(store)
-    tracker.on_level_cleared(level, sim, sim.rank, store, loops=0, mode="main")
-    assert store.has_achievement("fenced_cow")
-
-
 def test_all_levels_achievement(store):
     level = one_step_level()
-    sim = Simulation(level)
-    sim.start()
-    sim.order(Direction.EAST)
+    sim = win_sim(level)
     for index in range(10):
         store.main_levels[f"level_{index + 1:02d}"] = {"cleared": True, "best_turns": 10}
     tracker = AchievementTracker(store)
@@ -104,6 +111,7 @@ def test_daily_is_deterministic():
     assert first.level_id == second.level_id
     assert first.rows == second.rows
     assert first.source == "daily"
+    assert first.exit_cells
 
 
 def test_daily_varies_by_day():
@@ -117,8 +125,7 @@ def test_daily_is_solvable():
     for offset in range(3):
         level = generate_daily(date(2026, 6, 1) + timedelta(days=offset))
         assert _solvable(level)
-        assert level.win_condition.value == "catch"
-        assert level.max_turns >= 10
+        assert level.cow_behaviors
 
 
 def test_daily_seed_matches_date():

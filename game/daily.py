@@ -1,22 +1,23 @@
-"""Local daily challenge generation.
+"""Local daily challenge generation for the exit-escape chase.
 
-The daily level is derived from the local calendar date through a fixed seed,
-so the same day always produces the same meadow without any server.  Generation
-is verified offline with a bounded search so the daily is always winnable; if a
-seed produces an unwinnable meadow the next seed is tried deterministically.
+The daily meadow is derived from the local calendar date through a fixed seed,
+so the same day always produces the same board without any server.  A bounded
+search confirms that the farmer can catch every cow before it escapes; if a seed
+produces an unwinnable meadow, the next deterministic seed is tried.
 """
 
 from __future__ import annotations
 
 import random
+from collections import deque
 from datetime import date
-from typing import List, Optional, Tuple
+from typing import Optional
 
-from .core import step_forward
+from .core import Simulation
 from .levels import parse_level
-from .models import Direction, Level, Pos
+from .models import Action, GameStatus, Level
 
-DIRECTIONS = ("north", "east", "south", "west")
+DIRECTIONS = ("up", "right", "down", "left")
 
 
 def date_key(day: Optional[date] = None) -> str:
@@ -36,22 +37,29 @@ def _candidate(seed: int, level_id: str) -> Optional[Level]:
         grid[9][index] = "#"
         grid[index][0] = "#"
         grid[index][9] = "#"
-    for _ in range(rng.randint(3, 7)):
+    for _ in range(rng.randint(3, 6)):
         row = rng.randint(1, 8)
         col = rng.randint(1, 8)
         grid[row][col] = "#"
-        if rng.random() < 0.4:
+        if rng.random() < 0.35:
             grid[min(8, row + 1)][col] = "#"
-        if rng.random() < 0.4:
-            grid[row][min(8, col + 1)] = "#"
     free = [(r, c) for r in range(1, 9) for c in range(1, 9) if grid[r][c] == "."]
-    if len(free) < 58:
+    if len(free) < 55:
         return None
     farmer = rng.choice(free)
-    far = [pos for pos in free if abs(pos[0] - farmer[0]) + abs(pos[1] - farmer[1]) >= 4]
+    far = [pos for pos in free if abs(pos[0] - farmer[0]) + abs(pos[1] - farmer[1]) >= 5]
     if not far:
         return None
     cow = rng.choice(far)
+    exits = [
+        pos
+        for pos in free
+        if pos not in (farmer, cow)
+        and abs(pos[0] - cow[0]) + abs(pos[1] - cow[1]) >= 2
+    ]
+    if not exits:
+        return None
+    exit_cell = rng.choice(exits)
     rows = [row[:] for row in grid]
     rows[farmer[0]][farmer[1]] = "F"
     rows[cow[0]][cow[1]] = "C"
@@ -59,14 +67,16 @@ def _candidate(seed: int, level_id: str) -> Optional[Level]:
         "id": level_id,
         "name": "今日牧场",
         "description": "每天一片新的牧场，本地记录你的最好成绩。",
-        "hint": "今天的牧场是独一无二的，先观察再动手。",
+        "hint": "先看出口在哪里，再决定从哪条路拦牛。",
         "grid": ["".join(row) for row in rows],
-        "farmer_facing": rng.choice(DIRECTIONS),
+        "fj_start_direction": rng.choice(DIRECTIONS),
         "cow_facings": [rng.choice(DIRECTIONS)],
-        "max_turns": 45,
-        "initial_obstacles": 2,
+        "cow_behavior": "seek_exit",
+        "exit_cells": [list(exit_cell)],
+        "max_turns": 50,
         "prediction_steps": 5,
-        "win_condition": "catch",
+        "sight_range": -1,
+        "exit_sight_range": -1,
         "s_threshold": 12,
         "a_threshold": 20,
         "b_threshold": 30,
@@ -77,39 +87,27 @@ def _candidate(seed: int, level_id: str) -> Optional[Level]:
         return None
 
 
-def _next_cow(pos: Pos, facing: Direction, level: Level) -> Tuple[Pos, Direction]:
-    target = step_forward(pos, facing)
-    if level.is_inside(target) and not level.is_blocking(target):
-        return target, facing
-    return pos, facing.clockwise()
-
-
-def _solvable(level: Level) -> bool:
-    """Bounded breadth-first search over the player's five possible actions."""
-    farmer = level.farmer_start
-    cow = level.cow_positions[0]
-    facing = level.cow_facings[0]
-    visited = {(farmer, cow, int(facing))}
-    frontier: List[Tuple[Pos, Pos, Direction, int]] = [(farmer, cow, facing, 0)]
-    moves: List[Optional[Direction]] = [None, *Direction]
-    while frontier:
-        f_pos, c_pos, c_face, turns = frontier.pop(0)
-        if turns >= level.max_turns:
-            continue
-        for direction in moves:
-            target = f_pos if direction is None else step_forward(f_pos, direction)
-            if not level.is_inside(target) or level.is_blocking(target):
-                continue
-            if target == c_pos:
+def _solvable(level: Level, max_nodes: int = 24_000) -> bool:
+    """Bounded breadth-first search over the four tank actions."""
+    start = Simulation(level)
+    queue = deque([start])
+    visited = {start.state_key()}
+    nodes = 0
+    actions = (Action.FORWARD, Action.TURN_LEFT, Action.TURN_RIGHT, Action.WAIT)
+    while queue and nodes < max_nodes:
+        sim = queue.popleft()
+        nodes += 1
+        for action in actions:
+            probe = sim.clone()
+            tick = probe.apply_action(action)
+            if tick.status is GameStatus.WON:
                 return True
-            new_cow, new_face = _next_cow(c_pos, c_face, level)
-            if new_cow == target:
-                return True
-            state = (target, new_cow, int(new_face))
-            if state in visited:
+            if tick.status.is_finished:
                 continue
-            visited.add(state)
-            frontier.append((target, new_cow, new_face, turns + 1))
+            key = probe.state_key()
+            if key not in visited:
+                visited.add(key)
+                queue.append(probe)
     return False
 
 

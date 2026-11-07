@@ -1,120 +1,145 @@
 {
   "basics": {
     "basics_01": {
-      "obstacles": [],
       "turns": 5,
       "actions": [
-        "wait",
-        "east",
-        "east",
-        "east",
-        "east"
+        "turn_right",
+        "forward",
+        "forward",
+        "forward",
+        "forward"
       ],
       "status": "won"
     },
     "basics_02": {
-      "obstacles": [
-        [
-          2,
-          5
-        ]
-      ],
-      "turns": 4,
+      "turns": 8,
       "actions": [
-        "wait",
-        "east",
-        "east",
-        "east"
+        "turn_right",
+        "forward",
+        "forward",
+        "turn_right",
+        "forward",
+        "forward",
+        "forward",
+        "forward"
       ],
       "status": "won"
     },
     "basics_03": {
-      "obstacles": [],
-      "turns": 4,
+      "turns": 3,
       "actions": [
-        "wait",
-        "wait",
-        "wait",
-        "wait"
+        "turn_left",
+        "turn_left",
+        "forward"
       ],
       "status": "won"
     },
     "basics_04": {
-      "obstacles": [
-        [
-          2,
-          5
-        ]
-      ],
-      "turns": 4,
+      "turns": 6,
       "actions": [
-        "wait",
-        "east",
-        "east",
-        "east"
+        "turn_left",
+        "turn_left",
+        "forward",
+        "forward",
+        "forward",
+        "forward"
       ],
       "status": "won"
     },
     "basics_05": {
-      "obstacles": [],
-      "turns": 7,
+      "turns": 4,
       "actions": [
-        "wait",
-        "east",
-        "south",
-        "south",
-        "south",
-        "south",
-        "east"
+        "turn_left",
+        "turn_left",
+        "forward",
+        "forward"
+      ],
+      "status": "won"
+    },
+    "basics_06": {
+      "turns": 5,
+      "actions": [
+        "turn_right",
+        "forward",
+        "forward",
+        "forward",
+        "forward"
       ],
       "status": "won"
     }
   },
   "advanced": {
     "advanced_01": {
-      "obstacles": [],
-      "turns": 7,
+      "turns": 6,
       "actions": [
-        "wait",
-        "east",
-        "north",
-        "north",
-        "north",
-        "west",
-        "west"
+        "forward",
+        "forward",
+        "forward",
+        "turn_right",
+        "forward",
+        "forward"
       ],
       "status": "won"
     },
     "advanced_02": {
-      "obstacles": [],
-      "turns": 1,
+      "turns": 18,
       "actions": [
-        "wait"
+        "turn_right",
+        "forward",
+        "forward",
+        "forward",
+        "forward",
+        "forward",
+        "turn_left",
+        "forward",
+        "forward",
+        "forward",
+        "turn_left",
+        "forward",
+        "turn_right",
+        "forward",
+        "turn_left",
+        "forward",
+        "forward",
+        "forward"
       ],
       "status": "won"
     },
     "advanced_03": {
-      "obstacles": [],
-      "turns": 0,
-      "actions": [],
-      "status": "playing"
+      "turns": 16,
+      "actions": [
+        "turn_right",
+        "forward",
+        "forward",
+        "forward",
+        "forward",
+        "turn_left",
+        "turn_left",
+        "forward",
+        "forward",
+        "forward",
+        "turn_right",
+        "forward",
+        "forward",
+        "forward",
+        "wait",
+        "forward"
+      ],
+      "status": "won"
     }
   },
   "editor": {
     "editor_01": {
-      "obstacles": [],
       "turns": 0,
       "actions": [],
       "status": "editor"
     },
     "editor_02": {
-      "obstacles": [],
       "turns": 0,
       "actions": [],
       "status": "editor"
     },
     "editor_03": {
-      "obstacles": [],
       "turns": 0,
       "actions": [],
       "status": "editor"

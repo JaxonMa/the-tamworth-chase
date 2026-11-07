@@ -224,8 +224,8 @@ class TutorialSelectScene(Scene):
 class TutorialChapterScene(Scene):
     """Lesson list for one chapter."""
 
-    ROW_HEIGHT = 84
-    ROW_GAP = 12
+    ROW_HEIGHT = 78
+    ROW_GAP = 8
 
     def __init__(self, app, chapter_id: str) -> None:
         super().__init__(app)
