@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pygame
 
 from game.app import ALL_FEATURES, App
-from game.models import Direction
+from game.models import Action
 
 ROOT = Path(__file__).resolve().parent.parent
 SOLUTIONS = json.loads((ROOT / "tests" / "solutions.json").read_text(encoding="utf-8"))
@@ -56,30 +56,48 @@ def scenario_settings(app: App, path: Path) -> None:
     draw(app, path)
 
 
-def scenario_play_place(app: App, path: Path) -> None:
+def scenario_play(app: App, path: Path) -> None:
     app.start_level(app.levels[0])
     frames(app, 5)
     draw(app, path)
 
 
-def scenario_play_run(app: App, path: Path) -> None:
-    app.start_level(app.levels[3])
-    scene = app.scene
-    scene._start_run()
-    for action in ("north", "west", "north"):
-        scene._take_turn(Direction[action.upper()])
-        scene.animator.clear()
-    frames(app, 2)
+def scenario_play_flee(app: App, path: Path) -> None:
+    app.start_tutorial_lesson("advanced", "advanced_01")
+    frames(app, 5)
     draw(app, path)
 
 
 def scenario_play_win(app: App, path: Path) -> None:
     app.start_level(app.levels[0])
     scene = app.scene
-    scene._start_run()
     for action in SOLUTIONS["level_01"]["actions"]:
-        scene._take_turn(None if action == "wait" else Direction[action.upper()])
+        scene._take_action(Action(action))
         scene.animator.clear()
+    for _ in range(120):
+        app.update(1 / 60)
+        if scene.result_shown:
+            break
+    draw(app, path)
+
+
+def scenario_play_exit(app: App, path: Path) -> None:
+    from game.levels import parse_level
+
+    level = parse_level(
+        {
+            "id": "exit_shot",
+            "name": "出口失守",
+            "grid": ["#######", "#F....#", "#.....#", "#...C.#", "#.....#", "#.....#", "#######"],
+            "fj_start_direction": "north",
+            "cow_facings": ["east"],
+            "exit_cells": [[3, 5]],
+            "max_turns": 20,
+        }
+    )
+    app.start_level(level)
+    scene = app.scene
+    scene._take_action(Action.WAIT)
     for _ in range(120):
         app.update(1 / 60)
         if scene.result_shown:
@@ -100,29 +118,8 @@ def scenario_tutorial_chapter(app: App, path: Path) -> None:
 
 
 def scenario_play_tutorial(app: App, path: Path) -> None:
-    app.start_tutorial_lesson("basics", "basics_02")
-    scene = app.scene
-    scene._place_at((2, 5))
+    app.start_tutorial_lesson("basics", "basics_01")
     frames(app, 5)
-    draw(app, path)
-
-
-def scenario_play_pen(app: App, path: Path) -> None:
-    app.start_tutorial_lesson("advanced", "advanced_02")
-    frames(app, 5)
-    draw(app, path)
-
-
-def scenario_play_loop(app: App, path: Path) -> None:
-    app.start_tutorial_lesson("advanced", "advanced_03")
-    scene = app.scene
-    scene._start_run()
-    for _ in range(5):
-        scene._take_turn(None)
-        scene.animator.clear()
-        if scene.modal is not None:
-            break
-    frames(app, 2)
     draw(app, path)
 
 
@@ -150,6 +147,8 @@ def scenario_editor(app: App, path: Path) -> None:
     scene._action("paint:fence")
     for cell in ((4, 3), (4, 4), (4, 5), (5, 3), (3, 6)):
         scene._paint(cell)
+    scene._action("tool:exit")
+    scene._paint((2, 7))
     scene._action("actor:cow")
     scene._paint((6, 6))
     frames(app, 5)
@@ -160,14 +159,13 @@ SCENARIOS = {
     "menu": scenario_menu,
     "level_select": scenario_level_select,
     "settings": scenario_settings,
-    "play_place": scenario_play_place,
-    "play_run": scenario_play_run,
+    "play": scenario_play,
+    "play_flee": scenario_play_flee,
     "play_win": scenario_play_win,
+    "play_exit": scenario_play_exit,
     "tutorial": scenario_tutorial,
     "tutorial_chapter": scenario_tutorial_chapter,
     "play_tutorial": scenario_play_tutorial,
-    "play_pen": scenario_play_pen,
-    "play_loop": scenario_play_loop,
     "challenge": scenario_challenge,
     "daily": scenario_daily,
     "achievements": scenario_achievements,
