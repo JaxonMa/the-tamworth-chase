@@ -38,6 +38,13 @@ def _render(app, frames: int = 2):
     return app.render_once()
 
 
+def _click(scene, pos):
+    import pygame
+
+    for event_type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+        scene.handle_event(pygame.event.Event(event_type, button=1, pos=pos))
+
+
 def play_actions(app, actions):
     from game.models import Action
 
@@ -56,6 +63,28 @@ def test_menu_renders(app):
     app.open_scene("menu")
     surface = _render(app)
     assert surface.get_size() == (1280, 840)
+
+
+def test_menu_main_button_opens_level_select_and_play(app):
+    from game.scenes.level_select import LevelSelectScene
+    from game.scenes.play import PlayScene
+
+    app.open_scene("menu")
+    menu = app.scene
+    main_button = next(button for button in menu.buttons if button.text == "主线关卡")
+    _click(menu, main_button.rect.center)
+
+    assert isinstance(app.scene, LevelSelectScene)
+    assert len(app.scene.cards) == len(app.levels)
+    _render(app)
+
+    card = app.scene.cards[0]
+    assert card.unlocked
+    _click(app.scene, card.rect.center)
+
+    assert isinstance(app.scene, PlayScene)
+    _render(app)
+    app.open_scene("menu")
 
 
 @pytest.mark.parametrize(

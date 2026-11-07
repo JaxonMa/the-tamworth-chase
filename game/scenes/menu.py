@@ -62,7 +62,7 @@ class MenuScene(Scene):
         self.intro_later.rect.bottomleft = (866, 150)
 
     def _build_buttons(self) -> List[ui.Button]:
-        entries: List[Tuple[str, str, str]] = [("main", "主线关卡", "primary")]
+        entries: List[Tuple[str, str, str]] = [("level_select", "主线关卡", "primary")]
         features = self.app.features
         if "tutorial" in features:
             entries.append(("tutorial", "新手教程", "sky"))
