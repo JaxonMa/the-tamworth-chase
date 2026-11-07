@@ -1,21 +1,22 @@
 # The Tamworth Chase
 
-*A cozy, hand-drawn chase through the meadow — now with tank steering and a gate to guard.*
+*A cozy, hand-drawn chase through the meadow — steer the farmer, guard the gate.*
 
-Farmer John drives like a tank: forward, turn left, turn right or wait. The cows
-have their own plan: they walk toward the golden exit, and some of them will run
-away when they see the farmer. Catch every cow before any cow escapes through
-the gate.
+Farmer John now drives with absolute-direction steering: every command turns him
+to face up, down, left or right, or moves him forward one tile. The cows are
+always alert: when the farmer is in sight they run away; otherwise they head for
+the golden exit or patrol along the fences. Catch every cow before any cow
+reaches an exit.
 
-The whole game is offline. No accounts, no servers, no telemetry, no network
-requests while it runs.
+The game is a single-player, turn-based puzzle. It runs fully offline: no
+accounts, servers, telemetry or network requests at runtime.
 
 ## Rename note
 
-The project was previously released as **The Tamworth Two**. Starting with this
-version the name is **The Tamworth Chase** (Chinese subtitle 《塔姆沃斯追逐》).
-The save file lives at `~/.the_tamworth_chase/save.json`; an old save is migrated
-automatically on first launch and is never deleted.
+The project was previously released as **The Tamworth Two**. The name is now
+**The Tamworth Chase** (Chinese subtitle 《塔姆沃斯追逐》). The save file lives at
+`~/.the_tamworth_chase/save.json`; an old save is copied there once and is never
+deleted.
 
 ## Contents
 
@@ -25,7 +26,7 @@ automatically on first launch and is never deleted.
 4. [Running](#running)
 5. [Controls](#controls)
 6. [Rules](#rules)
-7. [Cows](#cows)
+7. [The cows](#the-cows)
 8. [Winning and losing](#winning-and-losing)
 9. [Prediction, alerts and loops](#prediction-alerts-and-loops)
 10. [Campaign and ranks](#campaign-and-ranks)
@@ -44,32 +45,38 @@ automatically on first launch and is never deleted.
 
 ## Features
 
-- **Pure driving.** Move Farmer John forward or turn in place; there is no
-  placement phase and no player-placed obstacle.
-- **Escape pressure.** Every level has golden exit cells. A cow that reaches any
+- **Pure driving.** There is no placement phase and no player-placed obstacle.
+  The level starts immediately; every turn the player turns or moves.
+- **Absolute steering.** `W`/`↑` faces up, `S`/`↓` faces down, `A`/`←` faces
+  left, `D`/`→` faces right, and Space moves one tile in the current direction.
+  The direction key matching the current facing is invalid and costs no turn.
+- **No waiting.** Every valid turn changes the facing or moves the farmer.
+- **Unified cow instinct.** Every cow flees when it can see the farmer. When it
+  cannot, it seeks a visible exit or patrols. There is no per-cow behaviour
+  switch.
+- **Escape pressure.** Every level has golden exit cells. A cow reaching any
   exit loses the run immediately.
-- **Two cow behaviours.** `seek_exit` walks toward the exit and patrols when it
-  cannot see one. `seek_exit_and_flee` first tries to increase its distance from
-  the farmer when he is in sight.
-- **All cows or nothing.** Every cow must be caught; one cow reaching the exit
-  is enough to fail.
-- **Multi-level undo.** Undo any turn, back to the opening position, including
-  the farmer's facing, every cow's pose, caught flags and turn count.
+- **All cows or nothing.** Every cow must be caught; multi-cow levels only end
+  when the last cow is caught.
+- **Multi-level undo.** Undo back to the opening position, including the
+  farmer's facing, every cow's pose, caught flags and turn count.
 - **Configurable preview.** Each level chooses how many cow steps to show
   (0–20, default 5). The preview assumes the farmer keeps his current position
-  and facing, and the UI says so in Chinese.
-- **Exit warnings.** Exits are drawn as wooden gates; when a cow is within three
-  tiles the exit is highlighted and a Chinese warning appears.
+  and facing; the UI states that assumption in Chinese.
+- **Exit warnings.** Exits are drawn as wooden gates; a cow within three tiles
+  highlights the gate and a Chinese warning appears.
 - **Alert icons.** Fleeing cows display a small exclamation mark; the icons can
   be toggled in the top bar or Settings.
-- **Independent tutorials.** 6 basic, 3 advanced and 3 editor lessons with their
-  own progress, skip/replay/reset and practice gates.
+- **Independent tutorials.** Seven basic, three advanced and three editor
+  lessons with their own progress, skip/replay/reset and practice gates.
 - **Challenge and daily modes.** Five curated challenges and a local daily
   meadow generated from the date and verified solvable on the device.
 - **Level editor.** Paint terrain, place the farmer and up to three cows, set
-  exits, behaviours, sight ranges and turn budgets, test-play, export/import.
-- **Procedural picture-book art.** Grass, fences, hedges, ponds, cows, farmer,
-  gates and alert bubbles are drawn in code. No emoji are used for game objects.
+  exits, fixed obstacles, sight ranges and turn budgets, test-play, export and
+  import JSON.
+- **Procedural picture-book art.** Grass, fences, hedges, ponds, cows, the
+  farmer, gates and alert bubbles are drawn in code. No emoji are used as game
+  objects.
 
 ## Requirements
 
@@ -94,23 +101,25 @@ On Windows use `.venv\Scripts\python.exe`.
 ```
 
 The window is 1280×840. All player-facing text is Simplified Chinese; code,
-comments and docstrings are English.
+comments, docstrings and commit messages are English.
 
 ## Controls
 
 | Input | Action |
 |---|---|
-| `W` / `↑` | Drive forward one tile |
-| `A` / `←` | Turn left 90° in place |
-| `D` / `→` | Turn right 90° in place |
-| Space | Wait in place |
+| `W` / `↑` | Face up (consumes a turn when different) |
+| `S` / `↓` | Face down (consumes a turn when different) |
+| `A` / `←` | Face left (consumes a turn when different) |
+| `D` / `→` | Face right (consumes a turn when different) |
+| Space | Move forward one tile |
 | `U` | Undo one turn |
 | `R` | Restart the level |
 | `P` | Toggle the path preview |
 | `Esc` | Return to the previous screen |
 
-The top bar also has **撤销**, **重开**, **预测** and **警觉** buttons. There is
-no pause, single-step or speed control: the turn-based player sets the pace.
+Pressing the direction that matches the current facing shows **已朝该方向** and
+does not consume a turn. The top bar also has **撤销**, **重开**, **预测** and
+**警觉** buttons. There is no wait command, pause, single-step or speed control.
 
 ## Rules
 
@@ -120,74 +129,97 @@ no pause, single-step or speed control: the turn-based player sets the pace.
 playing ⇄ undo / restart → win / loss
 ```
 
-There is no placement phase. A level starts immediately in the playing state.
-The result dialog offers **撤销到上一回合**, **重开本关** and **返回**.
+There is no placement phase. A level starts in the playing state. The result
+dialog offers **撤销到上一回合**, **重开本关** and **返回**.
 
 ### One turn
 
-1. The player performs exactly one action: forward, turn left, turn right or
-   wait.
-2. Forward moves one tile in the current facing. If a wall, the board edge or a
-   fixed obstacle blocks the tile, the position and facing stay unchanged, the
-   turn is still consumed, and the game shows **前方受阻，本回合已消耗**.
-3. If the farmer enters a cow's tile, that cow is caught.
-4. If every cow is caught, the level is won immediately.
-5. Every cow moves once, in level order.
-6. After each cow move, arriving at an exit fails the run; sharing the farmer's
-   tile catches that cow.
+1. The player performs exactly one action: face up/down/left/right, or move
+   forward.
+2. A turn to a different direction changes the facing, keeps the position and
+   consumes the turn. A turn to the current facing is invalid and costs nothing.
+3. Forward moves one tile in the current facing. If a fence, the board edge or a fixed
+   obstacle blocks the tile, the position and facing stay
+   unchanged, the turn is still consumed, and the game shows
+   **前方受阻，本回合已消耗**.
+4. If the farmer enters a cow's tile, that cow is caught.
+5. If every cow is caught, the level is won immediately.
+6. Every cow moves once, in level order. After each cow move, arriving at an
+   exit fails the run; sharing the farmer's tile catches that cow.
 7. After all cows, all caught means victory; otherwise the turn counter
    increases. Reaching the level's turn budget without a win fails the run.
 
-## Cows
+A winning move on the last allowed turn is checked before the budget and is
+accepted.
 
-### `seek_exit` (default)
+## The cows
 
-- If an exit is in the cow's straight-line sight — same row or column, no wall,
-  fixed obstacle or board edge between, within `exit_sight_range` — the cow
-  turns toward it (or walks forward if already facing it).
-- If several exits are visible, the nearest is chosen; ties are broken by
-  `(row, column)`.
-- If no exit is visible, the cow patrols: walk forward when possible, otherwise
-  turn 90° clockwise and stay in place.
+All cows use the same decision order.
 
-### `seek_exit_and_flee`
+### 1. Can the cow see the farmer?
 
-- If Farmer John is in sight, fleeing takes priority over the exit.
-- Sight means same row or column, no terrain blocking, and a distance within
-  `sight_range` (`-1` is unlimited). With `cows_block_sight`, another cow between
-  them also blocks sight.
-- The cow walks forward if that increases its Manhattan distance from the
-  farmer. Otherwise it turns toward the side whose forward tile is farther from
-  the farmer; ties use `flee_tiebreak`.
-- If the farmer is not in sight, the cow uses the normal exit-seeking behaviour.
+Sight means:
 
-Cows never react to the farmer except through the flee rule. A cow caught by
-entering the farmer's tile stops moving; caught cows are removed from the board
-and do not block sight or movement.
+- same row or same column;
+- no wall, fixed obstacle or board edge between the two;
+- Manhattan distance within `sight_range` (`-1` means unlimited);
+- optionally, other cows block sight when `cows_block_sight` is true.
+
+### 2. Flee when the farmer is visible
+
+- If the forward tile is passable and moving there strictly increases the
+  Manhattan distance to the farmer, the cow moves forward.
+- Otherwise it turns toward the side whose forward tile is farther from the
+  farmer. Ties use `flee_tiebreak` (default `right`).
+- If neither side increases the distance, it still turns according to that
+  comparison; it does not fall back to patrol.
+
+### 3. Otherwise seek the exit
+
+- A visible exit is in the cow's straight line (same row or column), no terrain
+  blocks it, and its distance is within `exit_sight_range` (`-1` unlimited).
+- If several exits are visible, the nearest wins; ties use `(row, column)` order.
+- If the cow already faces the chosen exit and the forward tile is passable, it
+  moves forward. Otherwise it turns toward the exit; if the exit is directly
+  behind, `exit_tiebreak` (default `right`) chooses the first 90° turn. It keeps
+  turning on later turns.
+- If no exit is visible, it patrols: move forward when possible; otherwise turn
+  90° clockwise in place.
+
+### 4. Multi-cow order
+
+- Cows move in level order, deterministically.
+- `cows_block_each_other` (default false) makes another active cow block the
+  forward tile.
+- A caught cow is skipped for movement, sight, exits and rendering; its stored
+  position is retained only for undo.
 
 ## Winning and losing
 
-- **Win:** all cows are caught. Single-cow levels require that cow; multi-cow
-  levels require every cow.
+- **Win:** all cows are caught.
 - **Lose — escape:** any cow reaches any exit cell.
-- **Lose — turns:** the turn counter reaches `max_turns` without a win.
-- A winning move on the last allowed turn is still accepted.
-- The failure dialog distinguishes **牛从出口逃走了** from **回合数用完了**.
+- **Lose — turns:** the turn budget is reached without a win.
+- **Failure dialog:** distinguishes **牛从出口逃走了** from **回合数已用完**.
+- **Undo:** available from the failure dialog and at any time during play.
+
+Exits belong to the fixed terrain. The farmer may stand on an exit, but a cow
+entering that exit while the farmer is there still escapes; exit resolution
+happens before catching.
 
 ## Prediction, alerts and loops
 
 The preview shows up to `prediction_steps` future cow poses while Farmer John
 stays at his current position and facing. It is drawn as translucent footprints
-and dashed paths, with a Chinese caption stating the assumption. If a predicted
-cow reaches an exit, the final point is marked in red. `0` disables the preview
-for that level.
+and dashed paths, with a Chinese caption explaining the assumption. If a
+predicted cow reaches an exit, the final point is marked in red. `0` disables
+the preview for that level.
 
 The top bar's **警觉** button toggles the alert icons above fleeing cows; the
 same option is available in Settings.
 
 If the complete pose — farmer position/facing, every cow position/facing and
 caught flags — repeats, a Chinese **局面进入循环** hint appears. It never loses
-the run. A chime and a toast are informational only.
+the run. The hint is informational; the player can continue and break the loop.
 
 ## Campaign and ranks
 
@@ -195,24 +227,26 @@ the run. A chime and a toast are informational only.
   available.
 - The best turn count and S/A/B/C rank are stored per level. Grades use the
   level's `s_threshold`, `a_threshold` and `b_threshold`.
-- Levels 6, 7, 8 and 10 use fleeing cows. Levels 8 and 10 have two cows; level 9
-  has `prediction_steps: 0`.
+- Every campaign cow now uses the unified "flee when seen, otherwise seek the
+  exit" instinct. Levels 8 and 10 have two cows; level 9 has
+  `prediction_steps: 0`.
 - Exits are part of the fixed terrain and are visible in the level cards.
 
 ## Tutorial chapters
 
 | Chapter | File | Lessons | Focus |
 |---|---|---|---|
-| 基础教程 | `tutorials/basics.json` | 6 | drive, turn, wall bumps, exits, blocking lines, interception, undo + preview |
-| 进阶教程 | `tutorials/advanced.json` | 3 | fleeing cows, two cows, mixed behaviour |
-| 编辑器教程 | `tutorials/editor.json` | 3 | terrain, exits/behaviour, export/import |
+| 基础教程 | `tutorials/basics.json` | 7 | absolute turns, forward, wall penalty, exit route, fleeing, wall cover, interception, undo + preview |
+| 进阶教程 | `tutorials/advanced.json` | 3 | larger flee chase, two cows, exit pressure |
+| 编辑器教程 | `tutorials/editor.json` | 3 | terrain, exits and sight rules, export/import |
 
 - Each chapter has its own entry, progress, lesson list, skip and reset.
-- Lessons unlock in order and can be replayed; skipping a lesson or chapter
-  never touches the campaign.
-- Practice gates: some lessons only complete after the required action — turn
-  both ways, bump a wall forward, wait, open the preview or undo once. The
-  practice is written in the tutorial box.
+- Lessons unlock in order and can be replayed; skipping never touches the
+  campaign.
+- Practice gates: the first lesson requires a same-direction attempt and a
+  forward move; other lessons require a blocked forward, a minimum number of
+  turns, a preview/undo, or the editor task. The practice is written in the
+  tutorial box.
 - Tutorial lessons do not receive S/A/B/C grades.
 
 ## Challenge, daily and achievements
@@ -233,38 +267,46 @@ the run. A chime and a toast are informational only.
 
 - Paint grass, fence, hedge, tree or pond.
 - Place the farmer, move/add/remove up to three cows, and choose the active cow.
-- Set an exit tool; click walkable cells to add/remove exits. At least one exit
-  is required.
+- Use the exit tool to add/remove exits on walkable cells. At least one exit is
+  required.
 - Toggle fixed hay-bale obstacles.
 - Edit `max_turns`, `prediction_steps`, `sight_range` and `exit_sight_range`.
-- Cycle the active cow's behaviour, the exit/flee tiebreaks, and the
-  `cows_block_sight` / `cows_block_each_other` flags.
+- Cycle the active cow's facing, the exit/flee tiebreaks, and the
+  `cows_block_sight` / `cows_block_each_other` flags. Cow behaviour is always
+  unified; there is no behaviour switch.
 - Test-play with the real simulation, then export to `custom_levels/` as JSON.
   Import reads the first level from a bundle.
-- The level name is currently fixed to “我的牧场”; there is no text input.
+- The editor level name is currently fixed to “我的牧场”; there is no text
+  input.
 
 ## Level data schema
 
 ```json
 {
-  "id": "level_01",
-  "name": "晨露草坪",
-  "grid": ["##########", "#........#", "..."],
-  "fj_start_direction": "north",
-  "cow_facings": ["east"],
-  "cow_behavior": "seek_exit",
-  "exit_cells": [[1, 1]],
-  "max_turns": 16,
-  "prediction_steps": 5,
-  "exit_sight_range": -1,
-  "sight_range": 6,
-  "exit_tiebreak": "right",
-  "flee_tiebreak": "right",
-  "cows_block_sight": false,
-  "cows_block_each_other": false,
-  "obstacles": [],
-  "hint": "把农夫开到牛和出口之间；撞墙前进会浪费回合。",
-  "goal": "抓住全部牛"
+  "version": 4,
+  "game": "The Tamworth Chase",
+  "levels": [
+    {
+      "id": "level_01",
+      "name": "晨露草坪",
+      "grid": ["##########", "#........#", "..."],
+      "fj_start_direction": "north",
+      "cow_facings": ["east"],
+      "exit_cells": [[1, 1]],
+      "max_turns": 16,
+      "prediction_steps": 5,
+      "exit_sight_range": -1,
+      "sight_range": -1,
+      "exit_tiebreak": "right",
+      "flee_tiebreak": "right",
+      "cows_block_sight": false,
+      "cows_block_each_other": false,
+      "walls": [],
+      "obstacles": [],
+      "hint": "把农夫开到牛和出口之间；撞墙前进会浪费回合。",
+      "goal": "抓住全部牛"
+    }
+  ]
 }
 ```
 
@@ -275,7 +317,6 @@ the run. A chime and a toast are informational only.
 | `grid` | string[] | required | Terrain rows; `F` farmer, `C` cows |
 | `fj_start_direction` | string | `north` | Farmer's initial facing (`up/right/down/left` accepted) |
 | `cow_facings` | string[] | `east` | One facing per cow |
-| `cow_behavior` | string or string[] | `seek_exit` | One value for all cows or one per cow |
 | `exit_cells` | `[row,col][]` | required | At least one walkable exit |
 | `max_turns` | int | 30 | Turn budget |
 | `prediction_steps` | int | 5 | Preview depth; 0 disables |
@@ -295,10 +336,12 @@ Grid characters: `.` grass, `,` flowers, `#` fence, `T` tree, `~` pond,
 cows. A cow may not start on an exit.
 
 **Backward compatibility.** Old fields `step_limit`, `obstacle_limit`,
-`initial_obstacles`, `win_condition`, `pen_cells`, `cow_personalities`, item
-fields and `speed`/`pause` are ignored; `step_limit` is used as a fallback for
-`max_turns`. If no exit is supplied, a deterministic far-away walkable cell is
-chosen and marked as a legacy default; old custom levels still load.
+`initial_obstacles`, `win_condition`, `pen_cells`, `cow_behavior`,
+`cow_personalities`, item fields and `speed`/`pause` are ignored; `step_limit`
+is used as a fallback for `max_turns`. If no exit is supplied, a deterministic
+far-away walkable cell is chosen and marked as a legacy default; old custom
+levels still load. `cow_behavior` is deliberately ignored: every cow now uses
+the unified instinct.
 
 ## Save data
 
@@ -344,20 +387,29 @@ chosen and marked as a legacy default; old custom levels still load.
 .venv/bin/python -m pytest -q
 ```
 
-The suite covers tank movement and blocked moves, strict farmer-then-cow order,
-cow sight and range, exit seeking, fleeing priority and tiebreaks, all-caught
-wins, any-exit losses, multi-cow order and blocking, loop hints, prediction
-assumptions and exit marks, undo/restart, legacy level fields, the save
-migration, tutorial practice gates and isolation, editor round-trips, achievements,
-daily determinism, offline scanning and every scene's head-less render.
+The suite covers absolute-turn actions, same-direction invalidity, blocked
+moves, strict farmer-then-cow order, cow sight and range, unified flee priority,
+exit seeking, exit/flee tiebreaks, all-caught wins, any-exit losses, multi-cow
+order and blocking, loop hints, prediction assumptions and exit marks,
+undo/restart, legacy level fields, save migration, tutorial practice gates and
+isolation, editor round-trips, achievements, daily determinism, offline scanning
+and every scene's head-less render.
+
+Reference solutions live in `tests/solutions.json`,
+`tests/challenge_solutions.json` and `tests/tutorial_solutions.json`. The
+offline solver can regenerate a route:
+
+```bash
+.venv/bin/python tools/solve.py levels/levels.json
+```
 
 ## Project layout
 
 ```
 main.py                     Entry point
 game/
-  models.py                 Head-less models: Action, CowBehavior, Level, TickResult
-  core.py                   Tank turns, cow AI, exits, undo, prediction
+  models.py                 Head-less models: Action, Level, TickResult
+  core.py                   Absolute steering, cow AI, exits, undo, prediction
   levels.py                 Schema parsing, validation, serialisation
   tutorial.py               Tutorial catalogue, progress state machine, hints
   progress.py               Save sections and migrations
@@ -386,15 +438,17 @@ tools/                      Solver, tutorial builder, screenshot helper
 
 - **All cows must be caught; any exit loses.** This is implemented literally for
   single- and multi-cow levels.
-- **Turn limit** is treated as a budget: reaching `max_turns` without a win
-  fails. Winning on that same turn is checked first and is accepted.
-- **Exit line of sight** follows the spec strictly: same row or column only.
-  A diagonal exit is therefore not “visible”; the cow patrols instead. The
-  parenthetical about a diagonal exit is unreachable under this definition.
-- **Caught cows leave the board.** Their positions are kept in the snapshot for
+- **Turn limit** is a budget: reaching `max_turns` without a win fails. A
+  winning action on that same turn is checked first and is accepted.
+- **Same-direction turns** are invalid and free. This is the only way to avoid
+  changing the board without moving, and it keeps the rule that every valid turn
+  changes the state.
+- **Exit line of sight** follows the strict definition: same row or column only.
+  A diagonal exit is not visible; the cow patrols instead.
+- **Caught cows leave the board.** Their positions remain in the snapshot for
   undo, but they are skipped by movement, sight, exit and rendering.
-- **`cow_behavior`** accepts a single string (all cows) or a list (one per cow),
-  which allows mixed-behaviour levels.
+- **Unified cow instinct.** `cow_behavior` is gone; every cow flees first when
+  it sees the farmer and seeks the exit otherwise.
 - **Fixed terrain** comes from the grid plus optional `walls` and `obstacles`
   coordinates. `walls` are folded into the grid; `obstacles` are fixed hay bales.
 - **Prediction** covers the cows only, with the farmer fixed. It does not show
@@ -410,5 +464,8 @@ tools/                      Solver, tutorial builder, screenshot helper
 - The editor uses a fixed level name and a 10×10 canvas.
 - The daily generator falls back to campaign level 1 if no candidate is solvable.
 - Undo keeps at most 256 snapshots.
+- A cow trapped in a corner with another cow directly ahead may alternate its
+  turn direction. The shipped levels do not use that combination; the behaviour
+  is deterministic rather than random.
 - Large levels are limited to the editor's 10×10 canvas; the parser itself is
   not limited to 10×10.
