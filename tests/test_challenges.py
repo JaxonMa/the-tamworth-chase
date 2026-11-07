@@ -9,7 +9,7 @@ import pytest
 
 from game.core import Simulation
 from game.levels import load_level_file
-from game.models import Action, CowBehavior, GameStatus
+from game.models import Action, GameStatus
 from game.paths import project_root
 
 SOLUTIONS = json.loads(
@@ -34,7 +34,7 @@ def test_challenges_have_new_fields(challenges):
         assert level.max_turns >= 5
         assert 0 <= level.prediction_steps <= 20
         assert level.exit_cells
-        assert len(level.cow_behaviors) == len(level.cow_positions)
+        assert not hasattr(level, "cow_behaviors")
 
 
 def test_challenge_solutions_win(challenges):
@@ -51,8 +51,4 @@ def test_challenges_cover_variety(challenges):
     assert any(len(level.cow_positions) > 1 for level in challenges)
     assert any(level.prediction_steps == 0 for level in challenges)
     assert any(level.cows_block_each_other for level in challenges)
-    assert any(
-        behavior is CowBehavior.SEEK_EXIT_AND_FLEE
-        for level in challenges
-        for behavior in level.cow_behaviors
-    )
+    assert all(not hasattr(level, "cow_behaviors") for level in challenges)

@@ -23,7 +23,6 @@ from .models import (
     FARMER_CHAR,
     LEGACY_COW_CHARS,
     TILE_CHARS,
-    CowBehavior,
     Direction,
     Level,
     TileKind,
@@ -65,6 +64,7 @@ _LEGACY_KEYS = {
     "item_counts",
     "win_condition",
     "pen_cells",
+    "cow_behavior",
     "speed",
     "pause",
     "auto_move",
@@ -113,13 +113,6 @@ def _parse_tiebreak(value: Any, default: TieBreak = TieBreak.RIGHT) -> TieBreak:
     if text in ("right", "r", "1"):
         return TieBreak.RIGHT
     raise LevelError(f"无法识别的平局方向：{value!r}")
-
-
-def _parse_behavior(value: Any) -> CowBehavior:
-    try:
-        return CowBehavior(str(value))
-    except ValueError as exc:
-        raise LevelError(f"无法识别的牛行为：{value}") from exc
 
 
 def parse_level(
@@ -208,16 +201,6 @@ def parse_level(
     else:
         cow_facings = [_parse_facing(raw_cow_facings) for _ in cow_positions]
 
-    raw_behaviors = data.get("cow_behavior")
-    if raw_behaviors is None:
-        cow_behaviors = [CowBehavior.SEEK_EXIT for _ in cow_positions]
-    elif isinstance(raw_behaviors, Sequence) and not isinstance(raw_behaviors, str):
-        if len(raw_behaviors) != len(cow_positions):
-            raise LevelError(f"关卡 {name} 的 cow_behavior 数量与牛的数量不一致")
-        cow_behaviors = [_parse_behavior(item) for item in raw_behaviors]
-    else:
-        cow_behaviors = [_parse_behavior(raw_behaviors) for _ in cow_positions]
-
     def _int_field(key: str, default: int, minimum: int = 0) -> int:
         value = data.get(key, default)
         try:
@@ -288,7 +271,6 @@ def parse_level(
         "fj_start_direction",
         "farmer_facing",
         "cow_facings",
-        "cow_behavior",
         "exit_cells",
         "max_turns",
         "prediction_steps",
@@ -325,7 +307,6 @@ def parse_level(
         farmer_facing=farmer_facing,
         cow_positions=tuple(cow_positions),
         cow_facings=tuple(cow_facings),
-        cow_behaviors=tuple(cow_behaviors),
         exit_cells=tuple(exits),
         max_turns=max_turns,
         prediction_steps=prediction_steps,
@@ -447,7 +428,6 @@ def level_to_dict(level: Level) -> Dict[str, Any]:
         "grid": grid,
         "fj_start_direction": level.farmer_facing.name.lower(),
         "cow_facings": [f.name.lower() for f in level.cow_facings],
-        "cow_behavior": [b.value for b in level.cow_behaviors],
         "exit_cells": [list(pos) for pos in level.exit_cells],
         "max_turns": level.max_turns,
         "prediction_steps": level.prediction_steps,

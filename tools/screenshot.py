@@ -97,7 +97,7 @@ def scenario_play_exit(app: App, path: Path) -> None:
     )
     app.start_level(level)
     scene = app.scene
-    scene._take_action(Action.WAIT)
+    scene._take_action(Action.TURN_TO_LEFT)
     for _ in range(120):
         app.update(1 / 60)
         if scene.result_shown:

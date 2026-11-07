@@ -1,64 +1,65 @@
 {
   "title": "进阶教程",
-  "subtitle": "会躲的牛与多头牛的压力",
-  "intro": "三节进阶课：看到农夫先逃跑的牛、两头牛，以及同时抓牛和防逃。",
+  "subtitle": "会躲的牛、多头牛与出口前的双重压力",
+  "intro": "三节进阶课：在更开阔的牧场里追会躲的牛、管理多头牛，并同时守住出口。",
   "badge": "进阶",
   "accent": "sky",
   "lessons": [
     {
       "id": "advanced_01",
-      "name": "会躲的牛",
-      "brief": "seek_exit_and_flee：看到农夫时，牛会优先拉开距离。",
-      "goal": "抓住这头会躲的牛。",
-      "practice": "留意牛头顶的警觉图标：它说明牛正在逃跑。",
+      "name": "更大的牧场",
+      "brief": "牛看到农夫会优先逃跑；开阔地形更难直接追上。",
+      "goal": "在开阔牧场里抓住这头会躲的牛。",
+      "practice": "先追近它，再根据它的逃跑方向绕到侧面。",
       "tips": [
         {
           "trigger": "start",
-          "text": "这头牛看到农夫会先逃跑。留意它头顶的警觉图标。"
+          "text": "这头牛看到农夫会先逃跑。开阔地没有墙，你需要预判它的转向。"
         },
         {
           "trigger": "step",
-          "text": "它想拉开距离。把它逼向角落，再找机会靠近。"
+          "text": "牛会优先拉开距离。把它逼向边界，再找机会靠近。"
         },
         {
           "trigger": "win",
-          "text": "会躲的牛也会被墙角困住。进阶教程开始！"
+          "text": "会躲的牛也会被墙角困住。"
         }
       ],
       "level": {
         "id": "advanced_01",
-        "name": "会躲的牛",
+        "name": "更大的牧场",
         "grid": [
-          "#######",
-          "#.....#",
-          "#.....#",
-          "#F...C#",
-          "#.....#",
-          "#.....#",
-          "#######"
+          "#########",
+          "#.......#",
+          "#.......#",
+          "#F.....C#",
+          "#.......#",
+          "#.......#",
+          "#.......#",
+          "#.......#",
+          "#########"
         ],
         "fj_start_direction": "east",
         "cow_facings": [
           "east"
         ],
-        "cow_behavior": "seek_exit_and_flee",
         "exit_cells": [
           [
             3,
-            3
+            4
           ]
         ],
-        "max_turns": 15,
-        "prediction_steps": 0,
+        "max_turns": 18,
+        "prediction_steps": 5,
         "exit_sight_range": -1,
-        "sight_range": 6,
+        "sight_range": 8,
         "exit_tiebreak": "right",
         "flee_tiebreak": "right",
         "cows_block_sight": false,
         "cows_block_each_other": false,
-        "s_threshold": 6,
-        "a_threshold": 9,
-        "b_threshold": 12
+        "s_threshold": 10,
+        "a_threshold": 13,
+        "b_threshold": 16
       }
     },
     {
@@ -70,7 +71,7 @@
       "tips": [
         {
           "trigger": "start",
-          "text": "两头牛都会奔向出口。按顺序移动，全部抓住才算赢。"
+          "text": "两头牛都会奔向出口。按固定顺序移动，全部抓住才算赢。"
         },
         {
           "trigger": "step",
@@ -98,40 +99,39 @@
           "east",
           "east"
         ],
-        "cow_behavior": "seek_exit_and_flee",
         "exit_cells": [
           [
             5,
             5
           ]
         ],
-        "max_turns": 28,
-        "prediction_steps": 0,
+        "max_turns": 22,
+        "prediction_steps": 5,
         "exit_sight_range": -1,
         "sight_range": 6,
         "exit_tiebreak": "right",
         "flee_tiebreak": "right",
         "cows_block_sight": false,
         "cows_block_each_other": true,
-        "s_threshold": 18,
-        "a_threshold": 22,
-        "b_threshold": 26
+        "s_threshold": 16,
+        "a_threshold": 19,
+        "b_threshold": 22
       }
     },
     {
       "id": "advanced_03",
       "name": "双重压力",
-      "brief": "一头牛只奔出口，另一头会躲；它们的行为不一样。",
+      "brief": "两头牛分散在两侧，既有抓牛压力，也要盯住出口。",
       "goal": "抓住全部牛，同时别让任何一头到出口。",
-      "practice": "先看两头牛的行为，再决定先追哪一头。",
+      "practice": "用预测确认哪一头更接近出口，先拦住它。",
       "tips": [
         {
           "trigger": "start",
-          "text": "一头牛只奔向出口，另一头看到农夫会逃跑。先看它们的行为，再决定目标。"
+          "text": "两头牛会同时向出口移动。先看出口和它们的位置，再决定先追哪一头。"
         },
         {
           "trigger": "step",
-          "text": "用预测确认哪一头更接近出口，先拦住它。"
+          "text": "用预测确认路线。不要让任何一头先到出口。"
         },
         {
           "trigger": "win",
@@ -142,40 +142,39 @@
         "id": "advanced_03",
         "name": "双重压力",
         "grid": [
-          "#######",
-          "#.....#",
-          "#.C.C.#",
-          "#.....#",
-          "#.....#",
-          "#F....#",
-          "#######"
+          "##########",
+          "#........#",
+          "#.#....#.#",
+          "#...TT...#",
+          "##.CTT..##",
+          "#........#",
+          "#.#...C#.#",
+          "#.HHHHHH.#",
+          "#..#..#F.#",
+          "##########"
         ],
         "fj_start_direction": "north",
         "cow_facings": [
           "east",
-          "east"
-        ],
-        "cow_behavior": [
-          "seek_exit",
-          "seek_exit_and_flee"
+          "west"
         ],
         "exit_cells": [
           [
-            5,
-            5
+            1,
+            7
           ]
         ],
-        "max_turns": 24,
-        "prediction_steps": 0,
+        "max_turns": 26,
+        "prediction_steps": 5,
         "exit_sight_range": -1,
         "sight_range": 6,
         "exit_tiebreak": "right",
         "flee_tiebreak": "right",
         "cows_block_sight": false,
         "cows_block_each_other": true,
-        "s_threshold": 16,
-        "a_threshold": 20,
-        "b_threshold": 23
+        "s_threshold": 19,
+        "a_threshold": 22,
+        "b_threshold": 25
       }
     }
   ]

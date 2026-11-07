@@ -7,11 +7,12 @@ trivially unit testable.
 
 Rule summary
 ------------
-* The player orders the farmer to move forward, turn left, turn right or wait.
+* The player turns the farmer to an absolute direction or moves forward.
+* A same-direction turn is invalid and does not consume the turn.
 * A blocked forward move still consumes the turn.
 * The farmer catches a cow by entering its tile.
-* Cows move after the farmer, in fixed order.  A cow seeks the nearest exit it
-  can see; a fleeing cow prefers to increase its distance from the farmer.
+* Cows move after the farmer, in fixed order.  A cow that can see the farmer
+  flees; otherwise it seeks the nearest exit it can see or patrols.
 * All cows must be caught to win.  Any cow reaching an exit loses immediately.
 """
 
@@ -25,7 +26,6 @@ from .models import (
     Actor,
     ActorTick,
     Cow,
-    CowBehavior,
     Direction,
     GameStatus,
     Level,
@@ -109,12 +109,9 @@ class Simulation:
         self.level = level
         self.board = Board(level)
         self.farmer = Actor(level.farmer_start, level.farmer_facing)
-        behaviours = list(level.cow_behaviors)
-        if len(behaviours) < len(level.cow_positions):
-            behaviours += [CowBehavior.SEEK_EXIT] * (len(level.cow_positions) - len(behaviours))
         self.cows: Tuple[Cow, ...] = tuple(
-            Cow(pos, facing, behaviours[index])
-            for index, (pos, facing) in enumerate(zip(level.cow_positions, level.cow_facings))
+            Cow(pos, facing)
+            for pos, facing in zip(level.cow_positions, level.cow_facings)
         )
         self.caught: Tuple[bool, ...] = (False,) * len(self.cows)
         self._exit_cells: FrozenSet[Pos] = frozenset(level.exit_cells)
@@ -222,10 +219,7 @@ class Simulation:
     def cow_is_fleeing(self, index: int) -> bool:
         if index >= len(self.cows) or self.caught[index]:
             return False
-        cow = self.cows[index]
-        if cow.behavior is not CowBehavior.SEEK_EXIT_AND_FLEE:
-            return False
-        return self._fj_visible(cow, index)
+        return self._fj_visible(self.cows[index], index)
 
     def near_exit(self, distance: int = 3) -> Tuple[Pos, ...]:
         """Exit cells with an active cow within ``distance`` (UI highlight)."""
@@ -304,7 +298,7 @@ class Simulation:
 
     def _cow_tick(self, index: int, cows: Sequence[Cow]) -> ActorTick:
         cow = cows[index]
-        if cow.behavior is CowBehavior.SEEK_EXIT_AND_FLEE and self._fj_visible(cow, index):
+        if self._fj_visible(cow, index):
             return self._flee_tick(index, cow, cows)
         return self._seek_exit_tick(index, cow, cows)
 
@@ -336,8 +330,34 @@ class Simulation:
         self.last_tick = result
         return result
 
+    def _move_cows(self) -> Tuple[Optional[int], Tuple[int, ...], Tuple[ActorTick, ...]]:
+        """Move every active cow once and resolve exits and catches."""
+        cow_ticks: List[ActorTick] = [
+            ActorTick(cow.pos, cow.pos, cow.facing, cow.facing, False) for cow in self.cows
+        ]
+        new_cows: List[Cow] = list(self.cows)
+        caught_now: List[int] = []
+        escaped_index: Optional[int] = None
+        for index, cow in enumerate(self.cows):
+            if self.caught[index]:
+                continue
+            tick = self._cow_tick(index, new_cows)
+            new_cows[index] = Cow(tick.end_pos, tick.end_facing)
+            cow_ticks[index] = tick
+            if tick.end_pos in self._exit_cells:
+                escaped_index = index
+                self.status = GameStatus.LOST_EXIT
+                break
+            if tick.end_pos == self.farmer.pos:
+                self.caught = _set_flag(self.caught, index)
+                caught_now.append(index)
+        self.cows = tuple(new_cows)
+        return escaped_index, tuple(caught_now), tuple(cow_ticks)
+
     def apply_action(self, action: Action) -> TickResult:
-        """Execute one tank order, then move every cow."""
+        """Execute one command, then move every cow."""
+        if not isinstance(action, Action):
+            action = Action(action)
         if self.status is not GameStatus.PLAYING:
             tick = ActorTick(
                 self.farmer.pos, self.farmer.pos, self.farmer.facing, self.farmer.facing, False
@@ -352,22 +372,30 @@ class Simulation:
                 message="本局已经结束。",
             )
 
+        if action is not Action.FORWARD and action.direction is self.farmer.facing:
+            tick = ActorTick(
+                self.farmer.pos, self.farmer.pos, self.farmer.facing, self.farmer.facing, False
+            )
+            return TickResult(
+                farmer=tick,
+                cows=(),
+                status=self.status,
+                turns=self.turns,
+                caught=self.caught,
+                invalid=True,
+                message="已朝该方向",
+            )
+
         self._push_undo()
         caught_now: List[int] = []
         blocked = False
         message = ""
         start = self.farmer
 
-        if action is Action.TURN_LEFT:
-            facing = start.facing.counter_clockwise()
+        if action is not Action.FORWARD:
+            facing = action.direction
             farmer_tick = ActorTick(start.pos, start.pos, start.facing, facing, False)
             self.farmer = Actor(start.pos, facing)
-        elif action is Action.TURN_RIGHT:
-            facing = start.facing.clockwise()
-            farmer_tick = ActorTick(start.pos, start.pos, start.facing, facing, False)
-            self.farmer = Actor(start.pos, facing)
-        elif action is Action.WAIT:
-            farmer_tick = ActorTick(start.pos, start.pos, start.facing, start.facing, False)
         else:
             target = step_forward(start.pos, start.facing)
             if not self.board.walkable(target):
@@ -392,25 +420,8 @@ class Simulation:
                 caught_now=caught_now, escaped_index=None,
             )
 
-        cow_ticks: List[ActorTick] = [
-            ActorTick(cow.pos, cow.pos, cow.facing, cow.facing, False) for cow in self.cows
-        ]
-        new_cows: List[Cow] = list(self.cows)
-        escaped_index: Optional[int] = None
-        for index, cow in enumerate(self.cows):
-            if self.caught[index]:
-                continue
-            tick = self._cow_tick(index, new_cows)
-            new_cows[index] = Cow(tick.end_pos, tick.end_facing, cow.behavior)
-            cow_ticks[index] = tick
-            if tick.end_pos in self._exit_cells:
-                escaped_index = index
-                self.status = GameStatus.LOST_EXIT
-                break
-            if tick.end_pos == self.farmer.pos:
-                self.caught = _set_flag(self.caught, index)
-                caught_now.append(index)
-        self.cows = tuple(new_cows)
+        escaped_index, cow_catches, cow_ticks = self._move_cows()
+        caught_now.extend(cow_catches)
 
         self.turns += 1
         self.loop_hint_last = False
@@ -429,7 +440,7 @@ class Simulation:
 
         return self._finish_tick(
             farmer_tick,
-            tuple(cow_ticks),
+            cow_ticks,
             blocked=blocked,
             message=message,
             caught_now=caught_now,
@@ -511,7 +522,7 @@ class Simulation:
     def state_key(self) -> StateKey:
         farmer = (self.farmer.pos[0], self.farmer.pos[1], int(self.farmer.facing))
         cows = tuple(
-            (cow.pos[0], cow.pos[1], int(cow.facing), _behavior_index(cow.behavior))
+            (cow.pos[0], cow.pos[1], int(cow.facing))
             for cow in self.cows
         )
         return (farmer, cows, self.caught)
@@ -538,7 +549,11 @@ class Simulation:
         frames: List[PredictionFrame] = []
         probe = self.clone()
         for index in range(1, steps + 1):
-            tick = probe.apply_action(Action.WAIT)
+            if probe.status.is_finished:
+                break
+            escaped_index, _, _ = probe._move_cows()
+            if probe.status is GameStatus.PLAYING and probe.all_caught:
+                probe.status = GameStatus.WON
             frames.append(
                 PredictionFrame(
                     step=index,
@@ -546,7 +561,7 @@ class Simulation:
                     cow_facings=tuple(cow.facing for cow in probe.cows),
                     caught=probe.caught,
                     status=probe.status,
-                    escaped_index=tick.escaped_index,
+                    escaped_index=escaped_index,
                 )
             )
             if probe.status.is_finished:
@@ -567,13 +582,9 @@ class Simulation:
             "exits": sorted([list(p) for p in self._exit_cells]),
             "obstacles": sorted([list(p) for p in self.level.obstacles]),
             "farmer": [list(self.farmer.pos), int(self.farmer.facing)],
-            "cows": [[list(cow.pos), int(cow.facing), cow.behavior.value] for cow in self.cows],
+            "cows": [[list(cow.pos), int(cow.facing)] for cow in self.cows],
             "caught": list(self.caught),
         }
-
-
-def _behavior_index(behavior: CowBehavior) -> int:
-    return list(CowBehavior).index(behavior)
 
 
 def _set_flag(flags: Tuple[bool, ...], index: int) -> Tuple[bool, ...]:

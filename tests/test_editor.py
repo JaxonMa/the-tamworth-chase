@@ -9,7 +9,7 @@ import pytest
 
 from game.editor import EditorModel, export_level, import_level, list_custom_levels
 from game.levels import parse_level
-from game.models import CowBehavior, Direction, TileKind, TieBreak
+from game.models import Direction, TileKind, TieBreak
 from game.tutorial import TutorialCatalog
 
 
@@ -27,7 +27,7 @@ def test_default_model_is_valid(model):
     assert level.exit_cells == ((1, 1),)
     assert level.max_turns == 30
     assert level.prediction_steps == 5
-    assert level.cow_behaviors == (CowBehavior.SEEK_EXIT,)
+    assert not hasattr(level, "cow_behaviors")
 
 
 def test_paint_and_erase(model):
@@ -81,10 +81,8 @@ def test_fixed_obstacle_toggle(model):
     assert (4, 4) not in model.obstacles
 
 
-def test_behavior_and_tiebreak_controls(model):
-    assert model.cows[0][2] is CowBehavior.SEEK_EXIT
-    model.cycle_behavior()
-    assert model.cows[0][2] is CowBehavior.SEEK_EXIT_AND_FLEE
+def test_tiebreak_and_block_controls(model):
+    assert len(model.cows[0]) == 2
     model.cycle_exit_tiebreak()
     assert model.exit_tiebreak is TieBreak.LEFT
     model.cycle_flee_tiebreak()
@@ -103,7 +101,6 @@ def test_grid_round_trip(model):
     model.exit_sight_range = 7
     model.toggle_exit((5, 5))
     model.toggle_obstacle((6, 6))
-    model.cycle_behavior()
     level = model.to_level()
     restored = EditorModel.from_level(level)
     assert restored.farmer == model.farmer
@@ -115,7 +112,7 @@ def test_grid_round_trip(model):
     assert restored.exit_sight_range == 7
     assert restored.exits == model.exits
     assert restored.obstacles == model.obstacles
-    assert restored.cows[0][2] is CowBehavior.SEEK_EXIT_AND_FLEE
+    assert not hasattr(restored, "cow_behaviors")
 
 
 def test_export_and_import(tmp_path: Path, model):
@@ -157,6 +154,11 @@ def test_editor_tutorials_have_new_tasks():
     assert len(chapter.lessons) == 3
     types = {lesson.extra.get("editor_task", {}).get("type") for lesson in chapter.lessons}
     assert {"paint_wall", "set_exits", "export_import"} <= types
+    set_exits = next(
+        lesson.extra["editor_task"] for lesson in chapter.lessons
+        if lesson.extra.get("editor_task", {}).get("type") == "set_exits"
+    )
+    assert set_exits.get("block_sight") is True
     for lesson in chapter.lessons:
         assert lesson.extra.get("starter_grid")
 

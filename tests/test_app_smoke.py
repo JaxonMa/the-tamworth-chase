@@ -1,4 +1,4 @@
-"""Integration smoke tests: scenes render head-less and the tank flow works."""
+"""Integration smoke tests: scenes render head-less and the driving flow works."""
 
 from __future__ import annotations
 
@@ -45,14 +45,14 @@ def _click(scene, pos):
         scene.handle_event(pygame.event.Event(event_type, button=1, pos=pos))
 
 
-def play_actions(app, actions):
+def play_actions(app, actions, *, animate: bool = False):
     from game.models import Action
 
     scene = app.scene
     for action in actions:
         scene._take_action(Action(action))
         scene.animator.clear()
-    for _ in range(100):
+    for _ in range(120):
         app.update(1 / 60)
         if scene.result_shown:
             break
@@ -99,8 +99,7 @@ def test_top_level_scenes_render(app, scene):
 
 def test_play_scene_renders_and_wins(app):
     app.start_level(app.levels[0])
-    scene = app.scene
-    play_actions(app, SOLUTIONS["level_01"]["actions"])
+    scene = play_actions(app, SOLUTIONS["level_01"]["actions"])
     assert scene.sim.status.value == "won"
     assert scene.result_shown
     assert scene.modal is not None
@@ -130,6 +129,19 @@ def test_blocked_forward_consumes_a_turn(app):
     _render(app)
 
 
+def test_same_direction_key_is_invalid(app):
+    from game.models import Action
+
+    app.start_level(app.levels[0])
+    scene = app.scene
+    assert scene.sim.farmer.facing.name == "NORTH"
+    scene._take_action(Action.TURN_TO_UP)
+    assert scene.sim.turns == 0
+    assert scene.toast_text == "已朝该方向"
+    assert scene.invalid_count == 1
+    _render(app)
+
+
 def test_exit_failure_modal(app):
     from game.levels import parse_level
     from game.models import Action
@@ -147,7 +159,7 @@ def test_exit_failure_modal(app):
     )
     app.start_level(level)
     scene = app.scene
-    scene._take_action(Action.WAIT)
+    scene._take_action(Action.TURN_TO_LEFT)
     assert scene.sim.status.value == "lost_exit"
     for _ in range(100):
         app.update(1 / 60)
@@ -177,41 +189,33 @@ def test_turn_limit_modal(app):
     )
     app.start_level(level)
     scene = app.scene
-    scene._take_action(Action.WAIT)
+    scene._take_action(Action.TURN_TO_LEFT)
     scene.animator.clear()
-    scene._take_action(Action.WAIT)
+    scene._take_action(Action.TURN_TO_RIGHT)
     for _ in range(100):
         app.update(1 / 60)
         if scene.result_shown:
             break
     assert scene.modal is not None
-    assert scene.modal.title == "回合数用完了"
+    assert scene.modal.title == "回合数已用完"
 
 
 def test_tutorial_chapter_scene_renders(app):
     app.open_tutorial_chapter("basics")
     _render(app)
     assert app.scene.chapter is not None
-    assert len(app.scene.chapter.lessons) == 6
+    assert len(app.scene.chapter.lessons) == 7
 
 
-def test_tutorial_lesson_with_turn_practice(app):
+def test_tutorial_lesson_with_direction_practice(app):
     from game.models import Action
 
     app.start_tutorial_lesson("basics", "basics_01")
     scene = app.scene
-    for action in (
-        Action.TURN_LEFT,
-        Action.TURN_RIGHT,
-        Action.TURN_RIGHT,
-        Action.FORWARD,
-        Action.FORWARD,
-        Action.FORWARD,
-        Action.FORWARD,
-    ):
-        scene._take_action(action)
+    for action in TUTORIAL_SOLUTIONS["basics"]["basics_01"]["actions"]:
+        scene._take_action(Action(action))
         scene.animator.clear()
-    for _ in range(100):
+    for _ in range(120):
         app.update(1 / 60)
         if scene.result_shown:
             break
@@ -219,38 +223,73 @@ def test_tutorial_lesson_with_turn_practice(app):
     assert app.store.lesson_state("basics", "basics_01") == "completed"
 
 
-def test_tutorial_wait_practice(app):
+def test_tutorial_block_practice(app):
     from game.models import Action
 
-    app.start_tutorial_lesson("basics", "basics_03")
+    app.store.set_lesson_state("basics", "basics_02", "not_started")
+    app.start_tutorial_lesson("basics", "basics_02")
     scene = app.scene
-    for action in (Action.WAIT, Action.TURN_LEFT, Action.TURN_LEFT):
-        scene._take_action(action)
+    for action in TUTORIAL_SOLUTIONS["basics"]["basics_02"]["actions"]:
+        scene._take_action(Action(action))
         scene.animator.clear()
-    for _ in range(100):
+    for _ in range(120):
         app.update(1 / 60)
         if scene.result_shown:
             break
     assert scene.sim.status.value == "won"
-    assert app.store.lesson_state("basics", "basics_03") == "completed"
+    assert app.store.lesson_state("basics", "basics_02") == "completed"
 
 
-def test_tutorial_practice_gate_rejects_win(app):
+def test_tutorial_practice_gate_rejects_win_without_block(app):
     from game.models import Action
 
-    app.store.set_lesson_state("basics", "basics_03", "not_started")
-    app.start_tutorial_lesson("basics", "basics_03")
+    app.store.set_lesson_state("basics", "basics_02", "not_started")
+    app.start_tutorial_lesson("basics", "basics_02")
     scene = app.scene
-    # Winning without the required wait must not complete the lesson.
-    for action in (Action.TURN_LEFT, Action.TURN_LEFT, Action.FORWARD):
+    # A winning route that never attempts the required blocked forward.
+    for action in (
+        Action.TURN_TO_RIGHT,
+        Action.FORWARD,
+        Action.FORWARD,
+        Action.TURN_TO_UP,
+        Action.TURN_TO_DOWN,
+        Action.FORWARD,
+        Action.FORWARD,
+        Action.FORWARD,
+        Action.FORWARD,
+    ):
         scene._take_action(action)
         scene.animator.clear()
-    for _ in range(100):
+    for _ in range(120):
         app.update(1 / 60)
         if scene.result_shown:
             break
     assert scene.modal is not None
-    assert app.store.lesson_state("basics", "basics_03") != "completed"
+    assert app.store.lesson_state("basics", "basics_02") != "completed"
+
+
+def test_tutorial_preview_and_undo_practice(app):
+    from game.models import Action
+
+    app.store.set_lesson_state("basics", "basics_07", "not_started")
+    app.start_tutorial_lesson("basics", "basics_07")
+    scene = app.scene
+    assert scene.show_prediction is False
+    scene._toggle_prediction()
+    assert scene.show_prediction is True
+    first = TUTORIAL_SOLUTIONS["basics"]["basics_07"]["actions"][0]
+    scene._take_action(Action(first))
+    scene.animator.clear()
+    scene._undo()
+    for action in TUTORIAL_SOLUTIONS["basics"]["basics_07"]["actions"]:
+        scene._take_action(Action(action))
+        scene.animator.clear()
+    for _ in range(120):
+        app.update(1 / 60)
+        if scene.result_shown:
+            break
+    assert scene.sim.status.value == "won"
+    assert app.store.lesson_state("basics", "basics_07") == "completed"
 
 
 def test_editor_export_import_flow(app, tmp_path, monkeypatch):
@@ -267,6 +306,7 @@ def test_editor_export_import_flow(app, tmp_path, monkeypatch):
     level = editor_module.import_level(files[0])
     assert level.tile_at((3, 3)).value == "tree"
     assert level.exit_cells
+    assert "cow_behavior" not in editor_module.level_to_dict(level)
 
 
 def test_editor_set_exits_tutorial_task(app):
@@ -275,10 +315,23 @@ def test_editor_set_exits_tutorial_task(app):
     scene = app.scene
     scene._action("tool:exit")
     scene._paint((3, 3))
-    scene._action("behavior")
+    scene._paint((3, 4))
+    scene._action("block_sight")
     scene.update(1 / 60)
     assert scene.task_done
     assert app.store.lesson_state("editor", "editor_02") == "completed"
+
+
+def test_editor_paint_wall_tutorial_task(app):
+    lesson = app.catalog.find_lesson("editor", "editor_01")
+    app.start_editor_tutorial("editor", lesson)
+    scene = app.scene
+    scene._action("paint:fence")
+    for cell in ((4, 3), (4, 4), (4, 5)):
+        scene._paint(cell)
+    scene.update(1 / 60)
+    assert scene.task_done
+    assert app.store.lesson_state("editor", "editor_01") == "completed"
 
 
 def test_challenge_level_runs(app):
@@ -296,9 +349,11 @@ def test_daily_level_is_deterministic(app):
     second = generate_daily()
     assert first.level_id == second.level_id
     assert first.rows == second.rows
+    assert first.exit_cells
+    assert not hasattr(first, "cow_behaviors")
 
 
-def test_keyboard_controls_and_prediction(app):
+def test_keyboard_controls_are_absolute(app):
     import pygame
     from game.models import Action
 
@@ -306,20 +361,19 @@ def test_keyboard_controls_and_prediction(app):
     scene = app.scene
     pygame.event.clear()
     scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_w))
-    scene.animator.clear()
-    assert scene.sim.turns == 1
-    facing = scene.sim.farmer.facing
+    assert scene.sim.turns == 0
+    assert scene.toast_text == "已朝该方向"
     scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_a))
     scene.animator.clear()
-    assert scene.sim.farmer.facing is facing.counter_clockwise()
-    scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_d))
+    assert scene.sim.farmer.facing.name == "WEST"
+    scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_w))
     scene.animator.clear()
-    assert scene.sim.farmer.facing is facing
+    assert scene.sim.farmer.facing.name == "NORTH"
     scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
     scene.animator.clear()
-    turns = scene.sim.turns
+    assert scene.sim.turns == 3
     scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_u))
-    assert scene.sim.turns == turns - 1
+    assert scene.sim.turns == 2
     scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_p))
     assert scene.show_prediction is False
     scene.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r))
@@ -344,63 +398,10 @@ def test_alert_toggle_persists(app):
     assert app.store.get_setting("alerts") is scene.show_alerts
 
 
-def test_tutorial_block_practice(app):
+def test_actions_do_not_include_wait():
     from game.models import Action
 
-    app.store.set_lesson_state("basics", "basics_02", "not_started")
-    app.start_tutorial_lesson("basics", "basics_02")
-    scene = app.scene
-    for action in (
-        Action.FORWARD,
-        Action.FORWARD,
-        Action.TURN_RIGHT,
-        Action.FORWARD,
-        Action.TURN_RIGHT,
-        Action.FORWARD,
-        Action.FORWARD,
-        Action.FORWARD,
-        Action.FORWARD,
-    ):
-        scene._take_action(action)
-        scene.animator.clear()
-    for _ in range(120):
-        app.update(1 / 60)
-        if scene.result_shown:
-            break
-    assert scene.sim.status.value == "won"
-    assert app.store.lesson_state("basics", "basics_02") == "completed"
-
-
-def test_tutorial_preview_and_undo_practice(app):
-    from game.models import Action
-
-    app.store.set_lesson_state("basics", "basics_06", "not_started")
-    app.start_tutorial_lesson("basics", "basics_06")
-    scene = app.scene
-    assert scene.show_prediction is False
-    scene._toggle_prediction()
-    assert scene.show_prediction is True
-    scene._take_action(Action.TURN_LEFT)
-    scene.animator.clear()
-    scene._undo()
-    for action in (Action.TURN_RIGHT, Action.FORWARD, Action.FORWARD, Action.FORWARD, Action.FORWARD):
-        scene._take_action(action)
-        scene.animator.clear()
-    for _ in range(120):
-        app.update(1 / 60)
-        if scene.result_shown:
-            break
-    assert scene.sim.status.value == "won"
-    assert app.store.lesson_state("basics", "basics_06") == "completed"
-
-
-def test_editor_paint_wall_tutorial_task(app):
-    lesson = app.catalog.find_lesson("editor", "editor_01")
-    app.start_editor_tutorial("editor", lesson)
-    scene = app.scene
-    scene._action("paint:fence")
-    for cell in ((4, 3), (4, 4), (4, 5)):
-        scene._paint(cell)
-    scene.update(1 / 60)
-    assert scene.task_done
-    assert app.store.lesson_state("editor", "editor_01") == "completed"
+    with pytest.raises(ValueError):
+        Action("wait")
+    labels = {action.value for action in Action}
+    assert labels == {"turn_to_up", "turn_to_down", "turn_to_left", "turn_to_right", "forward"}

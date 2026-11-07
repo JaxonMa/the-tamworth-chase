@@ -125,7 +125,7 @@ def test_daily_is_solvable():
     for offset in range(3):
         level = generate_daily(date(2026, 6, 1) + timedelta(days=offset))
         assert _solvable(level)
-        assert level.cow_behaviors
+        assert not hasattr(level, "cow_behaviors")
 
 
 def test_daily_seed_matches_date():

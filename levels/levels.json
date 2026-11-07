@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "game": "The Tamworth Chase",
   "levels": [
     {
@@ -26,7 +26,6 @@
       "cow_facings": [
         "north"
       ],
-      "cow_behavior": "seek_exit",
       "exit_cells": [
         [
           1,
@@ -41,9 +40,9 @@
       "flee_tiebreak": "right",
       "cows_block_sight": false,
       "cows_block_each_other": false,
-      "s_threshold": 8,
-      "a_threshold": 11,
-      "b_threshold": 14
+      "s_threshold": 9,
+      "a_threshold": 12,
+      "b_threshold": 15
     },
     {
       "id": "level_02",
@@ -69,7 +68,6 @@
       "cow_facings": [
         "east"
       ],
-      "cow_behavior": "seek_exit",
       "exit_cells": [
         [
           2,
@@ -84,9 +82,9 @@
       "flee_tiebreak": "right",
       "cows_block_sight": false,
       "cows_block_each_other": false,
-      "s_threshold": 6,
-      "a_threshold": 9,
-      "b_threshold": 12
+      "s_threshold": 7,
+      "a_threshold": 10,
+      "b_threshold": 13
     },
     {
       "id": "level_03",
@@ -113,7 +111,6 @@
       "cow_facings": [
         "north"
       ],
-      "cow_behavior": "seek_exit",
       "exit_cells": [
         [
           3,
@@ -128,9 +125,9 @@
       "flee_tiebreak": "right",
       "cows_block_sight": false,
       "cows_block_each_other": false,
-      "s_threshold": 12,
-      "a_threshold": 15,
-      "b_threshold": 18
+      "s_threshold": 14,
+      "a_threshold": 17,
+      "b_threshold": 20
     },
     {
       "id": "level_04",
@@ -156,7 +153,6 @@
       "cow_facings": [
         "west"
       ],
-      "cow_behavior": "seek_exit",
       "exit_cells": [
         [
           1,
@@ -171,9 +167,9 @@
       "flee_tiebreak": "right",
       "cows_block_sight": false,
       "cows_block_each_other": false,
-      "s_threshold": 14,
-      "a_threshold": 17,
-      "b_threshold": 20
+      "s_threshold": 15,
+      "a_threshold": 18,
+      "b_threshold": 21
     },
     {
       "id": "level_05",
@@ -200,7 +196,6 @@
       "cow_facings": [
         "north"
       ],
-      "cow_behavior": "seek_exit",
       "exit_cells": [
         [
           3,
@@ -222,7 +217,7 @@
     {
       "id": "level_06",
       "name": "蜿蜒沟渠",
-      "description": "沟渠之间，牛开始主动躲避农夫。",
+      "description": "沟渠之间，牛看到农夫就会躲开。",
       "hint": "这头牛看到农夫会先逃跑；别把它逼向出口。",
       "tags": [
         "长路"
@@ -243,7 +238,6 @@
       "cow_facings": [
         "west"
       ],
-      "cow_behavior": "seek_exit_and_flee",
       "exit_cells": [
         [
           4,
@@ -258,7 +252,7 @@
       "flee_tiebreak": "right",
       "cows_block_sight": false,
       "cows_block_each_other": false,
-      "s_threshold": 21,
+      "s_threshold": 20,
       "a_threshold": 24,
       "b_threshold": 27
     },
@@ -286,7 +280,6 @@
       "cow_facings": [
         "west"
       ],
-      "cow_behavior": "seek_exit_and_flee",
       "exit_cells": [
         [
           1,
@@ -331,7 +324,6 @@
         "east",
         "west"
       ],
-      "cow_behavior": "seek_exit_and_flee",
       "exit_cells": [
         [
           1,
@@ -374,7 +366,6 @@
       "cow_facings": [
         "north"
       ],
-      "cow_behavior": "seek_exit",
       "exit_cells": [
         [
           1,
@@ -389,9 +380,9 @@
       "flee_tiebreak": "right",
       "cows_block_sight": false,
       "cows_block_each_other": false,
-      "s_threshold": 12,
-      "a_threshold": 15,
-      "b_threshold": 18
+      "s_threshold": 11,
+      "a_threshold": 14,
+      "b_threshold": 17
     },
     {
       "id": "level_10",
@@ -419,7 +410,6 @@
         "north",
         "south"
       ],
-      "cow_behavior": "seek_exit_and_flee",
       "exit_cells": [
         [
           1,

@@ -13,7 +13,6 @@ from .levels import LevelError, level_to_dict, parse_level
 from .models import (
     COW_CHAR,
     FARMER_CHAR,
-    CowBehavior,
     Direction,
     Level,
     Pos,
@@ -51,7 +50,7 @@ class EditorModel:
     tiles: List[List[TileKind]] = field(default_factory=list)
     farmer: Pos = (8, 1)
     farmer_facing: Direction = Direction.NORTH
-    cows: List[Tuple[Pos, Direction, CowBehavior]] = field(default_factory=list)
+    cows: List[Tuple[Pos, Direction]] = field(default_factory=list)
     active_cow: int = 0
     exits: Set[Pos] = field(default_factory=set)
     obstacles: Set[Pos] = field(default_factory=set)
@@ -69,7 +68,7 @@ class EditorModel:
         if not self.tiles:
             self.reset()
         if not self.cows:
-            self.cows = [((1, 8), Direction.NORTH, CowBehavior.SEEK_EXIT)]
+            self.cows = [((1, 8), Direction.NORTH)]
         if not self.exits:
             self.exits = {(1, 1)}
 
@@ -84,7 +83,7 @@ class EditorModel:
             self.tiles.append(line)
         self.farmer = (self.height - 2, 1)
         self.farmer_facing = Direction.NORTH
-        self.cows = [((1, self.width - 2), Direction.NORTH, CowBehavior.SEEK_EXIT)]
+        self.cows = [((1, self.width - 2), Direction.NORTH)]
         self.active_cow = 0
         self.exits = {(1, 1)}
         self.obstacles = set()
@@ -114,10 +113,8 @@ class EditorModel:
         model.farmer = level.farmer_start
         model.farmer_facing = level.farmer_facing
         model.cows = [
-            (pos, facing, behavior)
-            for pos, facing, behavior in zip(
-                level.cow_positions, level.cow_facings, level.cow_behaviors
-            )
+            (pos, facing)
+            for pos, facing in zip(level.cow_positions, level.cow_facings)
         ]
         model.active_cow = 0
         model.exits = set(level.exit_cells)
@@ -203,12 +200,12 @@ class EditorModel:
         self.tiles[pos[0]][pos[1]] = TileKind.GRASS
         self.exits.discard(pos)
         if not self.cows:
-            self.cows = [(pos, Direction.NORTH, CowBehavior.SEEK_EXIT)]
+            self.cows = [(pos, Direction.NORTH)]
             self.active_cow = 0
         else:
             self.active_cow = min(self.active_cow, len(self.cows) - 1)
-            _, facing, behavior = self.cows[self.active_cow]
-            self.cows[self.active_cow] = (pos, facing, behavior)
+            _, facing = self.cows[self.active_cow]
+            self.cows[self.active_cow] = (pos, facing)
         return True
 
     def add_cow(self, pos: Optional[Pos] = None) -> bool:
@@ -221,7 +218,7 @@ class EditorModel:
             return False
         self.tiles[target[0]][target[1]] = TileKind.GRASS
         self.exits.discard(target)
-        self.cows.append((target, Direction.NORTH, CowBehavior.SEEK_EXIT))
+        self.cows.append((target, Direction.NORTH))
         self.active_cow = len(self.cows) - 1
         return True
 
@@ -253,23 +250,12 @@ class EditorModel:
         if not self.cows:
             return
         self.active_cow = min(self.active_cow, len(self.cows) - 1)
-        pos, facing, behavior = self.cows[self.active_cow]
-        self.cows[self.active_cow] = (pos, facing.clockwise(), behavior)
+        pos, facing = self.cows[self.active_cow]
+        self.cows[self.active_cow] = (pos, facing.clockwise())
 
     def cycle_active_cow(self) -> None:
         if len(self.cows) > 1:
             self.active_cow = (self.active_cow + 1) % len(self.cows)
-
-    def cycle_behavior(self) -> None:
-        if not self.cows:
-            return
-        pos, facing, behavior = self.cows[self.active_cow]
-        other = (
-            CowBehavior.SEEK_EXIT
-            if behavior is CowBehavior.SEEK_EXIT_AND_FLEE
-            else CowBehavior.SEEK_EXIT_AND_FLEE
-        )
-        self.cows[self.active_cow] = (pos, facing, other)
 
     def cycle_exit_tiebreak(self) -> None:
         self.exit_tiebreak = (
@@ -312,7 +298,6 @@ class EditorModel:
             "grid": self.to_grid(),
             "fj_start_direction": self.farmer_facing.name.lower(),
             "cow_facings": [cow[1].name.lower() for cow in self.cows],
-            "cow_behavior": [cow[2].value for cow in self.cows],
             "exit_cells": [list(pos) for pos in sorted(self.exits)],
             "obstacles": [list(pos) for pos in sorted(self.obstacles)],
             "max_turns": self.max_turns,
@@ -382,7 +367,7 @@ def export_level(level: Level, directory: Optional[Path] = None) -> Path:
     payload = level_to_dict(level)
     payload["id"] = level_id
     payload["exported_at"] = stamp
-    bundle = {"version": 3, "game": "The Tamworth Chase", "levels": [payload]}
+    bundle = {"version": 4, "game": "The Tamworth Chase", "levels": [payload]}
     path = target_dir / f"{_slugify(level.name)}_{stamp}.json"
     path.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return path

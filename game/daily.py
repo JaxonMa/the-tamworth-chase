@@ -71,7 +71,6 @@ def _candidate(seed: int, level_id: str) -> Optional[Level]:
         "grid": ["".join(row) for row in rows],
         "fj_start_direction": rng.choice(DIRECTIONS),
         "cow_facings": [rng.choice(DIRECTIONS)],
-        "cow_behavior": "seek_exit",
         "exit_cells": [list(exit_cell)],
         "max_turns": 50,
         "prediction_steps": 5,
@@ -88,12 +87,18 @@ def _candidate(seed: int, level_id: str) -> Optional[Level]:
 
 
 def _solvable(level: Level, max_nodes: int = 24_000) -> bool:
-    """Bounded breadth-first search over the four tank actions."""
+    """Bounded breadth-first search over the five farmer commands."""
     start = Simulation(level)
     queue = deque([start])
     visited = {start.state_key()}
     nodes = 0
-    actions = (Action.FORWARD, Action.TURN_LEFT, Action.TURN_RIGHT, Action.WAIT)
+    actions = (
+        Action.TURN_TO_UP,
+        Action.TURN_TO_RIGHT,
+        Action.TURN_TO_DOWN,
+        Action.TURN_TO_LEFT,
+        Action.FORWARD,
+    )
     while queue and nodes < max_nodes:
         sim = queue.popleft()
         nodes += 1

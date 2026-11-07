@@ -1,9 +1,11 @@
 {
   "basics": {
     "basics_01": {
-      "turns": 5,
+      "turns": 6,
       "actions": [
-        "turn_right",
+        "turn_to_up",
+        "turn_to_down",
+        "turn_to_right",
         "forward",
         "forward",
         "forward",
@@ -12,12 +14,13 @@
       "status": "won"
     },
     "basics_02": {
-      "turns": 8,
+      "turns": 9,
       "actions": [
-        "turn_right",
+        "forward",
+        "turn_to_right",
         "forward",
         "forward",
-        "turn_right",
+        "turn_to_down",
         "forward",
         "forward",
         "forward",
@@ -26,10 +29,11 @@
       "status": "won"
     },
     "basics_03": {
-      "turns": 3,
+      "turns": 4,
       "actions": [
-        "turn_left",
-        "turn_left",
+        "turn_to_right",
+        "turn_to_down",
+        "forward",
         "forward"
       ],
       "status": "won"
@@ -37,10 +41,10 @@
     "basics_04": {
       "turns": 6,
       "actions": [
-        "turn_left",
-        "turn_left",
         "forward",
         "forward",
+        "forward",
+        "turn_to_down",
         "forward",
         "forward"
       ],
@@ -49,17 +53,28 @@
     "basics_05": {
       "turns": 4,
       "actions": [
-        "turn_left",
-        "turn_left",
+        "forward",
+        "turn_to_down",
         "forward",
         "forward"
       ],
       "status": "won"
     },
     "basics_06": {
-      "turns": 5,
+      "turns": 4,
       "actions": [
-        "turn_right",
+        "turn_to_right",
+        "turn_to_down",
+        "forward",
+        "forward"
+      ],
+      "status": "won"
+    },
+    "basics_07": {
+      "turns": 6,
+      "actions": [
+        "turn_to_down",
+        "turn_to_right",
         "forward",
         "forward",
         "forward",
@@ -70,59 +85,63 @@
   },
   "advanced": {
     "advanced_01": {
-      "turns": 6,
+      "turns": 9,
       "actions": [
         "forward",
         "forward",
         "forward",
-        "turn_right",
+        "forward",
+        "turn_to_down",
+        "forward",
+        "forward",
         "forward",
         "forward"
       ],
       "status": "won"
     },
     "advanced_02": {
-      "turns": 18,
+      "turns": 15,
       "actions": [
-        "turn_right",
+        "turn_to_right",
         "forward",
         "forward",
         "forward",
         "forward",
-        "forward",
-        "turn_left",
-        "forward",
+        "turn_to_left",
         "forward",
         "forward",
-        "turn_left",
+        "turn_to_up",
         "forward",
-        "turn_right",
         "forward",
-        "turn_left",
         "forward",
+        "forward",
+        "turn_to_left",
         "forward",
         "forward"
       ],
       "status": "won"
     },
     "advanced_03": {
-      "turns": 16,
+      "turns": 17,
       "actions": [
-        "turn_right",
+        "turn_to_right",
+        "forward",
+        "turn_to_down",
+        "turn_to_up",
+        "forward",
+        "forward",
+        "forward",
+        "turn_to_left",
+        "forward",
+        "forward",
+        "turn_to_up",
         "forward",
         "forward",
         "forward",
         "forward",
-        "turn_left",
-        "turn_left",
+        "turn_to_left",
         "forward",
         "forward",
-        "forward",
-        "turn_right",
-        "forward",
-        "forward",
-        "forward",
-        "wait",
         "forward"
       ],
       "status": "won"

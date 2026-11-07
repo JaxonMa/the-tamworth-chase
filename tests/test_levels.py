@@ -9,7 +9,7 @@ import pytest
 
 from game.core import Simulation
 from game.levels import load_levels, parse_level
-from game.models import Action, GameStatus
+from game.models import Action, Actor, Direction, GameStatus
 from game.levels import level_to_dict
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -56,7 +56,7 @@ def test_all_levels_have_exit_fields(levels):
         assert level.exit_cells
         assert level.max_turns >= 5
         assert 0 <= level.prediction_steps <= 20
-        assert len(level.cow_behaviors) == len(level.cow_positions)
+        assert not hasattr(level, "cow_behaviors")
         assert not (set(level.exit_cells) & level.wall_positions)
         assert not (set(level.exit_cells) & set(level.cow_positions))
         assert level.farmer_start not in level.exit_cells
@@ -93,9 +93,12 @@ def test_campaign_has_multi_cow_and_no_prediction_levels(levels):
     assert by_id["level_09"].prediction_steps == 0
 
 
-def test_campaign_has_fleeing_cows(levels):
-    behaviors = {b.value for level in levels for b in level.cow_behaviors}
-    assert "seek_exit_and_flee" in behaviors
+def test_campaign_cows_use_the_unified_flee_behaviour(levels):
+    by_id = {level.level_id: level for level in levels}
+    sim = Simulation(by_id["level_06"])
+    sim.farmer = Actor((2, 1), Direction.EAST)
+    assert sim.cow_is_fleeing(0) is True
+    assert not hasattr(by_id["level_06"], "cow_behaviors")
 
 
 def test_level_to_dict_roundtrip(levels):
@@ -105,7 +108,7 @@ def test_level_to_dict_roundtrip(levels):
         assert restored.exit_cells == level.exit_cells
         assert restored.cow_positions == level.cow_positions
         assert restored.max_turns == level.max_turns
-        assert restored.cow_behaviors == level.cow_behaviors
+        assert "cow_behavior" not in payload
         assert restored.obstacles == level.obstacles
 
 
@@ -134,6 +137,7 @@ def test_legacy_level_gets_a_default_exit():
             "grid": ["#######", "#F....#", "#..C..#", "#.....#", "#######"],
             "step_limit": 12,
             "obstacle_limit": 2,
+            "cow_behavior": "seek_exit_and_flee",
         }
     )
     assert level.exit_cells

@@ -1,7 +1,7 @@
 {
   "title": "编辑器教程",
   "subtitle": "自己造一片有出口的牧场",
-  "intro": "三节编辑器课：画地形、设置出口与牛的行为、导出与导入。",
+  "intro": "三节编辑器课：画地形、设置出口与视线规则、导出与导入。",
   "badge": "编辑器",
   "accent": "clay",
   "lessons": [
@@ -40,7 +40,6 @@
         "cow_facings": [
           "north"
         ],
-        "cow_behavior": "seek_exit",
         "exit_cells": [
           [
             1,
@@ -78,14 +77,14 @@
     },
     {
       "id": "editor_02",
-      "name": "出口与行为",
-      "brief": "画出出口，并让一头牛看到农夫时先逃跑。",
-      "goal": "画出两格出口，并把一头牛改成「躲避」。",
-      "practice": "用出口格工具画两格，再点「行为」切换成躲避。",
+      "name": "出口与视线",
+      "brief": "画出出口，并设置牛是否会挡住农夫视线。",
+      "goal": "画出两格出口，并打开「牛挡视线」。",
+      "practice": "用出口格画两格，再点「牛挡视线」把它打开。",
       "tips": [
         {
           "trigger": "start",
-          "text": "用「出口格」画两格出口；再用「行为」把一头牛切成「躲避」。"
+          "text": "用「出口格」画两格出口；再点「牛挡视线」，其他牛就会挡住农夫看向这头牛的视线。"
         },
         {
           "trigger": "place",
@@ -94,7 +93,7 @@
       ],
       "level": {
         "id": "editor_02",
-        "name": "出口与行为",
+        "name": "出口与视线",
         "grid": [
           "##########",
           "#........#",
@@ -111,7 +110,6 @@
         "cow_facings": [
           "north"
         ],
-        "cow_behavior": "seek_exit",
         "exit_cells": [
           [
             1,
@@ -132,7 +130,8 @@
       },
       "editor_task": {
         "type": "set_exits",
-        "count": 2
+        "count": 2,
+        "block_sight": true
       },
       "starter_grid": [
         "##########",
@@ -182,7 +181,6 @@
         "cow_facings": [
           "north"
         ],
-        "cow_behavior": "seek_exit",
         "exit_cells": [
           [
             1,

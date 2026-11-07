@@ -1,6 +1,6 @@
 """Offline solver for the tank-driving, exit-escape chase.
 
-The game itself never imports this module.  It explores the four farmer actions
+The game itself never imports this module.  It explores the five farmer commands
 with a breadth-first search and reports the shortest winning order sequence.
 
 Usage::
@@ -39,7 +39,13 @@ class SolveResult:
 def solve(level: Level, max_nodes: int = 400_000) -> SolveResult:
     start_time = time.time()
     start = Simulation(level)
-    actions = (Action.FORWARD, Action.TURN_LEFT, Action.TURN_RIGHT, Action.WAIT)
+    actions = (
+        Action.TURN_TO_UP,
+        Action.TURN_TO_RIGHT,
+        Action.TURN_TO_DOWN,
+        Action.TURN_TO_LEFT,
+        Action.FORWARD,
+    )
     queue = deque([(start, ())])
     visited = {start.state_key()}
     explored = 0

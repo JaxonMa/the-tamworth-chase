@@ -9,7 +9,7 @@ import pytest
 
 from game.core import Simulation
 from game.levels import load_levels
-from game.models import Action, CowBehavior, GameStatus, Rank
+from game.models import Action, GameStatus, Rank
 from game.progress import (
     TUTORIAL_COMPLETED,
     TUTORIAL_IN_PROGRESS,
@@ -40,7 +40,7 @@ def book(store: ProgressStore, catalog: TutorialCatalog) -> TutorialBook:
 
 def test_chapter_counts(catalog):
     counts = {chapter.chapter_id: len(chapter.lessons) for chapter in catalog.all()}
-    assert counts == {"basics": 6, "advanced": 3, "editor": 3}
+    assert counts == {"basics": 7, "advanced": 3, "editor": 3}
 
 
 def test_tutorial_lessons_are_not_campaign_levels(catalog):
@@ -51,14 +51,13 @@ def test_tutorial_lessons_are_not_campaign_levels(catalog):
             assert lesson.source == "tutorial"
 
 
-def test_every_playable_lesson_has_exit_and_behavior(catalog):
+def test_every_playable_lesson_has_exit_and_unified_cows(catalog):
     for chapter in catalog.all():
         for lesson in chapter.lessons:
             assert lesson.exit_cells
             assert lesson.max_turns >= 5
-            assert len(lesson.cow_behaviors) == len(lesson.cow_positions)
-            if lesson.cow_behaviors:
-                assert all(isinstance(b, CowBehavior) for b in lesson.cow_behaviors)
+            assert lesson.cow_positions
+            assert not hasattr(lesson, "cow_behaviors")
 
 
 def test_lesson_solutions_win(catalog):
@@ -78,24 +77,24 @@ def test_lesson_solutions_win(catalog):
 
 def test_practice_metadata_is_present(catalog):
     by_id = {lesson.level_id: lesson for chapter in catalog.all() for lesson in chapter.lessons}
-    assert by_id["basics_01"].extra.get("require_turn") is True
+    assert by_id["basics_01"].extra.get("require_invalid") is True
+    assert by_id["basics_01"].extra.get("require_forward") is True
     assert by_id["basics_02"].extra.get("require_block") is True
-    assert by_id["basics_03"].extra.get("require_wait") is True
-    assert by_id["basics_06"].extra.get("require_undo") is True
-    assert by_id["basics_06"].extra.get("require_prediction") is True
-    assert by_id["basics_06"].prediction_steps == 6
+    assert by_id["basics_03"].extra.get("require_actions") == 3
+    assert by_id["basics_07"].extra.get("require_undo") is True
+    assert by_id["basics_07"].extra.get("require_prediction") is True
+    assert by_id["basics_07"].prediction_steps == 6
+    assert all("require_wait" not in lesson.extra for lesson in by_id.values())
 
 
-def test_advanced_lessons_cover_flee_and_multi(catalog):
+def test_advanced_lessons_cover_multi_cow_pressure(catalog):
     advanced = catalog.get("advanced")
     assert advanced is not None
     assert len(advanced.lessons) == 3
-    behaviors = {b for lesson in advanced.lessons for b in lesson.cow_behaviors}
-    assert CowBehavior.SEEK_EXIT_AND_FLEE in behaviors
+    assert advanced.lessons[0].exit_cells
     assert any(len(lesson.cow_positions) > 1 for lesson in advanced.lessons)
-    mixed = advanced.lessons[2]
-    assert CowBehavior.SEEK_EXIT in mixed.cow_behaviors
-    assert CowBehavior.SEEK_EXIT_AND_FLEE in mixed.cow_behaviors
+    assert len(advanced.lessons[2].cow_positions) >= 2
+    assert all(not hasattr(lesson, "cow_behaviors") for lesson in advanced.lessons)
 
 
 def test_editor_tasks(catalog):
@@ -103,6 +102,11 @@ def test_editor_tasks(catalog):
     assert editor is not None
     types = {lesson.extra.get("editor_task", {}).get("type") for lesson in editor.lessons}
     assert {"paint_wall", "set_exits", "export_import"} <= types
+    exits_task = next(
+        lesson.extra["editor_task"] for lesson in editor.lessons
+        if lesson.extra.get("editor_task", {}).get("type") == "set_exits"
+    )
+    assert exits_task.get("block_sight") is True
 
 
 def test_initial_states(book, catalog):

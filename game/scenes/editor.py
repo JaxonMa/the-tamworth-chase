@@ -10,7 +10,7 @@ import pygame
 from .. import theme, ui
 from ..editor import EditorModel, PAINT_TILES, export_level, import_level, list_custom_levels
 from ..levels import LevelError
-from ..models import CowBehavior, Direction, Level, Pos, TileKind
+from ..models import Direction, Level, Pos, TileKind
 from ..render import CELL, ORIGIN, draw_grid
 from .base import Scene, draw_background, draw_footer, make_back_button
 
@@ -30,7 +30,7 @@ TERRAIN_LABELS = {
 
 TASK_TEXT = {
     "paint_wall": "在草地上画出 {count} 格栅栏。",
-    "set_exits": "画出 {count} 格出口，并把一头牛改成「躲避」行为。",
+    "set_exits": "画出 {count} 格出口，并打开「牛挡视线」。",
     "set_rules": "调整回合上限和预测步数。",
     "export_import": "导出一份关卡，再把它导入回来。",
 }
@@ -56,7 +56,6 @@ class EditorScene(Scene):
         self.painted_walls: set = set()
         self.farmer_moved = False
         self.cow_moved = False
-        self.behavior_changed = False
         self.exported_path: Optional[Path] = None
         self.imported_once = False
         self.buttons: List[ui.Button] = []
@@ -126,9 +125,6 @@ class EditorScene(Scene):
         self.obstacle_button = ui.Button(
             pygame.Rect(912, 242, 140, 38), "固定障碍", "tool:obstacle", style="ghost", font_size=theme.FONT_TINY
         )
-        self.behavior_button = ui.Button(
-            pygame.Rect(1060, 242, 148, 38), "牛行为", "behavior", style="ghost", font_size=theme.FONT_TINY
-        )
         self.facing_button = ui.Button(
             pygame.Rect(764, 288, 216, 38), "农夫朝向", "cycle_facing", style="ghost", font_size=theme.FONT_TINY
         )
@@ -174,7 +170,6 @@ class EditorScene(Scene):
             *self.actor_buttons,
             self.exit_button,
             self.obstacle_button,
-            self.behavior_button,
             self.facing_button,
             self.cow_facing_button,
             self.exit_tie_button,
@@ -300,10 +295,6 @@ class EditorScene(Scene):
         elif action == "tool:obstacle":
             self.tool = TOOL_OBSTACLE
             self.app.sound.play("click")
-        elif action == "behavior":
-            self.model.cycle_behavior()
-            self.behavior_changed = True
-            self.app.sound.play("click")
         elif action == "cycle_facing":
             self.model.cycle_facing()
             self.app.sound.play("click")
@@ -334,7 +325,7 @@ class EditorScene(Scene):
         elif action == "clear":
             self.model = EditorModel()
             self.painted_walls.clear()
-            self.farmer_moved = self.cow_moved = self.behavior_changed = False
+            self.farmer_moved = self.cow_moved = False
             self._toast("牧场已经清空。")
 
     def _change_rule(self, index: int, delta: int) -> None:
@@ -461,10 +452,9 @@ class EditorScene(Scene):
         if kind == "set_exits":
             target = int(task.get("count", 2))
             exits = min(len(self.model.exits), target)
-            behavior = 1 if any(
-                cow[2] is CowBehavior.SEEK_EXIT_AND_FLEE for cow in self.model.cows
-            ) else 0
-            return (exits + behavior, target + 1)
+            block = int(bool(task.get("block_sight")) and self.model.cows_block_sight)
+            total = target + int(bool(task.get("block_sight")))
+            return (exits + block, total)
         if kind == "set_rules":
             done = int(self.model.max_turns >= int(task.get("max_turns", 20)))
             done += int(self.model.prediction_steps >= int(task.get("prediction_steps", 5)))
@@ -565,7 +555,7 @@ class EditorScene(Scene):
                 layer, (*theme.SUN, 200), layer.get_rect().inflate(-4, -4), width=2, border_radius=12
             )
             surface.blit(layer, rect.topleft)
-        for index, (pos, facing, _behavior) in enumerate(self.model.cows):
+        for index, (pos, facing) in enumerate(self.model.cows):
             sprite = self.cache.cow(facing)
             center = (ORIGIN[0] + pos[1] * CELL + CELL // 2, ORIGIN[1] + pos[0] * CELL + CELL // 2)
             surface.blit(sprite, sprite.get_rect(center=center))
@@ -604,10 +594,11 @@ class EditorScene(Scene):
         self.exit_button.draw(surface, self.fonts)
         self.obstacle_button.style = "primary" if self.tool == TOOL_OBSTACLE else "ghost"
         self.obstacle_button.draw(surface, self.fonts)
+        theme.draw_text(
+            surface, self.fonts, "牛会躲农夫", (1064, 260),
+            theme.FONT_TINY, theme.INK_LIGHT,
+        )
         active_cow = self.model.cows[self.model.active_cow] if self.model.cows else None
-        behavior = active_cow[2] if active_cow else CowBehavior.SEEK_EXIT
-        self.behavior_button.text = f"行为：{'躲避' if behavior is CowBehavior.SEEK_EXIT_AND_FLEE else '奔出口'}"
-        self.behavior_button.draw(surface, self.fonts)
         self.facing_button.text = f"农夫朝向：{self.model.farmer_facing.label}"
         self.facing_button.draw(surface, self.fonts)
         cow_facing = active_cow[1] if active_cow else Direction.NORTH

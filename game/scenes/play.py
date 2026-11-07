@@ -9,7 +9,7 @@ import pygame
 from .. import theme, ui
 from ..animation import TurnAnimator
 from ..core import Simulation
-from ..models import Action, GameStatus, Level, Pos, Rank
+from ..models import Action, Direction, GameStatus, Level, Pos, Rank
 from ..render import BoardRenderer, BoardView, EffectSystem
 from .base import Scene, draw_footer
 
@@ -61,12 +61,12 @@ class PlayScene(Scene):
         self.toast_text = ""
         self.toast_timer = 0.0
         self.loop_events = 0
+        self.action_count = 0
         self.forward_count = 0
-        self.left_count = 0
-        self.right_count = 0
-        self.wait_count = 0
+        self.turn_directions: set[Direction] = set()
         self.blocked_count = 0
         self.undo_count = 0
+        self.invalid_count = 0
         self.prediction_used = self.show_prediction
         self.trail_farmer: List[Pos] = []
         self.trail_cows: List[List[Pos]] = []
@@ -198,13 +198,15 @@ class PlayScene(Scene):
         if self.animator.busy or self.phase != "run":
             return
         if event.key in (pygame.K_w, pygame.K_UP):
-            self._take_action(Action.FORWARD)
+            self._take_action(Action.TURN_TO_UP)
+        elif event.key in (pygame.K_s, pygame.K_DOWN):
+            self._take_action(Action.TURN_TO_DOWN)
         elif event.key in (pygame.K_a, pygame.K_LEFT):
-            self._take_action(Action.TURN_LEFT)
+            self._take_action(Action.TURN_TO_LEFT)
         elif event.key in (pygame.K_d, pygame.K_RIGHT):
-            self._take_action(Action.TURN_RIGHT)
+            self._take_action(Action.TURN_TO_RIGHT)
         elif event.key == pygame.K_SPACE:
-            self._take_action(Action.WAIT)
+            self._take_action(Action.FORWARD)
 
     # ------------------------------------------------------------------
     # Actions
@@ -224,16 +226,21 @@ class PlayScene(Scene):
     def _take_action(self, action: Action) -> None:
         if self.phase != "run" or self.animator.busy:
             return
+        result = self.sim.apply_action(action)
+        if result.invalid:
+            self.invalid_count += 1
+            self._toast(result.message or "已朝该方向")
+            self.app.sound.play("error")
+            self._tutorial_event("invalid")
+            self._refresh_buttons()
+            return
+
+        self.action_count += 1
         if action is Action.FORWARD:
             self.forward_count += 1
-        elif action is Action.TURN_LEFT:
-            self.left_count += 1
-        elif action is Action.TURN_RIGHT:
-            self.right_count += 1
         else:
-            self.wait_count += 1
+            self.turn_directions.add(action.direction)
 
-        result = self.sim.apply_action(action)
         self.animator.play(result)
         self.trail_farmer.append(self.sim.farmer.pos)
         for index, cow in enumerate(self.sim.cows):
@@ -247,12 +254,8 @@ class PlayScene(Scene):
             self._tutorial_event("blocked")
         elif action is Action.FORWARD:
             self._tutorial_event("forward")
-        elif action is Action.TURN_LEFT:
-            self._tutorial_event("turn_left")
-        elif action is Action.TURN_RIGHT:
-            self._tutorial_event("turn_right")
         else:
-            self._tutorial_event("wait")
+            self._tutorial_event("turn")
 
         if result.caught_now:
             for index in result.caught_now:
@@ -315,11 +318,20 @@ class PlayScene(Scene):
         if self.mode != "tutorial":
             return False
         extra = self.level.extra
-        if extra.get("require_turn") and (self.left_count == 0 or self.right_count == 0):
+        required = {str(name).lower() for name in (extra.get("require_directions") or [])}
+        if required:
+            used = {direction.name.lower() for direction in self.turn_directions}
+            if not required.issubset(used):
+                return True
+        if extra.get("require_turn") and len(self.turn_directions) < 2:
+            return True
+        if extra.get("require_forward") and self.forward_count == 0:
+            return True
+        if extra.get("require_actions") and self.action_count < int(extra["require_actions"]):
             return True
         if extra.get("require_block") and self.blocked_count == 0:
             return True
-        if extra.get("require_wait") and self.wait_count == 0:
+        if extra.get("require_invalid") and self.invalid_count == 0:
             return True
         if extra.get("require_undo") and self.undo_count == 0:
             return True
@@ -392,12 +404,12 @@ class PlayScene(Scene):
         self.practice_failed = False
         self.rank = None
         self.new_record = False
+        self.action_count = 0
         self.forward_count = 0
-        self.left_count = 0
-        self.right_count = 0
-        self.wait_count = 0
+        self.turn_directions: set[Direction] = set()
         self.blocked_count = 0
         self.undo_count = 0
+        self.invalid_count = 0
         self.loop_events = 0
         self.phase = "run"
         self._seed_trails()
@@ -496,7 +508,7 @@ class PlayScene(Scene):
             title = "牛从出口逃走了"
             body = "一头牛抵达了金色出口，本局失败。\n可以撤销到上一回合，或重新开始。"
         else:
-            title = "回合数用完了"
+            title = "回合数已用完"
             body = f"本关最多 {self.level.max_turns} 回合，牛还没有全部抓住。\n可以撤销到上一回合，或重新开始。"
         self.modal = ui.Modal(
             title,
@@ -737,9 +749,9 @@ class PlayScene(Scene):
                 theme.FONT_TINY, theme.INK_LIGHT,
             )
             lines = [
-                "W/↑ 前进 · A/← 左转 · D/→ 右转",
+                "W/↑ 朝上 · S/↓ 朝下 · A/← 朝左 · D/→ 朝右",
+                "空格前进 · U 撤销 · R 重开 · P 预测",
                 f"回合上限 {self.level.max_turns} · 预测 {self.level.prediction_steps} 步",
-                "空格等待 · U 撤销 · R 重开 · P 预测",
             ]
             line_y = card.top + 34
             for line in lines:
@@ -781,7 +793,7 @@ class PlayScene(Scene):
         draw_footer(
             surface,
             self.fonts,
-            "W/↑ 前进 · A/← 左转 · D/→ 右转 · 空格等待 · U 撤销 · R 重开 · P 预测",
+            "W/↑ 朝上，S/↓ 朝下，A/← 朝左，D/→ 朝右，空格前进，U 撤销，R 重开",
         )
         if self.show_prediction and self.level.prediction_steps > 0 and self.toast_timer <= 0:
             text = self.fonts.wrap(

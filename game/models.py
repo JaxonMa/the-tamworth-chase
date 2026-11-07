@@ -88,32 +88,6 @@ COW_CHAR = "C"
 LEGACY_COW_CHARS = ("C", "D", "G", "S")
 
 
-class CowBehavior(str, Enum):
-    """How a cow behaves when it is not fleeing."""
-
-    SEEK_EXIT = "seek_exit"
-    SEEK_EXIT_AND_FLEE = "seek_exit_and_flee"
-
-    @property
-    def label(self) -> str:
-        return _BEHAVIOR_LABELS[self]
-
-    @property
-    def description(self) -> str:
-        return _BEHAVIOR_TEXT[self]
-
-
-_BEHAVIOR_LABELS = {
-    CowBehavior.SEEK_EXIT: "奔向出口",
-    CowBehavior.SEEK_EXIT_AND_FLEE: "奔向出口并躲避",
-}
-
-_BEHAVIOR_TEXT = {
-    CowBehavior.SEEK_EXIT: "只奔向出口，不主动躲避农夫。",
-    CowBehavior.SEEK_EXIT_AND_FLEE: "看到农夫时优先逃跑，否则奔向出口。",
-}
-
-
 class TieBreak(str, Enum):
     """Chosen side when both left and right are equally good."""
 
@@ -122,24 +96,47 @@ class TieBreak(str, Enum):
 
 
 class Action(str, Enum):
-    """A tank-style order for Farmer John."""
+    """One command for Farmer John: face an absolute direction or move."""
 
+    TURN_TO_UP = "turn_to_up"
+    TURN_TO_DOWN = "turn_to_down"
+    TURN_TO_LEFT = "turn_to_left"
+    TURN_TO_RIGHT = "turn_to_right"
     FORWARD = "forward"
-    TURN_LEFT = "turn_left"
-    TURN_RIGHT = "turn_right"
-    WAIT = "wait"
 
     @property
     def label(self) -> str:
         return _ACTION_LABELS[self]
 
+    @property
+    def direction(self) -> Direction:
+        """The absolute direction requested by a turn action."""
+        try:
+            return _ACTION_DIRECTIONS[self]
+        except KeyError as exc:
+            raise ValueError(f"action {self.value!r} is not a turn") from exc
+
+    @classmethod
+    def turn_to(cls, direction: Direction) -> "Action":
+        return _DIRECTION_ACTIONS[direction]
+
 
 _ACTION_LABELS = {
+    Action.TURN_TO_UP: "朝上",
+    Action.TURN_TO_DOWN: "朝下",
+    Action.TURN_TO_LEFT: "朝左",
+    Action.TURN_TO_RIGHT: "朝右",
     Action.FORWARD: "前进",
-    Action.TURN_LEFT: "左转",
-    Action.TURN_RIGHT: "右转",
-    Action.WAIT: "等待",
 }
+
+_ACTION_DIRECTIONS = {
+    Action.TURN_TO_UP: Direction.NORTH,
+    Action.TURN_TO_DOWN: Direction.SOUTH,
+    Action.TURN_TO_LEFT: Direction.WEST,
+    Action.TURN_TO_RIGHT: Direction.EAST,
+}
+
+_DIRECTION_ACTIONS = {direction: action for action, direction in _ACTION_DIRECTIONS.items()}
 
 
 @dataclass(frozen=True)
@@ -158,9 +155,7 @@ class Actor:
 
 @dataclass(frozen=True)
 class Cow(Actor):
-    """A cow with its own exit/flee behaviour."""
-
-    behavior: CowBehavior = CowBehavior.SEEK_EXIT
+    """A cow occupying a tile and facing a direction."""
 
 
 class GameStatus(str, Enum):
@@ -220,7 +215,6 @@ class Level:
     farmer_facing: Direction
     cow_positions: Tuple[Pos, ...]
     cow_facings: Tuple[Direction, ...]
-    cow_behaviors: Tuple[CowBehavior, ...] = ()
     exit_cells: Tuple[Pos, ...] = ()
     max_turns: int = 30
     prediction_steps: int = 5
@@ -316,7 +310,7 @@ class ActorTick:
 
 StateKey = Tuple[
     Tuple[int, int, int],
-    Tuple[Tuple[int, int, int, int], ...],
+    Tuple[Tuple[int, int, int], ...],
     Tuple[bool, ...],
 ]
 
@@ -332,6 +326,7 @@ class TickResult:
     escaped_index: Optional[int] = None
     loop_hint: bool = False
     blocked: bool = False
+    invalid: bool = False
     message: str = ""
 
 

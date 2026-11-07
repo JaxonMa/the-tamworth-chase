@@ -1,33 +1,41 @@
 {
   "title": "基础教程",
-  "subtitle": "从一脚油门到出口前的拦截",
-  "intro": "六节短课：开动、转向、看出口、利用墙、抢在牛前面，以及撤销与预测。",
+  "subtitle": "从转向、前进到出口前的拦截",
+  "intro": "七节短课：绝对方向转向、前进、出口、逃跑、地形遮挡、拦截，以及撤销与预测。",
   "badge": "基础",
   "accent": "leaf",
   "lessons": [
     {
       "id": "basics_01",
-      "name": "第一步",
-      "brief": "前进、左转、右转；转向会消耗回合。",
-      "goal": "抓住牧场上的牛。",
-      "practice": "先按 A/← 和 D/→ 各转一次，再抓住牛。",
+      "name": "朝哪走",
+      "brief": "W/A/S/D 或方向键改变绝对朝向，空格朝当前朝向走一格。",
+      "goal": "用转向和前进抓住牛。",
+      "practice": "先按 W/↑（当前已朝上）确认无效，再用转向和空格抓住牛。",
       "tips": [
         {
           "trigger": "start",
-          "text": "W/↑ 前进，A/← 左转，D/→ 右转。转向不移动，但会消耗一个回合。"
+          "text": "W/↑ 朝上，S/↓ 朝下，A/← 朝左，D/→ 朝右，空格前进。每回合必须转向或前进。"
         },
         {
-          "trigger": "step",
-          "text": "注意农夫有朝向：前进只会朝当前方向走一格。"
+          "trigger": "invalid",
+          "text": "已朝该方向。这次操作无效，回合数没有增加；也不能原地不动。"
+        },
+        {
+          "trigger": "turn",
+          "text": "转向会消耗一个回合，但不会移动。"
+        },
+        {
+          "trigger": "forward",
+          "text": "空格让农夫朝当前朝向前进一格。"
         },
         {
           "trigger": "win",
-          "text": "抓住了！接下来学会看出口。"
+          "text": "抓住了！现在你已经会用绝对方向驾驶农夫。"
         }
       ],
       "level": {
         "id": "basics_01",
-        "name": "第一步",
+        "name": "朝哪走",
         "grid": [
           "#######",
           "#.....#",
@@ -41,15 +49,14 @@
         "cow_facings": [
           "east"
         ],
-        "cow_behavior": "seek_exit",
         "exit_cells": [
           [
             1,
             1
           ]
         ],
-        "max_turns": 20,
-        "prediction_steps": 0,
+        "max_turns": 14,
+        "prediction_steps": 5,
         "exit_sight_range": 0,
         "sight_range": -1,
         "exit_tiebreak": "right",
@@ -57,9 +64,10 @@
         "cows_block_sight": false,
         "cows_block_each_other": false,
         "s_threshold": 6,
-        "a_threshold": 10,
-        "b_threshold": 14,
-        "require_turn": true
+        "a_threshold": 9,
+        "b_threshold": 12,
+        "require_invalid": true,
+        "require_forward": true
       }
     },
     {
@@ -67,11 +75,11 @@
       "name": "撞墙的代价",
       "brief": "撞墙前进位置不变，但会消耗回合。",
       "goal": "先撞一次墙，再抓住牛。",
-      "practice": "先按 W/↑ 撞一次墙，再转向抓牛。",
+      "practice": "先按空格朝北撞一次墙，再转向抓牛。",
       "tips": [
         {
           "trigger": "start",
-          "text": "农夫前面就是围栏。先按 W/↑ 试试，看看会发生什么。"
+          "text": "农夫前面就是围栏。按空格前进，看看会发生什么。"
         },
         {
           "trigger": "blocked",
@@ -102,45 +110,44 @@
         "cow_facings": [
           "east"
         ],
-        "cow_behavior": "seek_exit",
         "exit_cells": [
           [
             1,
             5
           ]
         ],
-        "max_turns": 24,
-        "prediction_steps": 0,
+        "max_turns": 18,
+        "prediction_steps": 5,
         "exit_sight_range": 0,
         "sight_range": -1,
         "exit_tiebreak": "right",
         "flee_tiebreak": "right",
         "cows_block_sight": false,
         "cows_block_each_other": false,
-        "s_threshold": 8,
+        "s_threshold": 9,
         "a_threshold": 12,
-        "b_threshold": 16,
+        "b_threshold": 15,
         "require_block": true
       }
     },
     {
       "id": "basics_03",
       "name": "出口在哪",
-      "brief": "牛会朝它看得见的出口走；这一关的出口就在右边。",
-      "goal": "观察牛的路线，用等待抓住它。",
-      "practice": "先按空格等待至少一回合，让牛自己走过来。",
+      "brief": "牛看不到农夫时，会朝它看得见的出口走。",
+      "goal": "观察牛的路线，在它到达出口前抓住它。",
+      "practice": "先观察牛朝出口移动，再转向前进拦截。",
       "tips": [
         {
           "trigger": "start",
-          "text": "金色格子是出口。牛会朝它看得见的出口走。"
+          "text": "金色格子是出口。牛看不到农夫时，会朝出口走。"
         },
         {
-          "trigger": "wait",
-          "text": "牛正在靠近。按空格让农夫等待，观察它的路线。"
+          "trigger": "step",
+          "text": "牛正在靠近出口。判断它的下一步，再决定农夫的方向。"
         },
         {
           "trigger": "win",
-          "text": "牛走进了农夫所在的格子。抓住它！"
+          "text": "在出口前抓住了！你已经看懂牛的路线。"
         }
       ],
       "level": {
@@ -149,8 +156,64 @@
         "grid": [
           "#######",
           "#.....#",
+          "#...F.#",
           "#.....#",
-          "#C..F.#",
+          "#C....#",
+          "#.....#",
+          "#######"
+        ],
+        "fj_start_direction": "north",
+        "cow_facings": [
+          "east"
+        ],
+        "exit_cells": [
+          [
+            4,
+            5
+          ]
+        ],
+        "max_turns": 12,
+        "prediction_steps": 5,
+        "exit_sight_range": -1,
+        "sight_range": -1,
+        "exit_tiebreak": "right",
+        "flee_tiebreak": "right",
+        "cows_block_sight": false,
+        "cows_block_each_other": false,
+        "s_threshold": 4,
+        "a_threshold": 6,
+        "b_threshold": 8,
+        "require_actions": 3
+      }
+    },
+    {
+      "id": "basics_04",
+      "name": "警觉的牛",
+      "brief": "牛看到农夫时会逃跑，头顶出现警觉图标。",
+      "goal": "从侧面或角落接近，抓住这头会躲的牛。",
+      "practice": "观察警觉图标，先移动再转向，从侧面拦住它。",
+      "tips": [
+        {
+          "trigger": "start",
+          "text": "农夫和牛在同一条直线上，牛已经看到你了。留意它头顶的警觉图标。"
+        },
+        {
+          "trigger": "step",
+          "text": "牛会主动拉开距离。不要一直正面直线逼近，试着从侧面拦住它。"
+        },
+        {
+          "trigger": "win",
+          "text": "会躲的牛也会被边界困住。你学会了观察警觉状态。"
+        }
+      ],
+      "level": {
+        "id": "basics_04",
+        "name": "警觉的牛",
+        "grid": [
+          "#######",
+          "#.....#",
+          "#.....#",
+          "#F...C#",
           "#.....#",
           "#.....#",
           "#######"
@@ -159,7 +222,62 @@
         "cow_facings": [
           "east"
         ],
-        "cow_behavior": "seek_exit",
+        "exit_cells": [
+          [
+            3,
+            3
+          ]
+        ],
+        "max_turns": 12,
+        "prediction_steps": 5,
+        "exit_sight_range": -1,
+        "sight_range": 6,
+        "exit_tiebreak": "right",
+        "flee_tiebreak": "right",
+        "cows_block_sight": false,
+        "cows_block_each_other": false,
+        "s_threshold": 6,
+        "a_threshold": 8,
+        "b_threshold": 10,
+        "require_actions": 3
+      }
+    },
+    {
+      "id": "basics_05",
+      "name": "墙后的伏击",
+      "brief": "固定地形会挡住牛的视线；它看不到农夫时，会按出口路线走。",
+      "goal": "利用墙挡住视线，再绕出来抓住牛。",
+      "practice": "先向右，再向下，从墙后绕出来。",
+      "tips": [
+        {
+          "trigger": "start",
+          "text": "农夫和牛之间隔着一堵墙，所以牛暂时看不到你，会朝出口走。"
+        },
+        {
+          "trigger": "step",
+          "text": "墙挡住了牛的视线。绕到它的侧面，突然出现。"
+        },
+        {
+          "trigger": "win",
+          "text": "固定地形改变了牛的判断。善用墙，就能创造拦截机会。"
+        }
+      ],
+      "level": {
+        "id": "basics_05",
+        "name": "墙后的伏击",
+        "grid": [
+          "#######",
+          "#F....#",
+          "##....#",
+          "#C....#",
+          "#.....#",
+          "#.....#",
+          "#######"
+        ],
+        "fj_start_direction": "east",
+        "cow_facings": [
+          "west"
+        ],
         "exit_cells": [
           [
             3,
@@ -167,79 +285,23 @@
           ]
         ],
         "max_turns": 10,
-        "prediction_steps": 0,
+        "prediction_steps": 5,
         "exit_sight_range": -1,
         "sight_range": -1,
         "exit_tiebreak": "right",
         "flee_tiebreak": "right",
         "cows_block_sight": false,
         "cows_block_each_other": false,
-        "s_threshold": 3,
-        "a_threshold": 5,
-        "b_threshold": 7,
-        "require_wait": true
+        "s_threshold": 4,
+        "a_threshold": 6,
+        "b_threshold": 8,
+        "require_actions": 3
       }
     },
     {
-      "id": "basics_04",
-      "name": "挡住直线",
-      "brief": "固定地形会挡住牛的视线，让它改为沿墙巡逻。",
-      "goal": "利用中间那堵墙改变牛的巡逻路线。",
-      "practice": "观察牛因为墙而右转。",
-      "tips": [
-        {
-          "trigger": "start",
-          "text": "牛和出口之间有一堵墙，所以它看不到出口，只能沿墙右转巡逻。"
-        },
-        {
-          "trigger": "step",
-          "text": "利用它撞墙右转的规律，把农夫开到它的下一格。"
-        },
-        {
-          "trigger": "win",
-          "text": "固定地形改变了牛的路线，这就是关卡设计的力量。"
-        }
-      ],
-      "level": {
-        "id": "basics_04",
-        "name": "挡住直线",
-        "grid": [
-          "#######",
-          "#F....#",
-          "#.....#",
-          "#C.#..#",
-          "#.....#",
-          "#.....#",
-          "#######"
-        ],
-        "fj_start_direction": "north",
-        "cow_facings": [
-          "east"
-        ],
-        "cow_behavior": "seek_exit",
-        "exit_cells": [
-          [
-            3,
-            5
-          ]
-        ],
-        "max_turns": 18,
-        "prediction_steps": 0,
-        "exit_sight_range": -1,
-        "sight_range": -1,
-        "exit_tiebreak": "right",
-        "flee_tiebreak": "right",
-        "cows_block_sight": false,
-        "cows_block_each_other": false,
-        "s_threshold": 6,
-        "a_threshold": 10,
-        "b_threshold": 14
-      }
-    },
-    {
-      "id": "basics_05",
+      "id": "basics_06",
       "name": "出口前的拦截",
-      "brief": "抢在牛到达出口前拦住它。",
+      "brief": "牛已经贴近出口，每一步都不能浪费。",
       "goal": "在牛到达出口前抓住它。",
       "practice": "先转向，再前进，抢在出口前拦住牛。",
       "tips": [
@@ -257,7 +319,7 @@
         }
       ],
       "level": {
-        "id": "basics_05",
+        "id": "basics_06",
         "name": "出口前的拦截",
         "grid": [
           "#######",
@@ -272,28 +334,28 @@
         "cow_facings": [
           "east"
         ],
-        "cow_behavior": "seek_exit",
         "exit_cells": [
           [
             3,
             5
           ]
         ],
-        "max_turns": 8,
-        "prediction_steps": 0,
+        "max_turns": 7,
+        "prediction_steps": 5,
         "exit_sight_range": -1,
         "sight_range": -1,
         "exit_tiebreak": "right",
         "flee_tiebreak": "right",
         "cows_block_sight": false,
         "cows_block_each_other": false,
-        "s_threshold": 3,
+        "s_threshold": 4,
         "a_threshold": 5,
-        "b_threshold": 7
+        "b_threshold": 6,
+        "require_actions": 3
       }
     },
     {
-      "id": "basics_06",
+      "id": "basics_07",
       "name": "预判与撤销",
       "brief": "预测路线，撤销走错的回合。",
       "goal": "打开预测，撤销一次，再抓住牛。",
@@ -317,7 +379,7 @@
         }
       ],
       "level": {
-        "id": "basics_06",
+        "id": "basics_07",
         "name": "预判与撤销",
         "grid": [
           "#######",
@@ -332,14 +394,13 @@
         "cow_facings": [
           "east"
         ],
-        "cow_behavior": "seek_exit",
         "exit_cells": [
           [
             1,
             1
           ]
         ],
-        "max_turns": 25,
+        "max_turns": 14,
         "prediction_steps": 6,
         "exit_sight_range": -1,
         "sight_range": -1,
@@ -348,8 +409,8 @@
         "cows_block_sight": false,
         "cows_block_each_other": false,
         "s_threshold": 6,
-        "a_threshold": 10,
-        "b_threshold": 14,
+        "a_threshold": 9,
+        "b_threshold": 12,
         "require_undo": true,
         "require_prediction": true
       }
