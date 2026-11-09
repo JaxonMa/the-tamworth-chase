@@ -60,7 +60,7 @@ class AchievementScene(Scene):
         self.back_button.draw(surface, self.fonts)
         for card, achievement in zip(self.cards, self.entries):
             self._draw_card(surface, card, achievement)
-        draw_footer(surface, self.fonts, "成就保存在本地存档里，与主线、教程进度分开记录")
+        draw_footer(surface, self.fonts, "成就保存在本地存档里，与主线进度分开记录")
 
     def _draw_card(self, surface: pygame.Surface, card: ui.Card, achievement) -> None:
         unlocked = self.store.has_achievement(achievement.achievement_id)

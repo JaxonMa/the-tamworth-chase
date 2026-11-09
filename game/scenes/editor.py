@@ -1,4 +1,4 @@
-"""Local level editor scene, including the editor tutorial lessons."""
+"""Local level editor scene with export-time solvability checks."""
 
 from __future__ import annotations
 
@@ -10,8 +10,9 @@ import pygame
 from .. import theme, ui
 from ..editor import EditorModel, PAINT_TILES, export_level, import_level, list_custom_levels
 from ..levels import LevelError
-from ..models import Direction, Level, Pos, TileKind
+from ..models import Direction, Pos, TileKind
 from ..render import CELL, ORIGIN, draw_grid
+from ..solver import solve_level
 from .base import Scene, draw_background, draw_footer, make_back_button
 
 TOOL_TERRAIN = "terrain"
@@ -28,21 +29,9 @@ TERRAIN_LABELS = {
     TileKind.POND: "水塘",
 }
 
-TASK_TEXT = {
-    "paint_wall": "在草地上画出 {count} 格栅栏。",
-    "set_exits": "画出 {count} 格出口，并打开「牛挡视线」。",
-    "set_rules": "调整回合上限和预测步数。",
-    "export_import": "导出一份关卡，再把它导入回来。",
-}
-
-
 class EditorScene(Scene):
-    def __init__(
-        self, app, tutorial_chapter: str = "", tutorial_lesson: Optional[Level] = None
-    ) -> None:
+    def __init__(self, app) -> None:
         super().__init__(app)
-        self.tutorial_chapter = tutorial_chapter
-        self.tutorial_lesson = tutorial_lesson
         self.back_button = make_back_button()
         self.model: EditorModel = EditorModel()
         self.tool = TOOL_TERRAIN
@@ -52,51 +41,16 @@ class EditorScene(Scene):
         self.toast_timer = 0.0
         self.modal: Optional[ui.Modal] = None
         self.import_buttons: List[ui.Button] = []
-        self.task_done = False
-        self.painted_walls: set = set()
-        self.farmer_moved = False
-        self.cow_moved = False
         self.exported_path: Optional[Path] = None
-        self.imported_once = False
+        self.pending_export = None
         self.buttons: List[ui.Button] = []
         self._build_widgets()
 
     # ------------------------------------------------------------------
     def on_enter(self) -> None:
-        if self.app.editor_model is not None and not self.tutorial_lesson:
+        if self.app.editor_model is not None:
             self.model = self.app.editor_model
-        elif self.tutorial_lesson is not None:
-            starter = self.level.extra.get("starter_grid")
-            if starter:
-                from ..levels import parse_level
-
-                payload = {
-                    "id": "editor_starter",
-                    "name": self.level.name,
-                    "grid": starter,
-                    "max_turns": 30,
-                    "prediction_steps": 5,
-                    "exit_cells": [[1, 1]],
-                }
-                try:
-                    self.model = EditorModel.from_level(
-                        parse_level(payload, source="custom")
-                    )
-                except LevelError:
-                    self.model = EditorModel()
-            else:
-                self.model = EditorModel()
         self._build_widgets()
-        if self.tutorial_lesson is not None and self.app.book is not None:
-            self.app.book.begin_lesson(
-                self.tutorial_chapter, self.level.tutorial_id or self.level.level_id
-            )
-
-    @property
-    def level(self) -> Level:
-        if self.tutorial_lesson is not None:
-            return self.tutorial_lesson
-        return self.app.levels[0]
 
     # ------------------------------------------------------------------
     def _build_widgets(self) -> None:
@@ -236,12 +190,10 @@ class EditorScene(Scene):
     def _paint(self, cell: Pos) -> None:
         if self.tool == TOOL_FARMER:
             if self.model.move_farmer(cell):
-                self.farmer_moved = True
                 self.app.sound.play("place")
             return
         if self.tool == TOOL_COW:
             if self.model.move_cow(cell):
-                self.cow_moved = True
                 self.app.sound.play("place")
             return
         if self.tool == TOOL_EXIT:
@@ -259,8 +211,6 @@ class EditorScene(Scene):
                 self.app.sound.play("error")
             return
         if self.model.set_tile(cell, self.brush):
-            if self.brush is TileKind.FENCE:
-                self.painted_walls.add(cell)
             self.app.sound.play("place")
 
     # ------------------------------------------------------------------
@@ -324,8 +274,6 @@ class EditorScene(Scene):
             self._open_import()
         elif action == "clear":
             self.model = EditorModel()
-            self.painted_walls.clear()
-            self.farmer_moved = self.cow_moved = False
             self._toast("牧场已经清空。")
 
     def _change_rule(self, index: int, delta: int) -> None:
@@ -361,15 +309,48 @@ class EditorScene(Scene):
             return
         try:
             level = self.model.to_level()
-            path = export_level(level)
+        except LevelError as exc:
+            self._toast(str(exc))
+            self.app.sound.play("error")
+            return
+        result = solve_level(level, max_nodes=50_000)
+        if result.solved:
+            self._finish_export(level, {"status": "solved", "shortest_turns": result.turns})
+            return
+        if result.status == "unsolvable":
+            self._toast("无法导出：求解器确认该关卡无解。请调整布局、出口或回合上限。")
+            self.app.sound.play("error")
+            return
+        self.pending_export = (level, result.reason or "limit")
+        self.modal = ui.Modal(
+            "可解性验证未完成",
+            "求解器在限定范围内没有找到解。\n"
+            "仍然导出时，文件会标记为「未验证」，导入与试玩时会提示。",
+            accent=theme.CLAY,
+            badge="未验证",
+            buttons=[
+                ui.Button(pygame.Rect(0, 0, 160, 50), "取消", "cancel", style="ghost"),
+                ui.Button(pygame.Rect(0, 0, 220, 50), "仍然导出（未验证）", "export_unverified", style="primary"),
+            ],
+            width=700,
+            height=390,
+        )
+
+    def _finish_export(self, level, verification) -> None:
+        try:
+            path = export_level(level, verification=verification)
         except (LevelError, OSError) as exc:
             self._toast(f"导出失败：{exc}")
             self.app.sound.play("error")
             return
         self.exported_path = path
+        self.pending_export = None
+        self.modal = None
         self.app.sound.play("unlock")
-        self._toast(f"已导出到 custom_levels/{path.name}")
-        self._check_task()
+        if verification.get("status") == "solved":
+            self._toast(f"已导出并通过可解性验证：{path.name}")
+        else:
+            self._toast(f"已导出（未验证）：{path.name}")
 
     def _open_import(self) -> None:
         files = list_custom_levels()
@@ -409,6 +390,15 @@ class EditorScene(Scene):
     def _modal_action(self, action: str) -> None:
         if action == "cancel":
             self.modal = None
+            self.pending_export = None
+            return
+        if action == "export_unverified":
+            if self.pending_export is not None:
+                level, reason = self.pending_export
+                self._finish_export(
+                    level,
+                    {"status": "unverified", "reason": reason},
+                )
             return
         if action.startswith("file:"):
             index = int(action.split(":", 1)[1])
@@ -420,74 +410,12 @@ class EditorScene(Scene):
                 self._toast(f"导入失败：{exc}")
                 return
             self.modal = None
-            self.imported_once = True
             self.app.sound.play("unlock")
-            self._toast(f"已导入《{level.name}》")
-            self._check_task()
-            return
-        if action == "tutorial_done":
-            self.modal = None
-            if self.app.book is not None:
-                self.app.open_tutorial_chapter(self.tutorial_chapter)
-            return
-        if action == "tutorial_next":
-            self.modal = None
-            self.app.open_next_tutorial_lesson(self.tutorial_chapter)
-
-    # ------------------------------------------------------------------
-    def _task(self) -> Optional[dict]:
-        if self.tutorial_lesson is None:
-            return None
-        task = self.tutorial_lesson.extra.get("editor_task")
-        return task if isinstance(task, dict) else None
-
-    def _task_progress(self) -> Tuple[int, int]:
-        task = self._task()
-        if not task:
-            return (0, 0)
-        kind = task.get("type")
-        if kind == "paint_wall":
-            target = int(task.get("count", 3))
-            return (min(len(self.painted_walls), target), target)
-        if kind == "set_exits":
-            target = int(task.get("count", 2))
-            exits = min(len(self.model.exits), target)
-            block = int(bool(task.get("block_sight")) and self.model.cows_block_sight)
-            total = target + int(bool(task.get("block_sight")))
-            return (exits + block, total)
-        if kind == "set_rules":
-            done = int(self.model.max_turns >= int(task.get("max_turns", 20)))
-            done += int(self.model.prediction_steps >= int(task.get("prediction_steps", 5)))
-            return (done, 2)
-        if kind == "export_import":
-            done = int(self.exported_path is not None) + int(self.imported_once)
-            return (done, 2)
-        return (0, 1)
-
-    def _check_task(self) -> None:
-        if self.task_done or self.tutorial_lesson is None:
-            return
-        done, total = self._task_progress()
-        if total == 0 or done < total:
-            return
-        self.task_done = True
-        if self.app.book is not None:
-            self.app.book.complete_lesson(
-                self.tutorial_chapter, self.tutorial_lesson.tutorial_id or self.tutorial_lesson.level_id
-            )
-        self.app.sound.play("win")
-        self.modal = ui.Modal(
-            "教程完成",
-            "这一课的目标完成了！\n编辑器里的改动可以随时导出成 JSON 文件。",
-            accent=theme.LEAF,
-            badge="教程",
-            buttons=[
-                ui.Button(pygame.Rect(0, 0, 170, 50), "下一课", "tutorial_next", style="primary"),
-                ui.Button(pygame.Rect(0, 0, 150, 50), "返回章节", "tutorial_done", style="ghost"),
-            ],
-            width=640,
-            height=340,
-        )
+            verification = level.extra.get("verification")
+            if isinstance(verification, dict) and verification.get("status") != "solved":
+                self._toast(f"已导入《{level.name}》；该关卡未通过自动可解性验证。")
+            else:
+                self._toast(f"已导入《{level.name}》")
 
     # ------------------------------------------------------------------
     def update(self, dt: float) -> None:
@@ -496,8 +424,6 @@ class EditorScene(Scene):
             self.toast_timer = max(0.0, self.toast_timer - dt)
         if self.modal is not None:
             self.modal.update(pygame.mouse.get_pos())
-        if self.tutorial_lesson is not None and not self.task_done and self.modal is None:
-            self._check_task()
 
     # ------------------------------------------------------------------
     def draw(self, surface: pygame.Surface) -> None:
@@ -505,9 +431,6 @@ class EditorScene(Scene):
         title = "关卡编辑器"
         badge = "编辑器"
         badge_color = theme.CLAY
-        if self.tutorial_lesson is not None:
-            badge = "教程"
-            badge_color = theme.SKY_DEEP
         theme.draw_text(surface, self.fonts, title, (62, 34), theme.FONT_H1, theme.INK, bold=True)
         ui.draw_pill(surface, self.fonts, badge, (62 + 300, 58), badge_color)
         theme.draw_text(
@@ -634,35 +557,16 @@ class EditorScene(Scene):
             self.rule_minus[index].draw(surface, self.fonts)
             self.rule_plus[index].draw(surface, self.fonts)
 
-        if self.tutorial_lesson is not None:
-            self._draw_task_box(surface, left, 594)
-        else:
-            hint = self.fonts.wrap(
-                "画地形、摆农夫与牛、设置出口和行为，再用试玩验证。",
-                theme.FONT_SMALL,
-                444,
-                theme.INK_SOFT,
-            )
-            surface.blit(hint, (left, 598))
+        hint = self.fonts.wrap(
+            "画地形、摆农夫与牛、设置出口和视线规则；导出前会自动做可解性验证。",
+            theme.FONT_SMALL,
+            444,
+            theme.INK_SOFT,
+        )
+        surface.blit(hint, (left, 598))
 
         for button in (self.play_button, self.export_button, self.import_button, self.clear_button):
             button.draw(surface, self.fonts)
-
-    def _draw_task_box(self, surface: pygame.Surface, x: int, y: int) -> None:
-        box = pygame.Rect(x, y, 444, 58)
-        theme.rounded_rect(surface, box, theme.SKY_PALE, radius=14)
-        theme.rounded_rect(surface, box, theme.SKY_DEEP, radius=14, width=2)
-        task = self._task() or {}
-        text = TASK_TEXT.get(str(task.get("type")), "完成编辑器练习。").format(
-            count=task.get("count", 3)
-        )
-        wrapped = self.fonts.wrap(text, theme.FONT_SMALL, 400, theme.INK)
-        surface.blit(wrapped, (box.left + 16, box.top + 6))
-        done, total = self._task_progress()
-        theme.draw_text(
-            surface, self.fonts, f"{done} / {total}", (box.right - 16, box.bottom - 8),
-            theme.FONT_TINY, theme.INK_SOFT, anchor="bottomright",
-        )
 
     def _draw_toast(self, surface: pygame.Surface) -> None:
         body = self.fonts.wrap(self.toast_text, theme.FONT_SMALL, 520, theme.WHITE_WARM)

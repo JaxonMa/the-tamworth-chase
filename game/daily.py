@@ -9,13 +9,12 @@ produces an unwinnable meadow, the next deterministic seed is tried.
 from __future__ import annotations
 
 import random
-from collections import deque
 from datetime import date
 from typing import Optional
 
-from .core import Simulation
 from .levels import parse_level
-from .models import Action, GameStatus, Level
+from .models import Level
+from .solver import solve_level
 
 DIRECTIONS = ("up", "right", "down", "left")
 
@@ -87,33 +86,8 @@ def _candidate(seed: int, level_id: str) -> Optional[Level]:
 
 
 def _solvable(level: Level, max_nodes: int = 24_000) -> bool:
-    """Bounded breadth-first search over the five farmer commands."""
-    start = Simulation(level)
-    queue = deque([start])
-    visited = {start.state_key()}
-    nodes = 0
-    actions = (
-        Action.TURN_TO_UP,
-        Action.TURN_TO_RIGHT,
-        Action.TURN_TO_DOWN,
-        Action.TURN_TO_LEFT,
-        Action.FORWARD,
-    )
-    while queue and nodes < max_nodes:
-        sim = queue.popleft()
-        nodes += 1
-        for action in actions:
-            probe = sim.clone()
-            tick = probe.apply_action(action)
-            if tick.status is GameStatus.WON:
-                return True
-            if tick.status.is_finished:
-                continue
-            key = probe.state_key()
-            if key not in visited:
-                visited.add(key)
-                queue.append(probe)
-    return False
+    """Bounded search using the shared core solver."""
+    return solve_level(level, max_nodes).solved
 
 
 def generate_daily(day: Optional[date] = None, attempts: int = 12) -> Level:

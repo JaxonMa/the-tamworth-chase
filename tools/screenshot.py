@@ -63,7 +63,7 @@ def scenario_play(app: App, path: Path) -> None:
 
 
 def scenario_play_flee(app: App, path: Path) -> None:
-    app.start_tutorial_lesson("advanced", "advanced_01")
+    app.start_level(app.levels[3])
     frames(app, 5)
     draw(app, path)
 
@@ -102,24 +102,6 @@ def scenario_play_exit(app: App, path: Path) -> None:
         app.update(1 / 60)
         if scene.result_shown:
             break
-    draw(app, path)
-
-
-def scenario_tutorial(app: App, path: Path) -> None:
-    app.open_scene("tutorial")
-    frames(app, 5)
-    draw(app, path)
-
-
-def scenario_tutorial_chapter(app: App, path: Path) -> None:
-    app.open_tutorial_chapter("basics")
-    frames(app, 5)
-    draw(app, path)
-
-
-def scenario_play_tutorial(app: App, path: Path) -> None:
-    app.start_tutorial_lesson("basics", "basics_01")
-    frames(app, 5)
     draw(app, path)
 
 
@@ -163,9 +145,6 @@ SCENARIOS = {
     "play_flee": scenario_play_flee,
     "play_win": scenario_play_win,
     "play_exit": scenario_play_exit,
-    "tutorial": scenario_tutorial,
-    "tutorial_chapter": scenario_tutorial_chapter,
-    "play_tutorial": scenario_play_tutorial,
     "challenge": scenario_challenge,
     "daily": scenario_daily,
     "achievements": scenario_achievements,

@@ -130,11 +130,77 @@ def test_blocked_forward_consumes_a_turn():
     assert sim.blocked_events == 1
 
 
-def test_farmer_can_enter_exit_tile():
+def test_farmer_cannot_enter_exit_tile():
     level = level_with((3, 4), "west", (1, 1), "north", exits=((3, 3),), sight_range=0)
     sim = Simulation(level)
-    sim.apply_action(Action.FORWARD)
-    assert sim.farmer.pos == (3, 3)
+    tick = sim.apply_action(Action.FORWARD)
+    assert sim.farmer.pos == (3, 4)
+    assert sim.farmer.facing is Direction.WEST
+    assert sim.turns == 1
+    assert tick.blocked is True
+    assert "出口不可通行" in tick.message
+
+
+def test_farmer_starting_on_an_exit_is_rejected():
+    with pytest.raises(LevelError) as error:
+        parse_level(
+            {
+                "id": "bad_start",
+                "name": "坏起点",
+                "grid": ["#######", "#F....#", "#..C..#", "#.....#", "#######"],
+                "exit_cells": [[1, 1]],
+            }
+        )
+    assert "农夫" in str(error.value) and "出口" in str(error.value)
+
+
+def test_flee_falls_back_to_exit_when_no_side_escape_exists():
+    level = level_with(
+        (1, 3),
+        "north",
+        (1, 1),
+        "north",
+        exits=((5, 1),),
+        sight_range=-1,
+        exit_sight_range=-1,
+    )
+    sim = Simulation(level)
+    tick = advance(sim)
+    # The cow cannot escape (forward/left are border; right is nearer to FJ),
+    # so it must fall through to exit seeking rather than turn in place forever.
+    assert tick.cows[0].moved is False
+    assert sim.cows[0].facing is not Direction.NORTH
+    # It must not keep rotating: the fallback eventually follows the exit route.
+    advance(sim)
+    advance(sim)
+    assert sim.cows[0].pos != (1, 1)
+
+
+def test_fully_boxed_cow_holds_still():
+    grid = [
+        "#######",
+        "##....#",
+        "#C#####",
+        "##....#",
+        "#....F#",
+        "#.....#",
+        "#######",
+    ]
+    level = parse_level(
+        {
+            "id": "boxed",
+            "name": "围死",
+            "grid": grid,
+            "fj_start_direction": "east",
+            "cow_facings": ["north"],
+            "exit_cells": [[1, 5]],
+            "sight_range": 0,
+        }
+    )
+    sim = Simulation(level)
+    tick = advance(sim)
+    assert tick.cows[0].moved is False
+    assert tick.cows[0].turned is False
 
 
 # ---------------------------------------------------------------------------

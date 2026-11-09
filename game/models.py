@@ -197,12 +197,6 @@ _RANK_COMMENTS = {
 
 
 @dataclass(frozen=True)
-class Tip:
-    trigger: str
-    text: str
-
-
-@dataclass(frozen=True)
 class Level:
     """A fully parsed, immutable level definition."""
 
@@ -233,11 +227,10 @@ class Level:
     order: int = 0
     group: str = "main"
     source: str = "main"
+    chapter: str = ""
+    learning_objective: str = ""
+    hint_text: Tuple[str, ...] = ()
     tags: Tuple[str, ...] = ()
-    tutorial_id: str = ""
-    goal_text: str = ""
-    tips: Tuple[Tip, ...] = ()
-    practice_text: str = ""
     extra: Mapping[str, object] = field(default_factory=dict)
 
     @property
@@ -280,10 +273,6 @@ class Level:
     @property
     def goal_summary(self) -> str:
         return "抓住全部牛"
-
-    @property
-    def has_tutorial(self) -> bool:
-        return bool(self.tips) or self.source == "tutorial"
 
     def rank_for(self, turns: int) -> Rank:
         if turns <= self.s_threshold:

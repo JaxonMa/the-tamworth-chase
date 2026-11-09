@@ -1,140 +1,116 @@
 {
   "level_01": {
-    "turns": 9,
+    "turns": 6,
     "actions": [
+      "turn_to_down",
       "turn_to_right",
       "forward",
       "forward",
       "forward",
-      "forward",
-      "turn_to_down",
-      "turn_to_up",
-      "forward",
       "forward"
     ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 95
   },
   "level_02": {
-    "turns": 7,
-    "actions": [
-      "turn_to_up",
-      "turn_to_right",
-      "turn_to_up",
-      "forward",
-      "forward",
-      "forward",
-      "forward"
-    ],
-    "status": "won"
-  },
-  "level_03": {
-    "turns": 14,
-    "actions": [
-      "turn_to_up",
-      "turn_to_right",
-      "turn_to_up",
-      "turn_to_right",
-      "turn_to_up",
-      "turn_to_right",
-      "forward",
-      "turn_to_up",
-      "forward",
-      "forward",
-      "forward",
-      "forward",
-      "forward",
-      "forward"
-    ],
-    "status": "won"
-  },
-  "level_04": {
-    "turns": 15,
-    "actions": [
-      "turn_to_right",
-      "forward",
-      "forward",
-      "turn_to_down",
-      "forward",
-      "forward",
-      "forward",
-      "turn_to_left",
-      "forward",
-      "forward",
-      "turn_to_down",
-      "forward",
-      "turn_to_left",
-      "forward",
-      "forward"
-    ],
-    "status": "won"
-  },
-  "level_05": {
     "turns": 9,
     "actions": [
-      "turn_to_up",
-      "forward",
-      "forward",
-      "forward",
       "turn_to_right",
       "forward",
+      "forward",
       "turn_to_up",
+      "turn_to_down",
+      "forward",
+      "forward",
       "forward",
       "forward"
     ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 266
+  },
+  "level_03": {
+    "turns": 4,
+    "actions": [
+      "turn_to_right",
+      "turn_to_down",
+      "forward",
+      "forward"
+    ],
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 22
+  },
+  "level_04": {
+    "turns": 7,
+    "actions": [
+      "forward",
+      "turn_to_down",
+      "forward",
+      "turn_to_right",
+      "forward",
+      "turn_to_down",
+      "forward"
+    ],
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 172
+  },
+  "level_05": {
+    "turns": 7,
+    "actions": [
+      "turn_to_right",
+      "turn_to_left",
+      "forward",
+      "turn_to_up",
+      "forward",
+      "forward",
+      "forward"
+    ],
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 134
   },
   "level_06": {
-    "turns": 20,
+    "turns": 4,
     "actions": [
-      "turn_to_up",
       "forward",
-      "turn_to_left",
-      "forward",
-      "forward",
-      "forward",
-      "turn_to_up",
-      "forward",
-      "forward",
-      "turn_to_right",
-      "forward",
-      "turn_to_up",
-      "forward",
-      "forward",
-      "forward",
-      "turn_to_right",
-      "forward",
-      "forward",
+      "turn_to_down",
       "forward",
       "forward"
     ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 22
   },
   "level_07": {
-    "turns": 19,
+    "turns": 4,
     "actions": [
       "turn_to_right",
-      "turn_to_up",
       "turn_to_down",
-      "forward",
-      "forward",
-      "forward",
-      "turn_to_right",
-      "forward",
-      "forward",
-      "forward",
-      "forward",
-      "turn_to_up",
-      "forward",
-      "forward",
-      "forward",
-      "forward",
-      "turn_to_left",
       "forward",
       "forward"
     ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 17
   },
   "level_08": {
+    "turns": 6,
+    "actions": [
+      "turn_to_down",
+      "turn_to_right",
+      "forward",
+      "forward",
+      "forward",
+      "forward"
+    ],
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 93
+  },
+  "level_09": {
     "turns": 19,
     "actions": [
       "turn_to_right",
@@ -157,24 +133,9 @@
       "forward",
       "forward"
     ],
-    "status": "won"
-  },
-  "level_09": {
-    "turns": 11,
-    "actions": [
-      "turn_to_down",
-      "forward",
-      "turn_to_right",
-      "forward",
-      "forward",
-      "forward",
-      "forward",
-      "turn_to_up",
-      "forward",
-      "forward",
-      "forward"
-    ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 1120
   },
   "level_10": {
     "turns": 25,
@@ -205,6 +166,8 @@
       "forward",
       "forward"
     ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 12607
   }
 }

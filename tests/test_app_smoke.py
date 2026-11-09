@@ -10,9 +10,6 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 SOLUTIONS = json.loads((ROOT / "tests" / "solutions.json").read_text(encoding="utf-8"))
-TUTORIAL_SOLUTIONS = json.loads(
-    (ROOT / "tests" / "tutorial_solutions.json").read_text(encoding="utf-8")
-)
 
 
 @pytest.fixture(scope="module")
@@ -59,10 +56,14 @@ def play_actions(app, actions, *, animate: bool = False):
     return scene
 
 
-def test_menu_renders(app):
+def test_menu_renders_without_tutorial_entry(app):
     app.open_scene("menu")
     surface = _render(app)
     assert surface.get_size() == (1280, 840)
+    labels = [button.text for button in app.scene.buttons]
+    assert "新手教程" not in labels
+    assert not hasattr(app, "catalog")
+    assert not hasattr(app, "book")
 
 
 def test_menu_main_button_opens_level_select_and_play(app):
@@ -89,7 +90,7 @@ def test_menu_main_button_opens_level_select_and_play(app):
 
 @pytest.mark.parametrize(
     "scene",
-    ["level_select", "settings", "tutorial", "challenge", "daily", "editor", "achievement"],
+    ["level_select", "settings", "challenge", "daily", "editor", "achievement"],
 )
 def test_top_level_scenes_render(app, scene):
     app.open_scene(scene)
@@ -138,7 +139,6 @@ def test_same_direction_key_is_invalid(app):
     scene._take_action(Action.TURN_TO_UP)
     assert scene.sim.turns == 0
     assert scene.toast_text == "已朝该方向"
-    assert scene.invalid_count == 1
     _render(app)
 
 
@@ -200,98 +200,6 @@ def test_turn_limit_modal(app):
     assert scene.modal.title == "回合数已用完"
 
 
-def test_tutorial_chapter_scene_renders(app):
-    app.open_tutorial_chapter("basics")
-    _render(app)
-    assert app.scene.chapter is not None
-    assert len(app.scene.chapter.lessons) == 7
-
-
-def test_tutorial_lesson_with_direction_practice(app):
-    from game.models import Action
-
-    app.start_tutorial_lesson("basics", "basics_01")
-    scene = app.scene
-    for action in TUTORIAL_SOLUTIONS["basics"]["basics_01"]["actions"]:
-        scene._take_action(Action(action))
-        scene.animator.clear()
-    for _ in range(120):
-        app.update(1 / 60)
-        if scene.result_shown:
-            break
-    assert scene.sim.status.value == "won"
-    assert app.store.lesson_state("basics", "basics_01") == "completed"
-
-
-def test_tutorial_block_practice(app):
-    from game.models import Action
-
-    app.store.set_lesson_state("basics", "basics_02", "not_started")
-    app.start_tutorial_lesson("basics", "basics_02")
-    scene = app.scene
-    for action in TUTORIAL_SOLUTIONS["basics"]["basics_02"]["actions"]:
-        scene._take_action(Action(action))
-        scene.animator.clear()
-    for _ in range(120):
-        app.update(1 / 60)
-        if scene.result_shown:
-            break
-    assert scene.sim.status.value == "won"
-    assert app.store.lesson_state("basics", "basics_02") == "completed"
-
-
-def test_tutorial_practice_gate_rejects_win_without_block(app):
-    from game.models import Action
-
-    app.store.set_lesson_state("basics", "basics_02", "not_started")
-    app.start_tutorial_lesson("basics", "basics_02")
-    scene = app.scene
-    # A winning route that never attempts the required blocked forward.
-    for action in (
-        Action.TURN_TO_RIGHT,
-        Action.FORWARD,
-        Action.FORWARD,
-        Action.TURN_TO_UP,
-        Action.TURN_TO_DOWN,
-        Action.FORWARD,
-        Action.FORWARD,
-        Action.FORWARD,
-        Action.FORWARD,
-    ):
-        scene._take_action(action)
-        scene.animator.clear()
-    for _ in range(120):
-        app.update(1 / 60)
-        if scene.result_shown:
-            break
-    assert scene.modal is not None
-    assert app.store.lesson_state("basics", "basics_02") != "completed"
-
-
-def test_tutorial_preview_and_undo_practice(app):
-    from game.models import Action
-
-    app.store.set_lesson_state("basics", "basics_07", "not_started")
-    app.start_tutorial_lesson("basics", "basics_07")
-    scene = app.scene
-    assert scene.show_prediction is False
-    scene._toggle_prediction()
-    assert scene.show_prediction is True
-    first = TUTORIAL_SOLUTIONS["basics"]["basics_07"]["actions"][0]
-    scene._take_action(Action(first))
-    scene.animator.clear()
-    scene._undo()
-    for action in TUTORIAL_SOLUTIONS["basics"]["basics_07"]["actions"]:
-        scene._take_action(Action(action))
-        scene.animator.clear()
-    for _ in range(120):
-        app.update(1 / 60)
-        if scene.result_shown:
-            break
-    assert scene.sim.status.value == "won"
-    assert app.store.lesson_state("basics", "basics_07") == "completed"
-
-
 def test_editor_export_import_flow(app, tmp_path, monkeypatch):
     from game import editor as editor_module
 
@@ -307,31 +215,7 @@ def test_editor_export_import_flow(app, tmp_path, monkeypatch):
     assert level.tile_at((3, 3)).value == "tree"
     assert level.exit_cells
     assert "cow_behavior" not in editor_module.level_to_dict(level)
-
-
-def test_editor_set_exits_tutorial_task(app):
-    lesson = app.catalog.find_lesson("editor", "editor_02")
-    app.start_editor_tutorial("editor", lesson)
-    scene = app.scene
-    scene._action("tool:exit")
-    scene._paint((3, 3))
-    scene._paint((3, 4))
-    scene._action("block_sight")
-    scene.update(1 / 60)
-    assert scene.task_done
-    assert app.store.lesson_state("editor", "editor_02") == "completed"
-
-
-def test_editor_paint_wall_tutorial_task(app):
-    lesson = app.catalog.find_lesson("editor", "editor_01")
-    app.start_editor_tutorial("editor", lesson)
-    scene = app.scene
-    scene._action("paint:fence")
-    for cell in ((4, 3), (4, 4), (4, 5)):
-        scene._paint(cell)
-    scene.update(1 / 60)
-    assert scene.task_done
-    assert app.store.lesson_state("editor", "editor_01") == "completed"
+    assert level.extra["verification"]["status"] == "solved"
 
 
 def test_challenge_level_runs(app):
@@ -357,6 +241,7 @@ def test_keyboard_controls_are_absolute(app):
     import pygame
     from game.models import Action
 
+    app.store.set_setting("preview", True)
     app.start_level(app.levels[0])
     scene = app.scene
     pygame.event.clear()
@@ -380,13 +265,73 @@ def test_keyboard_controls_are_absolute(app):
     assert scene.sim.turns == 0
 
 
-def test_no_prediction_level_shows_disabled_button(app):
-    app.start_level(app.levels[8])
+def test_learning_hints_progress_without_blocking(app):
+    from game.scenes.level_select import LevelSelectScene
+
+    app.open_scene("level_select")
+    assert isinstance(app.scene, LevelSelectScene)
+    card = app.scene.cards[0]
+    assert card.level.learning_objective
+    app.start_level(card.level)
     scene = app.scene
-    assert scene.level.prediction_steps == 0
-    assert scene.predict_button.enabled is False
-    assert scene.predict_button.text == "预测 无"
-    assert scene._prediction() == ()
+    assert scene.show_hints is True
+    assert scene.level.hint_text
+    assert scene.hint_index == 0
+    scene.update(9.1)
+    assert scene.hint_index == 1
+    _render(app)
+
+
+def test_learning_objective_does_not_gate_clear(app):
+    from dataclasses import replace
+
+    app.store.reset_main()
+    level = replace(
+        app.levels[0],
+        learning_objective="使用预测与撤销（仅作提示）",
+        hint_text=("这是提示，不是通关条件。",),
+    )
+    app.start_level(level)
+    scene = play_actions(app, SOLUTIONS["level_01"]["actions"])
+    assert scene.sim.status.value == "won"
+    assert app.store.main_cleared("level_01") is True
+    ids = [item.level_id for item in app.levels]
+    assert app.store.is_main_unlocked(ids, "level_02") is True
+    assert scene.modal is not None
+    assert "另一种解法" not in scene.modal.body
+
+
+def test_hints_setting_can_disable_teaching_hints(app):
+    app.store.set_setting("hints", False)
+    app.start_level(app.levels[0])
+    scene = app.scene
+    assert scene.show_hints is False
+    _render(app)
+    app.store.set_setting("hints", True)
+
+
+def test_farmer_cannot_step_onto_exit_in_ui(app):
+    from game.levels import parse_level
+    from game.models import Action
+
+    level = parse_level(
+        {
+            "id": "exit_block",
+            "name": "出口受阻",
+            "grid": ["#######", "#.....#", "#..C..#", "#.....#", "#F....#", "#.....#", "#######"],
+            "fj_start_direction": "east",
+            "cow_facings": ["north"],
+            "exit_cells": [[4, 2]],
+            "max_turns": 20,
+        }
+    )
+    app.start_level(level)
+    scene = app.scene
+    scene._take_action(Action.FORWARD)
+    assert scene.sim.turns == 1
+    assert scene.sim.farmer.pos == (4, 1)
+    assert scene.toast_text == "出口不可通行，本回合已消耗"
+    _render(app)
 
 
 def test_alert_toggle_persists(app):
@@ -405,3 +350,43 @@ def test_actions_do_not_include_wait():
         Action("wait")
     labels = {action.value for action in Action}
     assert labels == {"turn_to_up", "turn_to_down", "turn_to_left", "turn_to_right", "forward"}
+
+
+def test_editor_rejects_unsolvable_export(app, tmp_path, monkeypatch):
+    from game import editor as editor_module
+    from game.scenes import editor as editor_scene
+    from game.solver import SolveResult
+
+    monkeypatch.setattr(editor_module, "custom_levels_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        editor_scene,
+        "solve_level",
+        lambda level, max_nodes=50_000: SolveResult("unsolvable", reason="state space exhausted"),
+    )
+    app.open_scene("editor")
+    scene = app.scene
+    scene._export()
+    assert scene.exported_path is None
+    assert "无解" in scene.toast_text
+    assert not list(tmp_path.glob("*.json"))
+
+
+def test_editor_can_export_unverified_after_timeout(app, tmp_path, monkeypatch):
+    from game import editor as editor_module
+    from game.scenes import editor as editor_scene
+    from game.solver import SolveResult
+
+    monkeypatch.setattr(editor_module, "custom_levels_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        editor_scene,
+        "solve_level",
+        lambda level, max_nodes=50_000: SolveResult("limit", reason="node limit"),
+    )
+    app.open_scene("editor")
+    scene = app.scene
+    scene._export()
+    assert scene.modal is not None
+    scene._modal_action("export_unverified")
+    assert scene.exported_path is not None
+    payload = json.loads(scene.exported_path.read_text(encoding="utf-8"))
+    assert payload["levels"][0]["verification"]["status"] == "unverified"

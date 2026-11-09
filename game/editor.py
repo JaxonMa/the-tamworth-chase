@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Mapping, Optional, Set, Tuple
 
 from .levels import LevelError, level_to_dict, parse_level
 from .models import (
@@ -48,7 +48,7 @@ class EditorModel:
     width: int = 10
     height: int = 10
     tiles: List[List[TileKind]] = field(default_factory=list)
-    farmer: Pos = (8, 1)
+    farmer: Pos = (5, 5)
     farmer_facing: Direction = Direction.NORTH
     cows: List[Tuple[Pos, Direction]] = field(default_factory=list)
     active_cow: int = 0
@@ -81,7 +81,7 @@ class EditorModel:
                 border = row in (0, self.height - 1) or col in (0, self.width - 1)
                 line.append(TileKind.FENCE if border else TileKind.GRASS)
             self.tiles.append(line)
-        self.farmer = (self.height - 2, 1)
+        self.farmer = (5, 5)
         self.farmer_facing = Direction.NORTH
         self.cows = [((1, self.width - 2), Direction.NORTH)]
         self.active_cow = 0
@@ -359,7 +359,12 @@ def _slugify(name: str) -> str:
     return cleaned or "custom_level"
 
 
-def export_level(level: Level, directory: Optional[Path] = None) -> Path:
+def export_level(
+    level: Level,
+    directory: Optional[Path] = None,
+    *,
+    verification: Optional[Mapping[str, object]] = None,
+) -> Path:
     target_dir = Path(directory) if directory else custom_levels_dir()
     target_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -367,7 +372,9 @@ def export_level(level: Level, directory: Optional[Path] = None) -> Path:
     payload = level_to_dict(level)
     payload["id"] = level_id
     payload["exported_at"] = stamp
-    bundle = {"version": 4, "game": "The Tamworth Chase", "levels": [payload]}
+    if verification is not None:
+        payload["verification"] = dict(verification)
+    bundle = {"version": 5, "game": "The Tamworth Chase", "levels": [payload]}
     path = target_dir / f"{_slugify(level.name)}_{stamp}.json"
     path.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return path

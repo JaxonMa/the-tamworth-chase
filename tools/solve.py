@@ -1,7 +1,7 @@
 """Offline solver for the tank-driving, exit-escape chase.
 
-The game itself never imports this module.  It explores the five farmer commands
-with a breadth-first search and reports the shortest winning order sequence.
+The game itself never imports this module.  It calls the shared
+:mod:`game.solver` used by the tests and the editor's export check.
 
 Usage::
 
@@ -14,59 +14,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import time
-from collections import deque
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Dict, Optional, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from game.core import Simulation  # noqa: E402
 from game.levels import LevelError, load_level_file  # noqa: E402
-from game.models import Action, GameStatus, Level  # noqa: E402
-
-
-@dataclass
-class SolveResult:
-    solved: bool
-    turns: int = 0
-    actions: Tuple[str, ...] = ()
-    explored: int = 0
-    elapsed: float = 0.0
-
-
-def solve(level: Level, max_nodes: int = 400_000) -> SolveResult:
-    start_time = time.time()
-    start = Simulation(level)
-    actions = (
-        Action.TURN_TO_UP,
-        Action.TURN_TO_RIGHT,
-        Action.TURN_TO_DOWN,
-        Action.TURN_TO_LEFT,
-        Action.FORWARD,
-    )
-    queue = deque([(start, ())])
-    visited = {start.state_key()}
-    explored = 0
-    while queue and explored < max_nodes:
-        sim, path = queue.popleft()
-        explored += 1
-        for action in actions:
-            probe = sim.clone()
-            tick = probe.apply_action(action)
-            new_path = path + (action,)
-            if tick.status is GameStatus.WON:
-                return SolveResult(
-                    True, probe.turns, tuple(a.value for a in new_path), explored, time.time() - start_time
-                )
-            if tick.status.is_finished:
-                continue
-            key = probe.state_key()
-            if key not in visited:
-                visited.add(key)
-                queue.append((probe, new_path))
-    return SolveResult(False, 0, (), explored, time.time() - start_time)
+from game.models import Level  # noqa: E402
+from game.solver import solve_level  # noqa: E402
 
 
 def render_solution(level: Level) -> str:
@@ -92,7 +47,7 @@ def render_solution(level: Level) -> str:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Search for the shortest escape-chase solution")
+    parser = argparse.ArgumentParser(description="Search for a shortest escape-chase solution")
     parser.add_argument("path", nargs="?", default="levels/levels.json")
     parser.add_argument("--level", action="append", default=None)
     parser.add_argument("--json", action="store_true")
@@ -110,12 +65,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     for level in bundle:
         if wanted and level.level_id not in wanted:
             continue
-        result = solve(level, args.max_nodes)
+        result = solve_level(level, args.max_nodes)
         if args.json:
             output[level.level_id] = {
                 "turns": result.turns,
                 "actions": list(result.actions),
                 "status": "won" if result.solved else "unsolved",
+                "solver_status": result.status,
+                "explored": result.explored,
             }
             continue
         print(
@@ -124,11 +81,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             f"exit={list(level.exit_cells)})"
         )
         if result.solved:
-            print(f"  SOLVED in {result.turns} turns ({result.explored} states, {result.elapsed:.2f}s)")
+            print(
+                f"  SOLVED in {result.turns} turns "
+                f"({result.explored} states, {result.elapsed:.2f}s)"
+            )
             print(render_solution(level))
             print(f"  actions={list(result.actions)}")
         else:
-            print(f"  UNSOLVED ({result.explored} states, {result.elapsed:.2f}s)")
+            print(f"  {result.status.upper()} ({result.explored} states, {result.reason})")
     if args.json:
         print(json.dumps(output, ensure_ascii=False, indent=2))
     return 0

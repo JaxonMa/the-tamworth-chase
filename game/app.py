@@ -19,15 +19,14 @@ from .scenes.level_select import LevelSelectScene
 from .scenes.menu import MenuScene
 from .scenes.play import PlayScene
 from .scenes.settings import SettingsScene
-from .tutorial import TutorialBook, TutorialCatalog
 
 
 def project_path(relative: str):
     return project_root() / relative
 
+
 MVP_FEATURES = {"main", "settings"}
-ALL_FEATURES = {"main", "tutorial", "challenge", "daily", "editor", "achievement", "settings"}
-TUTORIAL_FEATURES = {"main", "tutorial", "settings"}
+ALL_FEATURES = {"main", "challenge", "daily", "editor", "achievement", "settings"}
 
 
 class App:
@@ -61,11 +60,7 @@ class App:
         }
         self.achievements = AchievementTracker(self.store)
         self.daily_cache: Dict[str, Level] = {}
-        self.book: Optional[TutorialBook] = None
-        self.catalog: Optional[TutorialCatalog] = None
         self.editor_model = None
-        if "tutorial" in self.features:
-            self._load_tutorials()
 
         self.scene: Optional[Scene] = None
         self.transition = 1.0
@@ -81,15 +76,6 @@ class App:
         except pygame.error:
             pass
 
-    def _load_tutorials(self) -> None:
-        try:
-            self.catalog = TutorialCatalog.load()
-            self.book = TutorialBook(self.store, self.catalog)
-        except LevelError:
-            self.catalog = None
-            self.book = None
-            self.features.discard("tutorial")
-
     # ------------------------------------------------------------------
     # Scene routing
     # ------------------------------------------------------------------
@@ -101,10 +87,6 @@ class App:
             scene = LevelSelectScene(self)
         elif key == "settings":
             scene = SettingsScene(self)
-        elif key == "tutorial":
-            from .scenes.tutorial_select import TutorialSelectScene
-
-            scene = TutorialSelectScene(self)
         elif key == "challenge":
             from .scenes.challenge import ChallengeScene
 
@@ -134,7 +116,6 @@ class App:
         level: Level,
         *,
         mode: str = "main",
-        chapter: str = "",
         challenge_key: str = "",
         daily_key: str = "",
         return_to: str = "level_select",
@@ -151,55 +132,12 @@ class App:
             level,
             mode=mode,
             level_number=number,
-            chapter=chapter,
             challenge_key=challenge_key,
             daily_key=daily_key,
             return_to=return_to,
         )
         self.scene.on_enter()
         self.transition = 1.0
-
-    def open_tutorial_chapter(self, chapter_id: str) -> None:
-        from .scenes.tutorial_select import TutorialChapterScene
-
-        if self.catalog is None or self.book is None:
-            self.open_scene("menu")
-            return
-        if self.scene is not None:
-            self.scene.on_exit()
-        self.scene = TutorialChapterScene(self, chapter_id)
-        self.scene.on_enter()
-        self.transition = 1.0
-
-    def start_editor_tutorial(self, chapter_id: str, lesson) -> None:
-        """Open the level editor with a tutorial task (added with the editor)."""
-        from .scenes.editor import EditorScene
-
-        if self.scene is not None:
-            self.scene.on_exit()
-        self.scene = EditorScene(self, tutorial_chapter=chapter_id, tutorial_lesson=lesson)
-        self.scene.on_enter()
-        self.transition = 1.0
-
-    def start_tutorial_lesson(self, chapter_id: str, lesson_id: str) -> None:
-        if self.catalog is None or self.book is None:
-            self.open_scene("menu")
-            return
-        lesson = self.catalog.find_lesson(chapter_id, lesson_id)
-        if lesson is None:
-            self.open_tutorial_chapter(chapter_id)
-            return
-        self.start_level(lesson, mode="tutorial", chapter=chapter_id, return_to="tutorial")
-
-    def open_next_tutorial_lesson(self, chapter_id: str) -> None:
-        if self.book is None:
-            self.open_scene("menu")
-            return
-        lesson = self.book.next_lesson(chapter_id)
-        if lesson is None:
-            self.open_tutorial_chapter(chapter_id)
-            return
-        self.start_tutorial_lesson(chapter_id, lesson.tutorial_id or lesson.level_id)
 
     # ------------------------------------------------------------------
     # Hooks

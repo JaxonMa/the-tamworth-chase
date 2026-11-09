@@ -50,11 +50,14 @@ class SettingsScene(Scene):
             "alerts",
             bool(store.get_setting("alerts", True)),
         )
-        self.reset_main_button = ui.Button(
-            pygame.Rect(118, 540, 250, 50), "重置主线进度", "reset_main", style="ghost"
+        self.hints_toggle = ui.Toggle(
+            pygame.Rect(118, 500, 520, 46),
+            "显示教学目标与提示",
+            "hints",
+            bool(store.get_setting("hints", True)),
         )
-        self.reset_tutorial_button = ui.Button(
-            pygame.Rect(388, 540, 250, 50), "重置教程进度", "reset_tutorial", style="ghost"
+        self.reset_main_button = ui.Button(
+            pygame.Rect(118, 556, 250, 46), "重置主线进度", "reset_main", style="ghost"
         )
         self.widgets = [
             self.sound_toggle,
@@ -62,8 +65,8 @@ class SettingsScene(Scene):
             self.effects_toggle,
             self.preview_toggle,
             self.alerts_toggle,
+            self.hints_toggle,
         ]
-        self.reset_tutorial_button.enabled = self.app.book is not None
 
     # ------------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -79,10 +82,9 @@ class SettingsScene(Scene):
             changed = widget.handle_event(event)
             if changed:
                 self._apply(widget)
-        for button in (self.reset_main_button, self.reset_tutorial_button):
-            action = button.handle_event(event)
-            if action:
-                self._ask_reset(action)
+        action = self.reset_main_button.handle_event(event)
+        if action:
+            self._ask_reset(action)
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self.app.open_scene("menu")
 
@@ -100,19 +102,15 @@ class SettingsScene(Scene):
             self.store.set_setting("preview", widget.value)
         elif widget is self.alerts_toggle:
             self.store.set_setting("alerts", widget.value)
+        elif widget is self.hints_toggle:
+            self.store.set_setting("hints", widget.value)
 
     def _ask_reset(self, key: str) -> None:
         self.app.sound.play("click")
-        if key == "reset_main":
-            title = "重置主线进度？"
-            body = "所有关卡的通关记录、最好回合数和评价都会清空。\n这个操作无法撤销。"
-            confirm = "确认重置"
-            self.pending_reset = "main"
-        else:
-            title = "重置教程进度？"
-            body = "教程的完成与跳过记录都会清空，主线进度不受影响。\n这个操作无法撤销。"
-            confirm = "确认重置"
-            self.pending_reset = "tutorial"
+        title = "重置主线进度？"
+        body = "所有关卡的通关记录、最好回合数和评价都会清空。\n这个操作无法撤销。"
+        confirm = "确认重置"
+        self.pending_reset = "main"
         self.modal = ui.Modal(
             title,
             body,
@@ -129,10 +127,7 @@ class SettingsScene(Scene):
         self.modal = None
         if action != "confirm":
             return
-        if self.pending_reset == "main":
-            self.store.reset_main()
-        else:
-            self.store.reset_tutorial()
+        self.store.reset_main()
         self.pending_reset = ""
         self.app.sound.play("unlock")
         self.app.open_scene("settings")
@@ -153,7 +148,6 @@ class SettingsScene(Scene):
             widget.draw(surface, self.fonts)
         ui.draw_divider(surface, 516, 118, 520)
         self.reset_main_button.draw(surface, self.fonts)
-        self.reset_tutorial_button.draw(surface, self.fonts)
 
         info = pygame.Rect(740, 150, 460, 470)
         theme.panel(surface, info)
@@ -162,13 +156,13 @@ class SettingsScene(Scene):
         lines = [
             "游戏名：The Tamworth Chase",
             "中文副标题：《塔姆沃斯追逐》",
-            "版本：1.3.0",
+            "版本：1.4.0",
             "界面字体：CEF Fonts CJK（本地内置）",
             "全部美术由程序绘制，运行时不联网。",
             "",
             "操作：W/↑ 朝上，S/↓ 朝下，A/← 朝左，D/→ 朝右，",
             "空格前进，U 撤销，R 重开，P 预测。",
-            "同方向转向无效；每回合必须行动。",
+            "同方向转向无效；出口对农夫不可通行。",
         ]
         y = info.top + 88
         for line in lines:

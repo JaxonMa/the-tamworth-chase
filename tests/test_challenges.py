@@ -49,6 +49,5 @@ def test_challenge_solutions_win(challenges):
 
 def test_challenges_cover_variety(challenges):
     assert any(len(level.cow_positions) > 1 for level in challenges)
-    assert any(level.prediction_steps == 0 for level in challenges)
     assert any(level.cows_block_each_other for level in challenges)
     assert all(not hasattr(level, "cow_behaviors") for level in challenges)

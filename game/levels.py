@@ -27,16 +27,10 @@ from .models import (
     Level,
     TileKind,
     TieBreak,
-    Tip,
 )
 from .paths import project_root
 
 LEVELS_FILE = "levels/levels.json"
-TUTORIAL_FILES = {
-    "basics": "tutorials/basics.json",
-    "advanced": "tutorials/advanced.json",
-    "editor": "tutorials/editor.json",
-}
 
 _FACING_BY_NAME = {
     "north": Direction.NORTH,
@@ -65,6 +59,10 @@ _LEGACY_KEYS = {
     "win_condition",
     "pen_cells",
     "cow_behavior",
+    "tips",
+    "practice",
+    "goal",
+    "tutorial_id",
     "speed",
     "pause",
     "auto_move",
@@ -121,7 +119,6 @@ def parse_level(
     source: str = "main",
     group: str = "main",
     order: int = 0,
-    tutorial_id: str = "",
 ) -> Level:
     if not isinstance(data, Mapping):
         raise LevelError("关卡数据必须是一个 JSON 对象")
@@ -228,6 +225,8 @@ def parse_level(
             raise LevelError(f"关卡 {name} 的出口 {pos} 在牧场外面")
         if tiles[pos[0]][pos[1]].blocking or pos in obstacles:
             raise LevelError(f"关卡 {name} 的出口 {pos} 落在障碍上")
+        if pos == farmer_start:
+            raise LevelError(f"关卡 {name} 的农夫不能站在出口 {pos} 上")
         if pos in blocked_actors:
             raise LevelError(f"关卡 {name} 的出口 {pos} 与角色重叠")
         if pos not in exits:
@@ -249,15 +248,14 @@ def parse_level(
     a_threshold = _int_field("a_threshold", max(s_threshold + 1, max_turns // 2), 1)
     b_threshold = _int_field("b_threshold", max(a_threshold + 1, max_turns * 3 // 4), 1)
 
-    tips_raw = data.get("tips") or []
-    tips: List[Tip] = []
-    for item in tips_raw:
-        if not isinstance(item, Mapping):
-            raise LevelError(f"关卡 {name} 的提示格式不正确")
-        text = str(item.get("text") or "").strip()
-        if not text:
-            continue
-        tips.append(Tip(trigger=str(item.get("trigger") or "start"), text=text))
+    hint_raw = data.get("hint_text") or []
+    if isinstance(hint_raw, str):
+        hint_raw = [hint_raw]
+    if not isinstance(hint_raw, Sequence):
+        raise LevelError(f"关卡 {name} 的 hint_text 必须是字符串或字符串列表")
+    hint_text = tuple(
+        str(item).strip() for item in hint_raw if str(item).strip()
+    )
 
     tags = tuple(str(tag) for tag in (data.get("tags") or []))
 
@@ -288,9 +286,9 @@ def parse_level(
         "hint",
         "description",
         "tags",
-        "tips",
-        "goal",
-        "practice",
+        "chapter",
+        "learning_objective",
+        "hint_text",
     } | _LEGACY_KEYS
 
     extra = {k: v for k, v in data.items() if k not in known}
@@ -325,11 +323,10 @@ def parse_level(
         order=order,
         group=group,
         source=source,
+        chapter=str(data.get("chapter") or group),
+        learning_objective=str(data.get("learning_objective") or ""),
+        hint_text=hint_text,
         tags=tags,
-        tutorial_id=tutorial_id,
-        goal_text=str(data.get("goal") or ""),
-        tips=tuple(tips),
-        practice_text=str(data.get("practice") or ""),
         extra=extra,
     )
 
@@ -397,15 +394,6 @@ def load_levels(path: Optional[Path] = None) -> Tuple[Level, ...]:
     return load_level_file(target, source="main")
 
 
-def load_tutorials(chapter: Optional[str] = None, path: Optional[Path] = None) -> Dict[str, Tuple[Level, ...]]:
-    chapters = [chapter] if chapter else list(TUTORIAL_FILES)
-    result: Dict[str, Tuple[Level, ...]] = {}
-    for key in chapters:
-        target = Path(path) if path and chapter else project_root() / TUTORIAL_FILES[key]
-        result[key] = load_level_file(target, source="tutorial")
-    return result
-
-
 def level_to_dict(level: Level) -> Dict[str, Any]:
     overlay: Dict[Tuple[int, int], str] = {pos: COW_CHAR for pos in level.cow_positions}
     overlay[level.farmer_start] = FARMER_CHAR
@@ -445,12 +433,12 @@ def level_to_dict(level: Level) -> Dict[str, Any]:
         payload["obstacles"] = [list(pos) for pos in level.obstacles]
     if level.tags:
         payload["tags"] = list(level.tags)
-    if level.tips:
-        payload["tips"] = [{"trigger": tip.trigger, "text": tip.text} for tip in level.tips]
-    if level.goal_text:
-        payload["goal"] = level.goal_text
-    if level.practice_text:
-        payload["practice"] = level.practice_text
+    if level.chapter:
+        payload["chapter"] = level.chapter
+    if level.learning_objective:
+        payload["learning_objective"] = level.learning_objective
+    if level.hint_text:
+        payload["hint_text"] = list(level.hint_text)
     return payload
 
 

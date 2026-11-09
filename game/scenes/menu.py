@@ -24,9 +24,6 @@ class MenuScene(Scene):
         self.modal: ui.Modal | None = None
         self.modal_action = ""
         self._scaled: dict = {}
-        self.intro_visible = False
-        self.intro_go = ui.Button(pygame.Rect(0, 0, 150, 46), "去教程", "intro_go", style="primary", font_size=theme.FONT_SMALL)
-        self.intro_later = ui.Button(pygame.Rect(0, 0, 150, 46), "以后再说", "intro_later", style="ghost", font_size=theme.FONT_SMALL)
         self._petals = [
             (0.2, 0.3, 0.5 + 0.1 * i, 1.0 + 0.15 * i) for i in range(9)
         ]
@@ -55,17 +52,10 @@ class MenuScene(Scene):
         }
         if not self.store.get_setting("seen_welcome"):
             self.store.set_setting("seen_welcome", True)
-        self.intro_visible = (
-            "tutorial" in self.app.features and not self.store.tutorial_intro_dismissed()
-        )
-        self.intro_go.rect.bottomleft = (700, 150)
-        self.intro_later.rect.bottomleft = (866, 150)
 
     def _build_buttons(self) -> List[ui.Button]:
         entries: List[Tuple[str, str, str]] = [("level_select", "主线关卡", "primary")]
         features = self.app.features
-        if "tutorial" in features:
-            entries.append(("tutorial", "新手教程", "sky"))
         if "challenge" in features:
             entries.append(("challenge", "挑战模式", "default"))
         if "daily" in features:
@@ -101,14 +91,6 @@ class MenuScene(Scene):
                 if action == "quit":
                     self.app.quit()
             return
-        if self.intro_visible:
-            if self.intro_go.handle_event(event):
-                self._dismiss_intro()
-                self.app.open_scene("tutorial")
-                return
-            if self.intro_later.handle_event(event):
-                self._dismiss_intro()
-                return
         for button in self.buttons:
             action = button.handle_event(event)
             if action:
@@ -116,11 +98,6 @@ class MenuScene(Scene):
                 return
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self._activate("quit")
-
-    def _dismiss_intro(self) -> None:
-        self.intro_visible = False
-        self.store.dismiss_tutorial_intro()
-        self.app.sound.play("click")
 
     def _activate(self, key: str) -> None:
         self.app.sound.play("click")
@@ -151,8 +128,6 @@ class MenuScene(Scene):
         self._draw_illustration(surface)
         for button in self.buttons:
             button.draw(surface, self.fonts)
-        if self.intro_visible:
-            self._draw_intro_banner(surface)
         draw_footer(
             surface,
             self.fonts,
@@ -160,34 +135,6 @@ class MenuScene(Scene):
         )
         if self.modal is not None:
             self.modal.draw(surface, self.fonts)
-
-    def _draw_intro_banner(self, surface: pygame.Surface) -> None:
-        rect = pygame.Rect(668, 40, 560, 156)
-        theme.soft_shadow(surface, rect, radius=20, alpha=48, offset=(0, 6))
-        theme.rounded_rect(surface, rect, theme.PANEL_BG, radius=20)
-        theme.rounded_rect(surface, rect, theme.SKY_DEEP, radius=20, width=2)
-        ui.draw_pill(surface, self.fonts, "教程", (rect.left + 52, rect.top + 28), theme.SKY_DEEP)
-        theme.draw_text(
-            surface,
-            self.fonts,
-            "初次游玩？试试新手教程。",
-            (rect.left + 96, rect.top + 16),
-            theme.FONT_H3,
-            theme.INK,
-            bold=True,
-        )
-        theme.draw_text(
-            surface,
-            self.fonts,
-            "独立章节：基础、进阶、编辑器，随时可以跳过。",
-            (rect.left + 24, rect.top + 62),
-            theme.FONT_SMALL,
-            theme.INK_SOFT,
-        )
-        self.intro_go.rect.topleft = (rect.left + 24, rect.top + 98)
-        self.intro_later.rect.topleft = (rect.left + 190, rect.top + 98)
-        self.intro_go.draw(surface, self.fonts)
-        self.intro_later.draw(surface, self.fonts)
 
     # ------------------------------------------------------------------
     def _draw_title(self, surface: pygame.Surface) -> None:

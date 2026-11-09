@@ -9,8 +9,7 @@ import pytest
 
 from game.editor import EditorModel, export_level, import_level, list_custom_levels
 from game.levels import parse_level
-from game.models import Direction, TileKind, TieBreak
-from game.tutorial import TutorialCatalog
+from game.models import TileKind, TieBreak
 
 
 @pytest.fixture()
@@ -147,36 +146,22 @@ def test_validation_flags_broken_limits(model):
     assert model.validate()
 
 
-def test_editor_tutorials_have_new_tasks():
-    catalog = TutorialCatalog.load()
-    chapter = catalog.get("editor")
-    assert chapter is not None
-    assert len(chapter.lessons) == 3
-    types = {lesson.extra.get("editor_task", {}).get("type") for lesson in chapter.lessons}
-    assert {"paint_wall", "set_exits", "export_import"} <= types
-    set_exits = next(
-        lesson.extra["editor_task"] for lesson in chapter.lessons
-        if lesson.extra.get("editor_task", {}).get("type") == "set_exits"
+def test_export_records_verification(tmp_path: Path, model):
+    level = model.to_level()
+    path = export_level(
+        level,
+        tmp_path,
+        verification={"status": "solved", "shortest_turns": 7},
     )
-    assert set_exits.get("block_sight") is True
-    for lesson in chapter.lessons:
-        assert lesson.extra.get("starter_grid")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["version"] == 5
+    assert payload["levels"][0]["verification"]["status"] == "solved"
+    imported = import_level(path)
+    assert imported.extra["verification"]["shortest_turns"] == 7
 
 
-def test_starter_grid_parses_with_exit():
-    catalog = TutorialCatalog.load()
-    chapter = catalog.get("editor")
-    for lesson in chapter.lessons:
-        starter = lesson.extra["starter_grid"]
-        level = parse_level(
-            {
-                "id": "starter",
-                "name": "起手牧场",
-                "grid": starter,
-                "max_turns": 40,
-                "initial_dummy": 0,
-                "exit_cells": [[1, 1]],
-            }
-        )
-        restored = EditorModel.from_level(level)
-        assert restored.validate() == []
+def test_default_editor_level_is_solvable(model):
+    from game.solver import solve_level
+
+    result = solve_level(model.to_level(), max_nodes=50_000)
+    assert result.solved

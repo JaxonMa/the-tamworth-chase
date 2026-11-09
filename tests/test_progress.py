@@ -1,4 +1,4 @@
-"""Tests for the local save store and the campaign/tutorial separation."""
+"""Tests for the local save store and old tutorial-progress migration."""
 
 from __future__ import annotations
 
@@ -8,13 +8,7 @@ from pathlib import Path
 import pytest
 
 from game.models import Rank
-from game.progress import (
-    TUTORIAL_COMPLETED,
-    TUTORIAL_IN_PROGRESS,
-    TUTORIAL_NOT_STARTED,
-    TUTORIAL_SKIPPED,
-    ProgressStore,
-)
+from game.progress import ProgressStore, SAVE_VERSION
 
 
 @pytest.fixture()
@@ -26,8 +20,9 @@ def test_defaults(store):
     assert store.get_setting("sound") is True
     assert store.get_setting("preview") is True
     assert store.get_setting("alerts") is True
+    assert store.get_setting("hints") is True
     assert store.main_levels == {}
-    assert store.lesson_state("basics", "b1") == TUTORIAL_NOT_STARTED
+    assert "tutorial" not in store.data
 
 
 def test_save_and_reload(tmp_path: Path):
@@ -75,53 +70,10 @@ def test_unlock_progression(store):
     assert store.is_main_unlocked(ids, "c") is True
 
 
-def test_tutorial_completion_does_not_unlock_campaign(store):
-    ids = ["a", "b"]
-    store.set_lesson_state("basics", "b1", TUTORIAL_COMPLETED)
-    store.set_lesson_state("basics", "b2", TUTORIAL_COMPLETED)
-    assert store.main_unlocked_count(ids) == 1
-    assert store.is_main_unlocked(ids, "b") is False
-
-
-def test_campaign_completion_does_not_touch_tutorial(store):
-    store.record_main_clear("a", 10, Rank.S)
-    assert store.lesson_state("basics", "b1") == TUTORIAL_NOT_STARTED
-    assert store.chapter_summary("basics", ["b1", "b2"]) == (0, 2)
-
-
-def test_tutorial_states(store):
-    store.set_lesson_state("basics", "b1", TUTORIAL_IN_PROGRESS, count_attempt=True)
-    assert store.lesson_state("basics", "b1") == TUTORIAL_IN_PROGRESS
-    assert store.lesson_attempts("basics", "b1") == 1
-    store.set_lesson_state("basics", "b1", TUTORIAL_COMPLETED)
-    assert store.lesson_state("basics", "b1") == TUTORIAL_COMPLETED
-    store.skip_lesson("basics", "b2")
-    assert store.lesson_state("basics", "b2") == TUTORIAL_SKIPPED
-    assert store.chapter_summary("basics", ["b1", "b2"]) == (2, 2)
-
-
-def test_skip_chapter(store):
-    store.set_lesson_state("basics", "b1", TUTORIAL_COMPLETED)
-    store.skip_chapter("basics", ["b1", "b2"])
-    assert store.chapter_skipped("basics") is True
-    assert store.lesson_state("basics", "b1") == TUTORIAL_COMPLETED
-    assert store.lesson_state("basics", "b2") == TUTORIAL_SKIPPED
-
-
-def test_reset_tutorial_keeps_campaign(store):
+def test_reset_main(store):
     store.record_main_clear("level_01", 8, Rank.S)
-    store.set_lesson_state("basics", "b1", TUTORIAL_COMPLETED)
-    store.reset_tutorial()
-    assert store.lesson_state("basics", "b1") == TUTORIAL_NOT_STARTED
-    assert store.main_result("level_01").cleared is True
-
-
-def test_reset_main_keeps_tutorial(store):
-    store.record_main_clear("level_01", 8, Rank.S)
-    store.set_lesson_state("basics", "b1", TUTORIAL_COMPLETED)
     store.reset_main()
     assert store.main_result("level_01").cleared is False
-    assert store.lesson_state("basics", "b1") == TUTORIAL_COMPLETED
 
 
 def test_corrupt_save_falls_back(tmp_path: Path):
@@ -166,7 +118,6 @@ def test_legacy_save_is_migrated_once(tmp_path: Path):
     assert store.main_result("level_01").best_turns == 7
     assert old_path.exists(), "the old save must never be deleted"
 
-    # A later launch reads the new file and does not migrate again.
     store.consume_notice()
     again = ProgressStore(new_path, legacy_path=old_path).load()
     assert again.migrated_from == ""
@@ -211,11 +162,46 @@ def test_legacy_step_records_are_migrated(tmp_path: Path):
         encoding="utf-8",
     )
     store = ProgressStore(path).load()
-    assert store.data["version"] == 5
+    assert store.data["version"] == SAVE_VERSION
     assert "speed" not in store.settings
-    assert json.loads(path.read_text(encoding="utf-8"))["version"] == 5
+    assert json.loads(path.read_text(encoding="utf-8"))["version"] == SAVE_VERSION
     result = store.main_result("level_01")
     assert result.best_turns == 9
     assert result.rank is Rank.A
     assert store.daily_result("2026-01-01")["turns"] == 12
     assert "obstacles" not in store.main_levels["level_01"]
+
+
+def test_old_tutorial_completions_merge_into_main(tmp_path: Path):
+    path = tmp_path / "save.json"
+    path.write_text(
+        json.dumps(
+            {
+                "version": 5,
+                "tutorial": {
+                    "intro_dismissed": True,
+                    "chapters": {
+                        "basics": {
+                            "lessons": {
+                                "basics_01": {"state": "completed"},
+                                "basics_02": {"state": "completed"},
+                            }
+                        },
+                        "advanced": {
+                            "lessons": {"advanced_02": {"state": "completed"}}
+                        },
+                        "editor": {"lessons": {"editor_01": {"state": "completed"}}},
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    store = ProgressStore(path).load()
+    assert SAVE_VERSION == 6
+    assert "tutorial" not in json.loads(path.read_text(encoding="utf-8"))
+    assert store.main_cleared("level_01") is True
+    assert store.main_cleared("level_02") is True
+    assert store.main_cleared("level_09") is True
+    assert store.main_cleared("level_03") is False
+    assert store.main_result("level_01").best_turns is None

@@ -69,6 +69,7 @@ class Board:
         self.height = level.height
         self.walls: FrozenSet[Pos] = level.wall_positions
         self.obstacles: FrozenSet[Pos] = frozenset(level.obstacles)
+        self.exits: FrozenSet[Pos] = frozenset(level.exit_cells)
 
     def inside(self, pos: Pos) -> bool:
         return 0 <= pos[0] < self.height and 0 <= pos[1] < self.width
@@ -76,8 +77,12 @@ class Board:
     def is_wall(self, pos: Pos) -> bool:
         return pos in self.walls
 
-    def walkable(self, pos: Pos) -> bool:
-        return self.inside(pos) and pos not in self.walls and pos not in self.obstacles
+    def walkable(self, pos: Pos, *, for_farmer: bool = False) -> bool:
+        if not self.inside(pos) or pos in self.walls or pos in self.obstacles:
+            return False
+        if for_farmer and pos in self.exits:
+            return False
+        return True
 
     def neighbours(self, pos: Pos) -> Iterable[Pos]:
         for direction in Direction:
@@ -153,10 +158,10 @@ class Simulation:
         return tuple(cow for cow, flag in zip(self.cows, self.caught) if not flag)
 
     def walkable_for_farmer(self, pos: Pos) -> bool:
-        return self.board.walkable(pos)
+        return self.board.walkable(pos, for_farmer=True)
 
     def blocked(self, pos: Pos) -> bool:
-        return not self.board.walkable(pos)
+        return not self.walkable_for_farmer(pos)
 
     # ------------------------------------------------------------------
     # Lines of sight
@@ -245,7 +250,10 @@ class Simulation:
                     return False
         return True
 
-    def _flee_tick(self, index: int, cow: Cow, cows: Sequence[Cow]) -> ActorTick:
+    def _flee_tick(
+        self, index: int, cow: Cow, cows: Sequence[Cow]
+    ) -> Optional[ActorTick]:
+        """Try a temporary escape, or return None to fall back to the exit."""
         distance = manhattan(cow.pos, self.farmer.pos)
         target = step_forward(cow.pos, cow.facing)
         if self._cow_can_enter(index, target, cows) and manhattan(target, self.farmer.pos) > distance:
@@ -255,19 +263,34 @@ class Simulation:
         right = cow.facing.clockwise()
         left_cell = step_forward(cow.pos, left)
         right_cell = step_forward(cow.pos, right)
+        left_open = self._cow_can_enter(index, left_cell, cows)
+        right_open = self._cow_can_enter(index, right_cell, cows)
         left_distance = manhattan(left_cell, self.farmer.pos)
         right_distance = manhattan(right_cell, self.farmer.pos)
-        if left_distance == right_distance:
+        left_escape = left_open and left_distance > distance
+        right_escape = right_open and right_distance > distance
+        if not left_escape and not right_escape:
+            # No useful escape this turn: seek the exit instead of spinning.
+            return None
+        if left_escape and right_escape and left_distance == right_distance:
             chosen = self.level.flee_tiebreak
         else:
             chosen = TieBreak.LEFT if left_distance > right_distance else TieBreak.RIGHT
         facing = left if chosen is TieBreak.LEFT else right
         return ActorTick(cow.pos, cow.pos, cow.facing, facing, False)
 
+    def _any_cow_step(self, index: int, cows: Sequence[Cow]) -> bool:
+        for direction in Direction:
+            if self._cow_can_enter(index, step_forward(cows[index].pos, direction), cows):
+                return True
+        return False
+
     def _patrol_tick(self, index: int, cow: Cow, cows: Sequence[Cow]) -> ActorTick:
         target = step_forward(cow.pos, cow.facing)
         if self._cow_can_enter(index, target, cows):
             return ActorTick(cow.pos, target, cow.facing, cow.facing, True)
+        if not self._any_cow_step(index, cows):
+            return ActorTick(cow.pos, cow.pos, cow.facing, cow.facing, False)
         return ActorTick(cow.pos, cow.pos, cow.facing, cow.facing.clockwise(), False)
 
     def _seek_exit_tick(self, index: int, cow: Cow, cows: Sequence[Cow]) -> ActorTick:
@@ -298,8 +321,13 @@ class Simulation:
 
     def _cow_tick(self, index: int, cows: Sequence[Cow]) -> ActorTick:
         cow = cows[index]
+        if not self._any_cow_step(index, cows):
+            # Fully boxed in: hold still rather than spin forever.
+            return ActorTick(cow.pos, cow.pos, cow.facing, cow.facing, False)
         if self._fj_visible(cow, index):
-            return self._flee_tick(index, cow, cows)
+            escape = self._flee_tick(index, cow, cows)
+            if escape is not None:
+                return escape
         return self._seek_exit_tick(index, cow, cows)
 
     # ------------------------------------------------------------------
@@ -398,7 +426,12 @@ class Simulation:
             self.farmer = Actor(start.pos, facing)
         else:
             target = step_forward(start.pos, start.facing)
-            if not self.board.walkable(target):
+            if target in self._exit_cells:
+                blocked = True
+                message = "出口不可通行，本回合已消耗"
+                self.blocked_events += 1
+                farmer_tick = ActorTick(start.pos, start.pos, start.facing, start.facing, False)
+            elif not self.board.walkable(target, for_farmer=True):
                 blocked = True
                 message = "前方受阻，本回合已消耗"
                 self.blocked_events += 1

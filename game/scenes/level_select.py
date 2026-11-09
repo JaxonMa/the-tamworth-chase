@@ -63,7 +63,11 @@ class LevelSelectScene(Scene):
                     ),
                     index=index,
                     best_turns=record.best_turns,
-                    rank=record.rank.value if record.rank else None,
+                    rank=(
+                        level.rank_for(record.best_turns).value
+                        if record.best_turns is not None
+                        else (record.rank.value if record.rank else None)
+                    ),
                     thumbnail=self._thumbnail(level),
                 )
             )
@@ -96,12 +100,12 @@ class LevelSelectScene(Scene):
     # ------------------------------------------------------------------
     def draw(self, surface: pygame.Surface) -> None:
         draw_background(surface)
-        cleared = sum(1 for card in self.cards if card.best_turns is not None)
+        cleared = sum(1 for card in self.cards if self.store.main_cleared(card.level.level_id))
         draw_header(
             surface,
             self.fonts,
             "主线关卡",
-            f"已通关 {cleared} / {len(self.cards)}",
+            f"已通关 {cleared} / {len(self.cards)} · 前 8 关为渐进教学",
             badge="主线",
             badge_color=theme.LEAF,
         )
@@ -110,7 +114,7 @@ class LevelSelectScene(Scene):
         draw_footer(
             surface,
             self.fonts,
-            "通关上一关即可解锁下一关 · 回合越少，评价越高",
+            "通关上一关即可解锁下一关 · 教学目标只用于提示，不阻塞通关",
         )
         self.back_button.draw(surface, self.fonts)
         if self.hover_card is not None and not self.hover_card.unlocked:
@@ -158,6 +162,16 @@ class LevelSelectScene(Scene):
                 (rect.right - 26, rect.top + 22),
                 theme.RANK_COLORS.get(card.rank, theme.INK_LIGHT),
             )
+        elif card.level.chapter:
+            theme.draw_text(
+                surface,
+                self.fonts,
+                self.fonts.ellipsize(card.level.chapter, theme.FONT_TINY, 100),
+                (rect.right - 12, rect.top + 10),
+                theme.FONT_TINY,
+                theme.INK_SOFT,
+                anchor="topright",
+            )
 
         name = self.fonts.render(
             self.fonts.ellipsize(card.level.name, theme.FONT_H3, rect.width - 28),
@@ -187,7 +201,7 @@ class LevelSelectScene(Scene):
             theme.INK_SOFT,
             anchor="center",
         )
-        hint = card.level.hint if card.unlocked else "完成上一关后解锁"
+        hint = card.level.learning_objective or card.level.hint
         hint = self.fonts.ellipsize(hint, theme.FONT_TINY, rect.width - 26)
         theme.draw_text(
             surface,

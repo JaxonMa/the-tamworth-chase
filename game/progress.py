@@ -1,9 +1,8 @@
-"""Local save data: main campaign progress, tutorial progress and settings.
+"""Local save data: main campaign progress, side modes and settings.
 
-The save file is a single JSON document with clearly separated sections.  The
-tutorial section is fully independent from the main campaign section: clearing
-tutorial lessons never unlocks a campaign level, and campaign progress never
-marks a tutorial lesson as done.
+The old independent tutorial section has been merged into the main campaign.
+Save version 6 drops that section and maps known completed tutorial lessons to
+their corresponding main levels where possible.
 """
 
 from __future__ import annotations
@@ -20,19 +19,20 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 from .models import LevelResult, Rank
 from .paths import data_override, ensure_data_dir, legacy_save_path, save_path
 
-SAVE_VERSION = 5
+SAVE_VERSION = 6
 
-TUTORIAL_NOT_STARTED = "not_started"
-TUTORIAL_IN_PROGRESS = "in_progress"
-TUTORIAL_COMPLETED = "completed"
-TUTORIAL_SKIPPED = "skipped"
-
-TUTORIAL_STATES = (
-    TUTORIAL_NOT_STARTED,
-    TUTORIAL_IN_PROGRESS,
-    TUTORIAL_COMPLETED,
-    TUTORIAL_SKIPPED,
-)
+OLD_TUTORIAL_TO_LEVEL = {
+    ("basics", "basics_01"): "level_01",
+    ("basics", "basics_02"): "level_02",
+    ("basics", "basics_03"): "level_03",
+    ("basics", "basics_04"): "level_04",
+    ("basics", "basics_05"): "level_06",
+    ("basics", "basics_06"): "level_07",
+    ("basics", "basics_07"): "level_08",
+    ("advanced", "advanced_01"): "level_04",
+    ("advanced", "advanced_02"): "level_09",
+    ("advanced", "advanced_03"): "level_10",
+}
 
 DEFAULT_SETTINGS: Dict[str, Any] = {
     "sound": True,
@@ -40,6 +40,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "low_effects": False,
     "preview": True,
     "alerts": True,
+    "hints": True,
     "seen_welcome": False,
 }
 
@@ -48,16 +49,11 @@ def _now() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
-def _empty_tutorial_chapter() -> Dict[str, Any]:
-    return {"lessons": {}, "skipped": False, "completed_at": ""}
-
-
 def default_save() -> Dict[str, Any]:
     return {
         "version": SAVE_VERSION,
         "settings": copy.deepcopy(DEFAULT_SETTINGS),
         "main": {"levels": {}},
-        "tutorial": {"chapters": {}, "intro_dismissed": False},
         "achievements": {},
         "challenges": {},
         "daily": {},
@@ -147,7 +143,7 @@ class ProgressStore:
 
     def _migrate(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         base = default_save()
-        for section in ("settings", "main", "tutorial", "achievements", "challenges", "daily"):
+        for section in ("settings", "main", "achievements", "challenges", "daily"):
             if isinstance(raw.get(section), dict):
                 base[section].update(raw[section])
         base["version"] = SAVE_VERSION
@@ -166,6 +162,7 @@ class ProgressStore:
         for entry in base["daily"].values():
             if isinstance(entry, dict) and "steps" in entry:
                 entry.setdefault("turns", entry.pop("steps"))
+        _merge_old_tutorial(raw, base)
         return base
 
     def save(self) -> None:
@@ -274,87 +271,6 @@ class ProgressStore:
         return total
 
     # ------------------------------------------------------------------
-    # Tutorial
-    # ------------------------------------------------------------------
-    @property
-    def tutorial(self) -> Dict[str, Any]:
-        return self.data.setdefault("tutorial", {"chapters": {}, "intro_dismissed": False})
-
-    def _chapter(self, chapter_id: str) -> Dict[str, Any]:
-        chapters = self.tutorial.setdefault("chapters", {})
-        chapter = chapters.setdefault(chapter_id, _empty_tutorial_chapter())
-        chapter.setdefault("lessons", {})
-        chapter.setdefault("skipped", False)
-        return chapter
-
-    def lesson_state(self, chapter_id: str, lesson_id: str) -> str:
-        lesson = self._chapter(chapter_id)["lessons"].get(lesson_id) or {}
-        state = str(lesson.get("state") or TUTORIAL_NOT_STARTED)
-        return state if state in TUTORIAL_STATES else TUTORIAL_NOT_STARTED
-
-    def lesson_attempts(self, chapter_id: str, lesson_id: str) -> int:
-        lesson = self._chapter(chapter_id)["lessons"].get(lesson_id) or {}
-        return int(lesson.get("attempts", 0) or 0)
-
-    def set_lesson_state(
-        self, chapter_id: str, lesson_id: str, state: str, *, count_attempt: bool = False
-    ) -> None:
-        if state not in TUTORIAL_STATES:
-            raise ValueError(f"unknown tutorial state: {state}")
-        chapter = self._chapter(chapter_id)
-        lesson = chapter["lessons"].setdefault(lesson_id, {"state": TUTORIAL_NOT_STARTED})
-        lesson["state"] = state
-        lesson["updated_at"] = _now()
-        if count_attempt:
-            lesson["attempts"] = int(lesson.get("attempts", 0)) + 1
-        if state == TUTORIAL_COMPLETED:
-            lesson["completed_at"] = _now()
-            chapter["skipped"] = False
-        self.save()
-
-    def skip_lesson(self, chapter_id: str, lesson_id: str) -> None:
-        self.set_lesson_state(chapter_id, lesson_id, TUTORIAL_SKIPPED)
-
-    def skip_chapter(self, chapter_id: str, lesson_ids: Iterable[str] = ()) -> None:
-        chapter = self._chapter(chapter_id)
-        chapter["skipped"] = True
-        for lesson_id in lesson_ids:
-            chapter["lessons"].setdefault(lesson_id, {"state": TUTORIAL_NOT_STARTED})
-        for lesson in chapter["lessons"].values():
-            if lesson.get("state") != TUTORIAL_COMPLETED:
-                lesson["state"] = TUTORIAL_SKIPPED
-        self.tutorial.setdefault("intro_dismissed", True)
-        self.save()
-
-    def reset_chapter(self, chapter_id: str) -> None:
-        chapters = self.tutorial.get("chapters", {})
-        chapters[chapter_id] = _empty_tutorial_chapter()
-        self.save()
-
-    def reset_tutorial(self) -> None:
-        self.data["tutorial"] = {"chapters": {}, "intro_dismissed": True}
-        self.save()
-
-    def chapter_summary(self, chapter_id: str, lesson_ids: Iterable[str]) -> Tuple[int, int]:
-        ids = list(lesson_ids)
-        done = sum(
-            1
-            for lesson_id in ids
-            if self.lesson_state(chapter_id, lesson_id) in (TUTORIAL_COMPLETED, TUTORIAL_SKIPPED)
-        )
-        return done, len(ids)
-
-    def chapter_skipped(self, chapter_id: str) -> bool:
-        return bool(self._chapter(chapter_id).get("skipped"))
-
-    def tutorial_intro_dismissed(self) -> bool:
-        return bool(self.tutorial.get("intro_dismissed", False))
-
-    def dismiss_tutorial_intro(self) -> None:
-        self.tutorial["intro_dismissed"] = True
-        self.save()
-
-    # ------------------------------------------------------------------
     # Achievements / challenges / daily
     # ------------------------------------------------------------------
     @property
@@ -416,6 +332,30 @@ class ProgressStore:
         self.data = default_save()
         self.save()
 
+
+def _merge_old_tutorial(raw: Dict[str, Any], base: Dict[str, Any]) -> None:
+    """Map known old tutorial completions onto main-level clears once."""
+    tutorial = raw.get("tutorial")
+    if not isinstance(tutorial, dict):
+        return
+    chapters = tutorial.get("chapters")
+    if not isinstance(chapters, dict):
+        return
+    for (chapter_id, lesson_id), level_id in OLD_TUTORIAL_TO_LEVEL.items():
+        chapter = chapters.get(chapter_id)
+        if not isinstance(chapter, dict):
+            continue
+        lessons = chapter.get("lessons")
+        if not isinstance(lessons, dict):
+            continue
+        lesson = lessons.get(lesson_id)
+        if not isinstance(lesson, dict) or lesson.get("state") != "completed":
+            continue
+        record = base["main"].setdefault("levels", {}).setdefault(
+            level_id, {"cleared": False}
+        )
+        record["cleared"] = True
+        record["migrated_from_tutorial"] = True
 
 def _rank_value(rank: Rank) -> int:
     return {"C": 1, "B": 2, "A": 3, "S": 4}[rank.value]

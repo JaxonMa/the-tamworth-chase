@@ -38,10 +38,10 @@ def test_level_ids_unique(levels):
     assert len(ids) == len(set(ids))
 
 
-def test_all_levels_are_10x10(levels):
+def test_level_canvases_are_supported_sizes(levels):
     for level in levels:
-        assert level.width == 10
-        assert level.height == 10
+        assert level.width in (7, 10)
+        assert level.height in (7, 10)
 
 
 def test_all_levels_have_chinese_text(levels):
@@ -86,11 +86,12 @@ def test_turn_limits_leave_room(levels):
         assert level.s_threshold < level.a_threshold < level.b_threshold
 
 
-def test_campaign_has_multi_cow_and_no_prediction_levels(levels):
+def test_campaign_has_multi_cow_levels(levels):
     by_id = {level.level_id: level for level in levels}
-    assert len(by_id["level_08"].cow_positions) == 2
+    assert len(by_id["level_09"].cow_positions) == 2
     assert len(by_id["level_10"].cow_positions) == 2
-    assert by_id["level_09"].prediction_steps == 0
+    assert all(level.learning_objective for level in levels[:8])
+    assert by_id["level_09"].chapter == "多牛挑战"
 
 
 def test_campaign_cows_use_the_unified_flee_behaviour(levels):
@@ -108,6 +109,8 @@ def test_level_to_dict_roundtrip(levels):
         assert restored.exit_cells == level.exit_cells
         assert restored.cow_positions == level.cow_positions
         assert restored.max_turns == level.max_turns
+        assert restored.learning_objective == level.learning_objective
+        assert restored.hint_text == level.hint_text
         assert "cow_behavior" not in payload
         assert restored.obstacles == level.obstacles
 
@@ -143,3 +146,17 @@ def test_legacy_level_gets_a_default_exit():
     assert level.exit_cells
     assert level.extra.get("legacy_exit") is True
     assert level.max_turns == 12
+
+
+def test_learning_fields_are_optional():
+    level = parse_level(
+        {
+            "id": "plain",
+            "name": "普通关",
+            "grid": ["#######", "#F....#", "#..C..#", "#.....#", "#######"],
+            "exit_cells": [[1, 5]],
+        }
+    )
+    assert level.learning_objective == ""
+    assert level.hint_text == ()
+    assert level.chapter == "main"

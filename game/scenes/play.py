@@ -9,11 +9,12 @@ import pygame
 from .. import theme, ui
 from ..animation import TurnAnimator
 from ..core import Simulation
-from ..models import Action, Direction, GameStatus, Level, Pos, Rank
+from ..models import Action, GameStatus, Level, Pos, Rank
 from ..render import BoardRenderer, BoardView, EffectSystem
 from .base import Scene, draw_footer
 
 RESULT_DELAY = 0.95
+HINT_DELAY = 9.0
 LOOP_COLOR = theme.SKY_DEEP
 EXIT_COLOR = theme.CLAY
 
@@ -28,7 +29,6 @@ class PlayScene(Scene):
         *,
         mode: str = "main",
         level_number: int = 0,
-        chapter: str = "",
         challenge_key: str = "",
         daily_key: str = "",
         return_to: str = "level_select",
@@ -37,7 +37,6 @@ class PlayScene(Scene):
         self.level = level
         self.mode = mode
         self.level_number = level_number
-        self.chapter = chapter or level.group
         self.challenge_key = challenge_key
         self.daily_key = daily_key
         self.return_to = return_to
@@ -47,33 +46,25 @@ class PlayScene(Scene):
         self.animator = TurnAnimator()
         self.effects = EffectSystem(bool(self.store.get_setting("low_effects", False)))
         self.show_prediction = bool(self.store.get_setting("preview", True))
-        if level.extra.get("require_prediction"):
-            self.show_prediction = False
         self.show_alerts = bool(self.store.get_setting("alerts", True))
+        self.show_hints = bool(self.store.get_setting("hints", True))
+        self.hint_index = 0
+        self.hint_timer = 0.0
         self.phase = "run"
         self.turns_since_result = 0.0
         self.result_timer = 0.0
         self.result_shown = False
-        self.practice_failed = False
         self.rank: Optional[Rank] = None
         self.new_record = False
         self.modal: Optional[ui.Modal] = None
         self.toast_text = ""
         self.toast_timer = 0.0
         self.loop_events = 0
-        self.action_count = 0
-        self.forward_count = 0
-        self.turn_directions: set[Direction] = set()
-        self.blocked_count = 0
-        self.undo_count = 0
-        self.invalid_count = 0
-        self.prediction_used = self.show_prediction
         self.trail_farmer: List[Pos] = []
         self.trail_cows: List[List[Pos]] = []
         self._prediction_cache: Tuple = ()
         self._prediction_key = None
         self.buttons: List[ui.Button] = []
-        self.tutorial = None
         self._seed_trails()
         self._build_buttons()
 
@@ -93,34 +84,17 @@ class PlayScene(Scene):
         self.alert_button = ui.Button(
             pygame.Rect(640, 112, 90, 44), "警觉 开", "alerts", style="ghost", font_size=theme.FONT_TINY
         )
-        self.skip_button = ui.Button(
-            pygame.Rect(764, 664, 444, 40),
-            "跳过本课",
-            "skip",
-            style="ghost",
-            font_size=theme.FONT_SMALL,
-        )
         self.buttons = [
             self.undo_button,
             self.restart_button,
             self.predict_button,
             self.alert_button,
         ]
-        if self.mode == "tutorial":
-            self.buttons.append(self.skip_button)
         self.back_button = ui.Button(
             pygame.Rect(theme.WINDOW_WIDTH - 190, 36, 130, 52), "返回", "back", style="ghost"
         )
 
     def on_enter(self) -> None:
-        if self.mode == "tutorial" and self.app.book is not None:
-            self.app.book.begin_lesson(
-                self.chapter, self.level.tutorial_id or self.level.level_id
-            )
-            from ..tutorial import TutorialSession
-
-            self.tutorial = TutorialSession(self.level)
-            self.tutorial.start()
         self._refresh_buttons()
 
     # ------------------------------------------------------------------
@@ -135,7 +109,6 @@ class PlayScene(Scene):
         else:
             self.predict_button.text = "预测 开" if self.show_prediction else "预测 关"
         self.alert_button.text = "警觉 开" if self.show_alerts else "警觉 关"
-        self.skip_button.enabled = not self.sim.status.is_finished
 
     def _seed_trails(self) -> None:
         self.trail_farmer = [self.sim.farmer.pos]
@@ -154,10 +127,6 @@ class PlayScene(Scene):
     def _toast(self, text: str, duration: float = 2.2) -> None:
         self.toast_text = text
         self.toast_timer = duration
-
-    def _tutorial_event(self, event: str) -> None:
-        if self.tutorial is not None:
-            self.tutorial.notify(event)
 
     # ------------------------------------------------------------------
     # Events
@@ -220,27 +189,18 @@ class PlayScene(Scene):
             self._toggle_prediction()
         elif action == "alerts":
             self._toggle_alerts()
-        elif action == "skip":
-            self._skip_tutorial()
 
     def _take_action(self, action: Action) -> None:
         if self.phase != "run" or self.animator.busy:
             return
         result = self.sim.apply_action(action)
         if result.invalid:
-            self.invalid_count += 1
             self._toast(result.message or "已朝该方向")
             self.app.sound.play("error")
-            self._tutorial_event("invalid")
             self._refresh_buttons()
             return
 
-        self.action_count += 1
-        if action is Action.FORWARD:
-            self.forward_count += 1
-        else:
-            self.turn_directions.add(action.direction)
-
+        self.hint_timer = 0.0
         self.animator.play(result)
         self.trail_farmer.append(self.sim.farmer.pos)
         for index, cow in enumerate(self.sim.cows):
@@ -248,14 +208,8 @@ class PlayScene(Scene):
                 self.trail_cows[index].append(cow.pos)
 
         if result.blocked:
-            self.blocked_count += 1
             self._toast(result.message)
             self.app.sound.play("error")
-            self._tutorial_event("blocked")
-        elif action is Action.FORWARD:
-            self._tutorial_event("forward")
-        else:
-            self._tutorial_event("turn")
 
         if result.caught_now:
             for index in result.caught_now:
@@ -265,23 +219,18 @@ class PlayScene(Scene):
                     self.effects.ring(center, theme.SUN, 70, 0.6)
             self._toast(f"抓住了 {len(result.caught_now)} 头牛！", 1.6)
             self.app.sound.play("place")
-            self._tutorial_event("catch")
 
         if result.loop_hint:
             self.loop_events += 1
             self._toast("局面进入循环。你仍然可以继续操作，换一个方向试试。", 2.8)
             self.app.sound.play("loop")
-            self._tutorial_event("loop")
 
         if result.escaped_index is not None:
             self._toast("牛从出口逃走了", 3.0)
             self.app.sound.play("lose")
-            self._tutorial_event("exit")
             self._begin_result()
         elif result.status.is_finished:
             self._begin_result()
-        else:
-            self._tutorial_event("step")
         self._refresh_buttons()
 
     def _begin_result(self) -> None:
@@ -301,43 +250,13 @@ class PlayScene(Scene):
             self.effects.ring(center, theme.SUN, 130, 0.9)
             self.effects.flying_hat(center)
             self.app.sound.play("win")
-            if self._practice_missing():
-                self.practice_failed = True
-                self.app.sound.play("error")
-            else:
-                self._record_win()
-                self._tutorial_event("win")
+            self._record_win()
         elif self.sim.status is GameStatus.LOST_EXIT:
             self.effects.ring(center, theme.CLAY, 90, 0.7)
             self.app.sound.play("lose")
         else:
             self.app.sound.play("lose")
         self._refresh_buttons()
-
-    def _practice_missing(self) -> bool:
-        if self.mode != "tutorial":
-            return False
-        extra = self.level.extra
-        required = {str(name).lower() for name in (extra.get("require_directions") or [])}
-        if required:
-            used = {direction.name.lower() for direction in self.turn_directions}
-            if not required.issubset(used):
-                return True
-        if extra.get("require_turn") and len(self.turn_directions) < 2:
-            return True
-        if extra.get("require_forward") and self.forward_count == 0:
-            return True
-        if extra.get("require_actions") and self.action_count < int(extra["require_actions"]):
-            return True
-        if extra.get("require_block") and self.blocked_count == 0:
-            return True
-        if extra.get("require_invalid") and self.invalid_count == 0:
-            return True
-        if extra.get("require_undo") and self.undo_count == 0:
-            return True
-        if extra.get("require_prediction") and not self.prediction_used:
-            return True
-        return False
 
     def _record_win(self) -> None:
         turns = self.sim.turns
@@ -350,10 +269,6 @@ class PlayScene(Scene):
             unlocked = self.app.achievements.newly_unlocked
             if unlocked:
                 self._toast(f"成就解锁：{unlocked[-1].name}", 3.0)
-        elif self.mode == "tutorial" and self.app.book is not None:
-            self.new_record = self.app.book.complete_lesson(
-                self.chapter, self.level.tutorial_id or self.level.level_id
-            )
         elif self.mode == "challenge":
             self.new_record = self.store.record_challenge_best(self.challenge_key, turns)
             self.app.on_level_cleared(
@@ -380,17 +295,15 @@ class PlayScene(Scene):
             self._toast("没有可以撤销的步骤了。")
             self.app.sound.play("error")
             return
-        self.undo_count += 1
         self.animator.clear()
         self.modal = None
         self.result_shown = False
         self.result_timer = 0.0
-        self.practice_failed = False
         self.rank = None
         self.new_record = False
+        self.hint_timer = 0.0
         self._seed_trails()
         self.phase = "run"
-        self._tutorial_event("undo")
         self.app.sound.play("undo")
         self._toast(f"已撤销，回到第 {self.sim.turns} 回合。")
         self._refresh_buttons()
@@ -401,23 +314,13 @@ class PlayScene(Scene):
         self.modal = None
         self.result_shown = False
         self.result_timer = 0.0
-        self.practice_failed = False
         self.rank = None
         self.new_record = False
-        self.action_count = 0
-        self.forward_count = 0
-        self.turn_directions: set[Direction] = set()
-        self.blocked_count = 0
-        self.undo_count = 0
-        self.invalid_count = 0
+        self.hint_index = 0
+        self.hint_timer = 0.0
         self.loop_events = 0
         self.phase = "run"
         self._seed_trails()
-        if self.mode == "tutorial":
-            from ..tutorial import TutorialSession
-
-            self.tutorial = TutorialSession(self.level)
-            self.tutorial.start()
         self.app.sound.play("click")
         self._refresh_buttons()
 
@@ -427,9 +330,7 @@ class PlayScene(Scene):
             self.app.sound.play("error")
             return
         self.show_prediction = not self.show_prediction
-        self.prediction_used = self.prediction_used or self.show_prediction
         self.store.set_setting("preview", self.show_prediction)
-        self._tutorial_event("predict")
         self.app.sound.play("click")
         self._refresh_buttons()
 
@@ -439,19 +340,8 @@ class PlayScene(Scene):
         self.app.sound.play("click")
         self._refresh_buttons()
 
-    def _skip_tutorial(self) -> None:
-        if self.mode != "tutorial" or self.app.book is None:
-            return
-        self.app.book.skip_lesson(
-            self.chapter, self.level.tutorial_id or self.level.level_id
-        )
-        self.app.sound.play("click")
-        self.app.open_tutorial_chapter(self.chapter)
-
     def _leave(self) -> None:
-        if self.mode == "tutorial":
-            self.app.open_tutorial_chapter(self.chapter)
-        elif self.mode == "editor":
+        if self.mode == "editor":
             self.app.open_scene("editor")
         elif self.return_to == "challenge":
             self.app.open_scene("challenge")
@@ -475,6 +365,16 @@ class PlayScene(Scene):
         if self.modal is not None:
             self.modal.update(pygame.mouse.get_pos())
             return
+        if (
+            self.phase == "run"
+            and self.show_hints
+            and self.animator.busy is False
+            and len(self.level.hint_text) > 1
+        ):
+            self.hint_timer += dt
+            if self.hint_timer >= HINT_DELAY:
+                self.hint_timer = 0.0
+                self.hint_index = min(self.hint_index + 1, len(self.level.hint_text) - 1)
         if self.phase == "result" and not self.result_shown:
             self.result_timer += dt
             if self.result_timer >= RESULT_DELAY:
@@ -486,21 +386,6 @@ class PlayScene(Scene):
     def _show_result(self) -> None:
         self.result_shown = True
         self._refresh_buttons()
-        if self.practice_failed:
-            self.modal = ui.Modal(
-                "还差一个练习",
-                f"这一课还要完成：{self.level.practice_text or '指定动作'}。\n"
-                "重开本课，完成练习后再抓住全部牛。",
-                accent=theme.SKY_DEEP,
-                badge="练习",
-                buttons=[
-                    ui.Button(pygame.Rect(0, 0, 170, 50), "重开本课", "retry", style="primary"),
-                    ui.Button(pygame.Rect(0, 0, 150, 50), "返回章节", "leave", style="ghost"),
-                ],
-                width=640,
-                height=330,
-            )
-            return
         if self.sim.status is GameStatus.WON:
             self._show_win_modal()
             return
@@ -526,26 +411,17 @@ class PlayScene(Scene):
     def _show_win_modal(self) -> None:
         turns = self.sim.turns
         rank = self.rank or self.level.rank_for(turns)
-        if self.mode == "tutorial":
-            body = f"用了 {turns} 回合，抓住全部牛。\n{rank.comment}"
-            self.modal = ui.Modal(
-                "教程完成",
-                body,
-                accent=theme.LEAF,
-                badge="教程",
-                buttons=[
-                    ui.Button(pygame.Rect(0, 0, 170, 50), "下一课", "next_lesson", style="primary"),
-                    ui.Button(pygame.Rect(0, 0, 150, 50), "重玩本课", "retry", style="ghost"),
-                    ui.Button(pygame.Rect(0, 0, 150, 50), "返回章节", "leave", style="ghost"),
-                ],
-                width=680,
-                height=360,
-            )
-            return
         record_text = "新的最好成绩！" if self.new_record else ""
+        teaching = (
+            f"本关学习：{self.level.learning_objective}\n"
+            if self.level.learning_objective
+            else ""
+        )
+        is_teaching = self.mode == "main" and bool(self.level.learning_objective)
+        grade_text = "" if is_teaching else f"{rank.comment}\n"
         body = (
             f"用了 {turns} 回合，抓住了 {len(self.sim.cows)} 头牛。\n"
-            f"{rank.comment}\n{record_text}"
+            f"{teaching}{grade_text}{record_text}"
         )
         buttons = [ui.Button(pygame.Rect(0, 0, 150, 50), "再玩一次", "retry", style="ghost")]
         if self.mode == "main" and self.level_number < len(self.app.levels):
@@ -557,7 +433,7 @@ class PlayScene(Scene):
             "全部抓住！",
             body,
             accent=theme.SUN,
-            badge=f"评价 {rank.value}",
+            badge="教学关" if is_teaching else f"评价 {rank.value}",
             buttons=buttons,
             width=680,
             height=380,
@@ -578,8 +454,6 @@ class PlayScene(Scene):
                 self.app.start_level(self.app.levels[self.level_number], mode="main")
             else:
                 self.app.open_scene("level_select")
-        elif action == "next_lesson":
-            self.app.open_next_tutorial_lesson(self.chapter)
 
     # ------------------------------------------------------------------
     # Drawing
@@ -624,7 +498,6 @@ class PlayScene(Scene):
         theme.draw_text(surface, self.fonts, title, (62, 34), theme.FONT_H1, theme.INK, bold=True)
         badge_map = {
             "main": ("主线", theme.LEAF),
-            "tutorial": ("教程", theme.SKY_DEEP),
             "challenge": ("挑战", theme.CLAY),
             "daily": ("每日", theme.SKY_DEEP),
             "editor": ("试玩", theme.SUN),
@@ -703,7 +576,6 @@ class PlayScene(Scene):
 
         label_map = {
             "main": f"第 {self.level_number:02d} 关",
-            "tutorial": "本课目标",
             "challenge": "挑战目标",
             "daily": "今日牧场",
             "editor": "自建关卡",
@@ -720,11 +592,14 @@ class PlayScene(Scene):
         ui.draw_divider(surface, y, left, width)
         y += 16
 
-        hint_text = self.level.goal_text or self.level.hint or self.level.description
-        if self.tutorial is not None and self.tutorial.active:
-            hint_text = self.level.goal_text or self.level.description
-        if hint_text:
-            wrapped = self.fonts.wrap(hint_text, theme.FONT_SMALL, width, theme.INK_SOFT)
+        if self.show_hints and self.level.learning_objective:
+            display_text = self.level.learning_objective
+        elif self.show_hints:
+            display_text = self.level.hint or self.level.description
+        else:
+            display_text = self.level.description
+        if display_text:
+            wrapped = self.fonts.wrap(display_text, theme.FONT_SMALL, width, theme.INK_SOFT)
             surface.blit(wrapped, (left, y))
             y += wrapped.get_height() + 10
 
@@ -738,56 +613,50 @@ class PlayScene(Scene):
             )
             y += 34
 
-        if self.tutorial is not None and self.tutorial.active:
-            self._draw_tutorial_box(surface, left, y, width)
-        else:
-            card = pygame.Rect(left, 438, width, 124)
-            theme.rounded_rect(surface, card, theme.CREAM, radius=14)
-            theme.rounded_rect(surface, card, theme.PANEL_BORDER, radius=14, width=2)
+        if self.show_hints and self.level.hint_text:
+            self._draw_hint_box(surface, left, y, width)
+            y += 112
+        card_y = max(438, y)
+        card = pygame.Rect(left, card_y, width, 142)
+        theme.rounded_rect(surface, card, theme.CREAM, radius=14)
+        theme.rounded_rect(surface, card, theme.PANEL_BORDER, radius=14, width=2)
+        theme.draw_text(
+            surface, self.fonts, "本关规则", (card.left + 16, card.top + 10),
+            theme.FONT_TINY, theme.INK_LIGHT,
+        )
+        lines = [
+            "W/↑ 朝上 · S/↓ 朝下 · A/← 朝左 · D/→ 朝右",
+            "空格前进 · U 撤销 · R 重开 · P 预测",
+            f"回合上限 {self.level.max_turns} · 预测 {self.level.prediction_steps} 步",
+            "金色出口：牛可进入，农夫不可通行",
+        ]
+        line_y = card.top + 34
+        for line in lines:
             theme.draw_text(
-                surface, self.fonts, "本关规则", (card.left + 16, card.top + 10),
-                theme.FONT_TINY, theme.INK_LIGHT,
+                surface, self.fonts, line, (card.left + 16, line_y),
+                theme.FONT_SMALL, theme.INK_SOFT,
             )
-            lines = [
-                "W/↑ 朝上 · S/↓ 朝下 · A/← 朝左 · D/→ 朝右",
-                "空格前进 · U 撤销 · R 重开 · P 预测",
-                f"回合上限 {self.level.max_turns} · 预测 {self.level.prediction_steps} 步",
-            ]
-            line_y = card.top + 34
-            for line in lines:
-                theme.draw_text(
-                    surface, self.fonts, line, (card.left + 16, line_y),
-                    theme.FONT_SMALL, theme.INK_SOFT,
-                )
-                line_y += 26
+            line_y += 26
 
-        if self.mode == "tutorial":
-            self.skip_button.draw(surface, self.fonts)
-
-    def _draw_tutorial_box(self, surface: pygame.Surface, x: int, y: int, width: int) -> None:
-        box = pygame.Rect(x, y, width, 176)
+    def _draw_hint_box(self, surface: pygame.Surface, x: int, y: int, width: int) -> None:
+        box = pygame.Rect(x, y, width, 102)
         theme.rounded_rect(surface, box, theme.SKY_PALE, radius=16)
         theme.rounded_rect(surface, box, theme.SKY_DEEP, radius=16, width=2)
-        ui.draw_pill(surface, self.fonts, "提示", (box.left + 44, box.top + 22), theme.SKY_DEEP)
-        text = self.fonts.wrap(self.tutorial.active or "", theme.FONT_SMALL, width - 48, theme.INK)
+        ui.draw_pill(surface, self.fonts, "教学提示", (box.left + 54, box.top + 22), theme.SKY_DEEP)
+        text = self.fonts.wrap(
+            self.level.hint_text[self.hint_index],
+            theme.FONT_SMALL,
+            width - 40,
+            theme.INK,
+        )
         surface.blit(text, (box.left + 20, box.top + 44))
-        if self.level.practice_text:
-            ui.draw_pill(surface, self.fonts, "练习", (box.left + 44, box.top + 108), theme.CREAM_DARK)
-            practice = self.fonts.wrap(
-                self.level.practice_text, theme.FONT_TINY, width - 110, theme.INK_SOFT
-            )
-            surface.blit(practice, (box.left + 84, box.top + 98))
-            if practice.get_height() > 40:
-                bar_y = box.bottom - 14
-            else:
-                bar_y = box.bottom - 16
-        else:
-            bar_y = box.bottom - 16
-        ratio = self.tutorial.progress_ratio
-        bar = pygame.Rect(box.left + 20, bar_y, width - 40, 8)
-        theme.rounded_rect(surface, bar, theme.CREAM_DARK, radius=4)
-        filled = pygame.Rect(bar.left, bar.top, int(bar.width * ratio), bar.height)
-        theme.rounded_rect(surface, filled, theme.SKY_DEEP, radius=4)
+        counter = self.fonts.render(
+            f"{self.hint_index + 1}/{len(self.level.hint_text)}",
+            theme.FONT_TINY,
+            theme.INK_LIGHT,
+            True,
+        )
+        surface.blit(counter, (box.right - 18 - counter.get_width(), box.top + 14))
 
     def _draw_footer(self, surface: pygame.Surface) -> None:
         draw_footer(
@@ -797,7 +666,7 @@ class PlayScene(Scene):
         )
         if self.show_prediction and self.level.prediction_steps > 0 and self.toast_timer <= 0:
             text = self.fonts.wrap(
-                f"半透明脚印 = 牛接下来 {self.level.prediction_steps} 回合的路线（基于 Farmer John 当前位置与朝向不变）",
+                f"半透明脚印 = 牛接下来 {self.level.prediction_steps} 回合的路线（基于农夫当前位置与朝向不变）",
                 theme.FONT_TINY,
                 theme.BOARD_SIZE,
                 theme.INK_LIGHT,

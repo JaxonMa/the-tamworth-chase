@@ -28,7 +28,9 @@
       "forward",
       "forward"
     ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 12607
   },
   "chal_flee": {
     "turns": 20,
@@ -48,13 +50,15 @@
       "forward",
       "forward",
       "forward",
+      "forward",
       "turn_to_right",
       "forward",
-      "forward",
-      "forward",
+      "turn_to_down",
       "forward"
     ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 1436
   },
   "chal_blind": {
     "turns": 11,
@@ -71,7 +75,9 @@
       "forward",
       "forward"
     ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 381
   },
   "chal_block": {
     "turns": 19,
@@ -96,7 +102,9 @@
       "forward",
       "forward"
     ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 1120
   },
   "chal_tight": {
     "turns": 9,
@@ -111,6 +119,8 @@
       "forward",
       "forward"
     ],
-    "status": "won"
+    "status": "won",
+    "solver_status": "solved",
+    "explored": 499
   }
 }
