@@ -47,6 +47,8 @@ deleted.
 
 - **Pure driving.** No placement phase and no player-placed obstacle. A level
   starts immediately; every turn the player turns or moves.
+- **Mirrored play layout.** Level guidance and teaching hints live in the left
+  sidebar; the board, turn/cow stats and action buttons are on the right.
 - **Absolute steering.** `W`/`↑` faces up, `S`/`↓` faces down, `A`/`←` faces
   left, `D`/`→` faces right, and Space moves one tile in the current direction.
   The direction matching the current facing is invalid and free.
@@ -121,10 +123,13 @@ comments, docstrings and commit messages are English.
 | `Esc` | Return to the previous screen |
 
 Pressing the direction that matches the current facing shows **已朝该方向** and
-does not consume a turn. The top bar also has **撤销**, **重开**, **预测** and
-**警觉** buttons. Teaching hints can be switched off in Settings. There is no
-wait command and no player-controlled gameplay pause, single-step or speed
-control. The only pause is the optional pause inside solution playback.
+does not consume a turn. The right-hand toolbar labels its shortcuts directly
+on the buttons: **`[U] 撤销`**, **`[R] 重开`**, **`[P] 预测 开/关`**, plus
+**警觉**. The left sidebar shows the level objective, a short description, the
+goal and the current teaching card. Teaching hints can be switched off in
+Settings. There is no wait command and no player-controlled gameplay pause,
+single-step or speed control. The only pause is the optional pause inside
+solution playback.
 
 ## Rules
 
@@ -223,7 +228,7 @@ A failed attempt can be inspected with **显示解法** in the failure dialog.
 - Playback opens a separate simulation. The failed run object and its undo
   history are left untouched, so progress, achievements and best times are not
   changed by the computer's moves.
-- The board stays visible. The top bar shows **暂停 / 继续**, **退出演示**, and
+- The board stays visible. The right-hand toolbar shows **暂停 / 继续**, **退出演示**, and
   the current step count. The panel explains that the playback is not scored.
   Tutorial hints and the normal action buttons are hidden during playback.
 - Player actions, restart shortcuts and the back button are ignored while the
@@ -264,8 +269,10 @@ The ten main levels are a single learning sequence:
 
 - Levels 1–8 are teaching levels; 9–10 combine the mechanics.
 - Each level has a Chinese `learning_objective` and a list of `hint_text`
-  prompts. The objective is shown in play and on the level card; hints appear
-  one at a time while the player is stuck.
+  prompts. The objective and description appear in the left sidebar; the current
+  hint appears in a high-contrast card in the lower sidebar (the old rules slot),
+  with a page count, **下一条** button and progress dots. The card advances
+  automatically after 9 seconds or manually through the button.
 - Completion unlocks the next level regardless of which mechanics were used.
   There are no practice gates and no separate tutorial progress.
 - Teaching levels hide the S/A/B/C badge in the victory dialog; the internal
@@ -279,9 +286,10 @@ stays at his current position and facing. It is drawn as translucent footprints
 and dashed paths, with a Chinese caption explaining the assumption. A predicted
 cow reaching an exit is marked in red. `0` disables the preview for that level.
 
-The top bar's **警觉** button toggles alert icons above fleeing cows; Settings
-also has a **显示教学目标与提示** switch for teaching guidance. During solution
-playback the preview is hidden so the replay stays easy to read.
+The right-hand toolbar's **警觉** button toggles alert icons above fleeing cows;
+Settings also has a **显示教学目标与提示** switch for teaching guidance. The
+prediction caption sits below the right-hand board. During solution playback the
+preview is hidden so the replay stays easy to read.
 
 If the complete pose — farmer position/facing, every cow position/facing and
 caught flags — repeats, a Chinese **局面进入循环** hint appears. It never loses
@@ -443,8 +451,10 @@ order, cow sight and range, unified flee priority, flee-to-exit fallback,
 boxed-in cows, exit seeking, exit/flee tiebreaks, all-caught wins, any-exit
 losses, multi-cow order and blocking, loop hints, prediction assumptions and
 exit marks, undo/restart, legacy fields, save version 6 migration, teaching
-objectives not gating clears, editor solver export checks, achievements, daily
-determinism, offline scanning and every scene's head-less render. Playback tests
+objectives not gating clears, the mirrored play layout, dynamic board centering,
+key-labelled toolbar buttons, the sidebar teaching card and its next control,
+editor solver export checks, achievements, daily determinism, offline scanning
+and every scene's head-less render. Playback tests
 cover the failure-dialog button, ignored player input, pause/resume, early exit,
 automatic restore, the dedicated **演示结束** dialog, replay/restart from that
 dialog, no-solution notices, time limits and cache invalidation.
@@ -504,6 +514,15 @@ tools/                      Solver CLI and screenshot helper
   but are skipped by movement, sight, exit and rendering.
 - **Teaching objectives** are hints only. They never affect victory, ranking or
   unlocking; only the normal win condition does.
+- **The play screen is mirrored, not every scene.** The editor keeps its board on
+  the left and its tool panel on the right.
+- **The old rules card is gone.** The turn limit stays in the compact top stats,
+  the prediction step count stays in the caption below the board, and the
+  one-line exit reminder remains in the sidebar. Shortcuts are printed on the
+  toolbar and footer.
+- **Teaching promotion rules:** levels with `hint_text` get a paged card; levels
+  with only `hint` get a compact single-hint card; levels with neither leave the
+  lower sidebar empty. Turning hints off hides the card.
 - **Fixed terrain** is the grid plus optional `walls` and `obstacles`.
 - **Prediction** covers cows only, with the farmer fixed. The optional
   “candidate farmer action” preview is not implemented.
