@@ -450,7 +450,25 @@ class PlayScene(Scene):
         self.toast_timer = 0.0
         self._seed_trails()
         self._refresh_buttons()
-        self._show_failure_modal()
+        self._show_demo_end_modal()
+
+    def _show_demo_end_modal(self) -> None:
+        """Dedicated dialog after a playback returns to the failed run."""
+        self.modal = ui.Modal(
+            "演示结束",
+            "电脑已经演示完这条通关路线，已恢复到你失败时的局面。\n"
+            "可以再次演示，或重开本关自己再试一次。演示不计入成绩。",
+            accent=theme.SKY_DEEP,
+            badge="演示未计成绩",
+            buttons=[
+                ui.Button(pygame.Rect(0, 0, 160, 50), "再次演示", "show_solution", style="primary"),
+                ui.Button(pygame.Rect(0, 0, 110, 50), "重开", "retry", style="default"),
+                ui.Button(pygame.Rect(0, 0, 190, 50), "撤销到上一回合", "undo_result", style="ghost"),
+                ui.Button(pygame.Rect(0, 0, 110, 50), "返回", "leave", style="ghost"),
+            ],
+            width=760,
+            height=360,
+        )
 
     def _undo(self) -> None:
         if self.animator.busy:
@@ -961,7 +979,7 @@ class PlayScene(Scene):
         lines = [
             "顶部「暂停 / 继续」：冻结或恢复自动播放",
             "顶部「退出演示」：立即回到失败时的局面",
-            "演示结束后会自动恢复，不会跳过失败结算",
+            "演示结束后自动恢复，并打开演示结束弹窗",
         ]
         line_y = card.top + 46
         for line in lines:

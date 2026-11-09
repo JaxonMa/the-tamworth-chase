@@ -125,7 +125,12 @@ def test_failure_modal_offers_solution_and_restores_failure(app):
     assert scene.sim.turns == 1
     assert scene._failure_sim is None
     assert scene.modal is not None
-    assert scene.modal.title == "牛从出口逃走了"
+    assert scene.modal.title == "演示结束"
+    assert scene.modal.title != "牛从出口逃走了"
+    end_labels = [button.text for button in scene.modal.buttons]
+    assert "再次演示" in end_labels
+    assert "重开" in end_labels
+    assert "撤销到上一回合" in end_labels
 
     undo = next(button for button in scene.modal.buttons if button.text == "撤销到上一回合")
     _click(scene, undo.rect.center)
@@ -167,7 +172,38 @@ def test_demo_pause_resume_and_exit_restore(app):
     assert scene.sim.status.value == "lost_exit"
     assert scene.sim.turns == 1
     assert scene.modal is not None
-    assert scene.modal.title == "牛从出口逃走了"
+    assert scene.modal.title == "演示结束"
+
+
+def test_demo_end_dialog_can_replay_or_restart(app):
+    scene = _open_custom_failure(app)
+    show = next(button for button in scene.modal.buttons if button.text == "显示解法")
+    _click(scene, show.rect.center)
+    for _ in range(240):
+        app.update(1 / 60)
+        if scene.phase == "result":
+            break
+    assert scene.phase == "result"
+    assert scene.modal is not None
+    assert scene.modal.title == "演示结束"
+    labels = [button.text for button in scene.modal.buttons]
+    assert labels == ["再次演示", "重开", "撤销到上一回合", "返回"]
+
+    again = next(button for button in scene.modal.buttons if button.text == "再次演示")
+    _click(scene, again.rect.center)
+    assert scene.phase == "demo"
+    assert scene.sim.status.value == "playing"
+    assert scene._failure_sim is not None
+    _click(scene, scene.demo_exit_button.rect.center)
+    assert scene.phase == "result"
+    assert scene.modal.title == "演示结束"
+    _render(app)
+
+    restart = next(button for button in scene.modal.buttons if button.text == "重开")
+    _click(scene, restart.rect.center)
+    assert scene.phase == "run"
+    assert scene.sim.turns == 0
+    assert scene.modal is None
 
 
 def test_demo_uses_a_longer_route_and_can_be_paused(app):

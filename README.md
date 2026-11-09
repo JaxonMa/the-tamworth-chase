@@ -229,8 +229,10 @@ A failed attempt can be inspected with **显示解法** in the failure dialog.
 - Player actions, restart shortcuts and the back button are ignored while the
   computer is driving. Only the two playback controls respond.
 - After the final action the win is held briefly, then the original failed state
-  is restored and the same failure dialog returns. **退出演示** restores it
-  immediately. Undo, restart and another playback are available again.
+  is restored. A dedicated **演示结束** dialog appears instead of the earlier
+  failure dialog; it offers **再次演示**, **重开**, **撤销到上一回合** and
+  **返回**. **退出演示** restores the failed state immediately and opens the
+  same end dialog. Undo, restart and another playback are available again.
 - The search is synchronous and bounded by `DEMO_MAX_NODES` (100,000) and
   `DEMO_MAX_SECONDS` (3.0). If it exhausts the state space or reaches a limit,
   the dialog stays open and shows **暂时无法给出解法**; the other buttons keep
@@ -444,7 +446,8 @@ exit marks, undo/restart, legacy fields, save version 6 migration, teaching
 objectives not gating clears, editor solver export checks, achievements, daily
 determinism, offline scanning and every scene's head-less render. Playback tests
 cover the failure-dialog button, ignored player input, pause/resume, early exit,
-automatic restore, no-solution notices, time limits and cache invalidation.
+automatic restore, the dedicated **演示结束** dialog, replay/restart from that
+dialog, no-solution notices, time limits and cache invalidation.
 
 Reference solutions live in `tests/solutions.json` and
 `tests/challenge_solutions.json`. The shared solver also powers the editor:

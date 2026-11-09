@@ -133,6 +133,36 @@ def scenario_play_demo(app: App, path: Path) -> None:
     draw(app, path)
 
 
+def scenario_play_demo_end(app: App, path: Path) -> None:
+    """Capture the dedicated dialog shown after playback returns."""
+    app.start_level(app.levels[2])
+    scene = app.scene
+    for action in (
+        Action.TURN_TO_DOWN,
+        Action.TURN_TO_UP,
+        Action.TURN_TO_DOWN,
+        Action.TURN_TO_UP,
+    ):
+        scene._take_action(action)
+        scene.animator.clear()
+    for _ in range(120):
+        app.update(1 / 60)
+        if scene.result_shown:
+            break
+    solution = next(
+        button for button in scene.modal.buttons if button.text == "显示解法"
+    )
+    for event_type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+        scene.handle_event(
+            pygame.event.Event(event_type, button=1, pos=solution.rect.center)
+        )
+    for _ in range(300):
+        app.update(1 / 60)
+        if scene.phase == "result":
+            break
+    draw(app, path)
+
+
 def scenario_challenge(app: App, path: Path) -> None:
     app.open_scene("challenge")
     frames(app, 5)
@@ -174,6 +204,7 @@ SCENARIOS = {
     "play_win": scenario_play_win,
     "play_exit": scenario_play_exit,
     "play_demo": scenario_play_demo,
+    "play_demo_end": scenario_play_demo_end,
     "challenge": scenario_challenge,
     "daily": scenario_daily,
     "achievements": scenario_achievements,
