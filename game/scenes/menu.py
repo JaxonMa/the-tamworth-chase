@@ -120,7 +120,7 @@ class MenuScene(Scene):
     def update(self, dt: float) -> None:
         super().update(dt)
         if self.modal is not None:
-            self.modal.update(pygame.mouse.get_pos())
+            self.modal.update(self.app.mouse_pos())
 
     def draw(self, surface: pygame.Surface) -> None:
         art.draw_meadow_background(surface, self.time * 0.6)

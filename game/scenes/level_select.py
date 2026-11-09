@@ -122,7 +122,7 @@ class LevelSelectScene(Scene):
                 surface,
                 self.fonts,
                 "完成上一关后就能进入这片牧场。",
-                pygame.mouse.get_pos(),
+                self.app.mouse_pos(),
             )
 
     # ------------------------------------------------------------------

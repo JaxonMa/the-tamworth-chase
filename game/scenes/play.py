@@ -276,7 +276,6 @@ class PlayScene(Scene):
             self._refresh_buttons()
             return
 
-        self.hint_timer = 0.0
         self.animator.play(result)
         self.trail_farmer.append(self.sim.farmer.pos)
         for index, cow in enumerate(self.sim.cows):
@@ -527,7 +526,6 @@ class PlayScene(Scene):
         self.result_timer = 0.0
         self.rank = None
         self.new_record = False
-        self.hint_timer = 0.0
         self._seed_trails()
         self.phase = "run"
         self.app.sound.play("undo")
@@ -612,15 +610,10 @@ class PlayScene(Scene):
         if self.toast_timer > 0:
             self.toast_timer = max(0.0, self.toast_timer - dt)
         if self.modal is not None:
-            self.modal.update(pygame.mouse.get_pos())
+            self.modal.update(self.app.mouse_pos())
             return
         hint_texts = self._hint_texts()
-        if (
-            self.phase == "run"
-            and self.show_hints
-            and self.animator.busy is False
-            and len(hint_texts) > 1
-        ):
+        if self.phase == "run" and self.show_hints and len(hint_texts) > 1:
             self.hint_timer += dt
             if self.hint_timer >= HINT_DELAY:
                 self._advance_hint()

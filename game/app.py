@@ -35,7 +35,10 @@ class App:
     def __init__(self, features: Optional[Set[str]] = None) -> None:
         pygame.init()
         pygame.display.set_caption(GAME_TITLE)
-        self.screen = pygame.display.set_mode((theme.WINDOW_WIDTH, theme.WINDOW_HEIGHT))
+        self.display = pygame.display.set_mode((theme.DISPLAY_WIDTH, theme.DISPLAY_HEIGHT))
+        self.screen = pygame.Surface(
+            (theme.WINDOW_WIDTH, theme.WINDOW_HEIGHT)
+        ).convert()
         self.clock = pygame.time.Clock()
         self.running = True
         self.features = set(features) if features is not None else set(ALL_FEATURES)
@@ -160,12 +163,37 @@ class App:
     # ------------------------------------------------------------------
     # Loop
     # ------------------------------------------------------------------
+    def to_logical(self, pos) -> tuple:
+        """Map an actual-window position back to the logical canvas."""
+        sx = theme.WINDOW_WIDTH / theme.DISPLAY_WIDTH
+        sy = theme.WINDOW_HEIGHT / theme.DISPLAY_HEIGHT
+        return (int(round(pos[0] * sx)), int(round(pos[1] * sy)))
+
+    def mouse_pos(self) -> tuple:
+        return self.to_logical(pygame.mouse.get_pos())
+
+    def _translate_event(self, event: pygame.event.Event) -> pygame.event.Event:
+        if event.type not in (
+            pygame.MOUSEMOTION,
+            pygame.MOUSEBUTTONDOWN,
+            pygame.MOUSEBUTTONUP,
+        ):
+            return event
+        data = dict(event.dict)
+        data["pos"] = self.to_logical(event.pos)
+        if event.type == pygame.MOUSEMOTION and "rel" in data:
+            sx = theme.WINDOW_WIDTH / theme.DISPLAY_WIDTH
+            sy = theme.WINDOW_HEIGHT / theme.DISPLAY_HEIGHT
+            rel = data["rel"]
+            data["rel"] = (int(round(rel[0] * sx)), int(round(rel[1] * sy)))
+        return pygame.event.Event(event.type, data)
+
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.QUIT:
             self.running = False
             return
         if self.scene is not None:
-            self.scene.handle_event(event)
+            self.scene.handle_event(self._translate_event(event))
 
     def update(self, dt: float) -> None:
         if self.scene is not None:
@@ -182,6 +210,12 @@ class App:
             overlay.set_alpha(int(255 * min(1.0, self.transition)))
             self.screen.blit(overlay, (0, 0))
 
+    def present(self) -> None:
+        """Scale the logical canvas into the smaller actual window."""
+        scaled = pygame.transform.smoothscale(self.screen, self.display.get_size())
+        self.display.blit(scaled, (0, 0))
+        pygame.display.flip()
+
     def run(self) -> int:
         while self.running:
             dt = min(0.05, self.clock.tick(theme.FPS) / 1000.0)
@@ -189,7 +223,7 @@ class App:
                 self.handle_event(event)
             self.update(dt)
             self.draw()
-            pygame.display.flip()
+            self.present()
         pygame.quit()
         return 0
 

@@ -423,7 +423,7 @@ class EditorScene(Scene):
         if self.toast_timer > 0:
             self.toast_timer = max(0.0, self.toast_timer - dt)
         if self.modal is not None:
-            self.modal.update(pygame.mouse.get_pos())
+            self.modal.update(self.app.mouse_pos())
 
     # ------------------------------------------------------------------
     def draw(self, surface: pygame.Surface) -> None:

@@ -491,3 +491,53 @@ def test_editor_keeps_original_board_and_panel_sides(app):
     assert theme.PANEL_RECT.left == 740
     assert theme.BOARD_ORIGIN == (60, 180)
     app.open_scene("menu")
+
+
+def test_window_scales_to_four_fifths_and_mouse_maps_back(app):
+    import pygame
+
+    from game import theme
+
+    assert app.display.get_size() == (1024, 672)
+    assert app.screen.get_size() == (1280, 840)
+    assert theme.WINDOW_WIDTH * theme.DISPLAY_HEIGHT == theme.WINDOW_HEIGHT * theme.DISPLAY_WIDTH
+    assert app.to_logical((512, 336)) == (640, 420)
+    event = pygame.event.Event(
+        pygame.MOUSEMOTION, pos=(512, 336), rel=(8, 8), buttons=(0, 0, 0)
+    )
+    translated = app._translate_event(event)
+    assert translated.pos == (640, 420)
+    assert translated.rel == (10, 10)
+    assert _render(app).get_size() == (1280, 840)
+
+
+def test_tutorial_hints_auto_advance_while_the_player_acts(app):
+    from game.models import Action
+
+    app.store.set_setting("hints", True)
+    app.start_level(app.levels[0])
+    scene = app.scene
+    assert scene.hint_index == 0
+    scene._take_action(Action.TURN_TO_DOWN)
+    scene.animator.clear()
+    scene.update(4.6)
+    scene._take_action(Action.TURN_TO_UP)
+    scene.animator.clear()
+    scene.update(4.6)
+    assert scene.hint_index == 1
+
+
+def test_scaled_physical_click_reaches_logical_button(app):
+    import pygame
+
+    from game.scenes.level_select import LevelSelectScene
+
+    app.open_scene("menu")
+    button = next(button for button in app.scene.buttons if button.text == "主线关卡")
+    center = button.rect.center
+    physical = (round(center[0] * 0.8), round(center[1] * 0.8))
+    for event_type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+        app.handle_event(pygame.event.Event(event_type, button=1, pos=physical))
+    assert isinstance(app.scene, LevelSelectScene)
+    app.present()
+    app.open_scene("menu")

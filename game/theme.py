@@ -421,6 +421,9 @@ def draw_text(
 # ---------------------------------------------------------------------------
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 840
+DISPLAY_SCALE = 0.8
+DISPLAY_WIDTH = int(WINDOW_WIDTH * DISPLAY_SCALE)
+DISPLAY_HEIGHT = int(WINDOW_HEIGHT * DISPLAY_SCALE)
 FPS = 60
 
 CELL_SIZE = 56
