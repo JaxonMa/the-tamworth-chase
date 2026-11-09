@@ -1,7 +1,7 @@
 """Offline solver for the tank-driving, exit-escape chase.
 
-The game itself never imports this module.  It calls the shared
-:mod:`game.solver` used by the tests and the editor's export check.
+The tests, the editor export check and the failure dialog's solution playback
+all call the shared :mod:`game.solver`; this CLI simply exposes the same search.
 
 Usage::
 
@@ -52,6 +52,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--level", action="append", default=None)
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--max-nodes", type=int, default=400_000)
+    parser.add_argument("--max-seconds", type=float, default=None)
     args = parser.parse_args(argv)
 
     path = Path(args.path)
@@ -65,7 +66,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     for level in bundle:
         if wanted and level.level_id not in wanted:
             continue
-        result = solve_level(level, args.max_nodes)
+        result = solve_level(
+            level,
+            args.max_nodes,
+            max_seconds=args.max_seconds,
+        )
         if args.json:
             output[level.level_id] = {
                 "turns": result.turns,
@@ -73,6 +78,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "status": "won" if result.solved else "unsolved",
                 "solver_status": result.status,
                 "explored": result.explored,
+                "reason": result.reason,
             }
             continue
         print(

@@ -80,3 +80,64 @@ def test_all_shipped_levels_are_solvable():
         result = solve_level(level, max_nodes=100_000)
         assert result.solved, level.level_id
         assert result.turns <= level.max_turns
+
+
+def test_solver_time_limit_reports_limit():
+    result = solve_level(unsolvable_level(), max_nodes=100_000, max_seconds=0.0)
+    assert result.status == "limit"
+    assert result.is_limit
+    assert "time limit" in result.reason
+
+
+def test_solver_cache_hits_and_invalidates_on_level_data_change():
+    from dataclasses import replace
+
+    from game.solver import (
+        clear_solver_cache,
+        solve_level_cached,
+        solver_cache_info,
+    )
+
+    clear_solver_cache()
+    level = small_level()
+    first = solve_level_cached(level, max_nodes=100_000, max_seconds=1.0)
+    second = solve_level_cached(level, max_nodes=100_000, max_seconds=1.0)
+    assert first == second
+    assert solver_cache_info() == {"size": 1, "hits": 1, "misses": 1}
+
+    changed = replace(level, max_turns=level.max_turns + 1)
+    third = solve_level_cached(changed, max_nodes=100_000, max_seconds=1.0)
+    assert third.solved
+    assert solver_cache_info() == {"size": 2, "hits": 1, "misses": 2}
+
+
+def test_solver_cache_invalidates_with_rules_version(monkeypatch):
+    from game import solver
+
+    solver.clear_solver_cache()
+    level = small_level()
+    solver.solve_level_cached(level, max_nodes=100_000, max_seconds=1.0)
+    assert solver.solver_cache_info()["misses"] == 1
+
+    monkeypatch.setattr(solver, "RULES_VERSION", solver.RULES_VERSION + 1)
+    solver.solve_level_cached(level, max_nodes=100_000, max_seconds=1.0)
+    assert solver.solver_cache_info()["misses"] == 2
+
+
+def test_solver_cache_does_not_freeze_a_time_limited_result():
+    from game.solver import (
+        clear_solver_cache,
+        solve_level_cached,
+        solver_cache_info,
+    )
+
+    clear_solver_cache()
+    first = solve_level_cached(
+        unsolvable_level(), max_nodes=100_000, max_seconds=0.0
+    )
+    second = solve_level_cached(
+        unsolvable_level(), max_nodes=100_000, max_seconds=0.0
+    )
+    assert first.status == second.status == "limit"
+    assert solver_cache_info()["size"] == 0
+    assert solver_cache_info()["misses"] == 2
