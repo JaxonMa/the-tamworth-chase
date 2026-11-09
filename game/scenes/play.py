@@ -46,8 +46,11 @@ class PlayScene(Scene):
         self.challenge_key = challenge_key
         self.daily_key = daily_key
         self.return_to = return_to
+        self.panel_rect = theme.PLAY_PANEL_RECT
+        self.stage_origin = theme.PLAY_BOARD_STAGE_ORIGIN
+        self.board_origin = self._centered_board_origin(level)
 
-        self.renderer = BoardRenderer(self.cache, self.fonts)
+        self.renderer = BoardRenderer(self.cache, self.fonts, origin=self.board_origin)
         self.sim = Simulation(level)
         self.animator = TurnAnimator()
         self.effects = EffectSystem(bool(self.store.get_setting("low_effects", False)))
@@ -79,6 +82,7 @@ class PlayScene(Scene):
         self.demo_done = False
         self.demo_done_timer = 0.0
         self.demo_last_action: Optional[Action] = None
+        self.hint_card_rect: Optional[pygame.Rect] = None
         self.buttons: List[ui.Button] = []
         self._seed_trails()
         self._build_buttons()
@@ -86,18 +90,27 @@ class PlayScene(Scene):
     # ------------------------------------------------------------------
     # Setup
     # ------------------------------------------------------------------
+    @staticmethod
+    def _centered_board_origin(level: Level) -> Tuple[int, int]:
+        """Center a board inside the right-hand stage."""
+        stage_x, stage_y = theme.PLAY_BOARD_STAGE_ORIGIN
+        return (
+            stage_x + (theme.BOARD_SIZE - level.width * theme.CELL_SIZE) // 2,
+            stage_y + (theme.BOARD_SIZE - level.height * theme.CELL_SIZE) // 2,
+        )
+
     def _build_buttons(self) -> None:
         self.undo_button = ui.Button(
-            pygame.Rect(336, 112, 90, 44), "撤销", "undo", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(868, 112, 80, 44), "[U] 撤销", "undo", style="ghost", font_size=theme.FONT_TINY
         )
         self.restart_button = ui.Button(
-            pygame.Rect(434, 112, 90, 44), "重开", "restart", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(954, 112, 80, 44), "[R] 重开", "restart", style="ghost", font_size=theme.FONT_TINY
         )
         self.predict_button = ui.Button(
-            pygame.Rect(532, 112, 100, 44), "预测 开", "predict", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(1040, 112, 100, 44), "[P] 预测 开", "predict", style="ghost", font_size=theme.FONT_TINY
         )
         self.alert_button = ui.Button(
-            pygame.Rect(640, 112, 90, 44), "警觉 开", "alerts", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(1146, 112, 74, 44), "警觉 开", "alerts", style="ghost", font_size=theme.FONT_TINY
         )
         self.buttons = [
             self.undo_button,
@@ -106,12 +119,20 @@ class PlayScene(Scene):
             self.alert_button,
         ]
         self.demo_pause_button = ui.Button(
-            pygame.Rect(336, 112, 112, 44), "暂停", "demo_pause", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(868, 112, 80, 44), "暂停", "demo_pause", style="ghost", font_size=theme.FONT_TINY
         )
         self.demo_exit_button = ui.Button(
-            pygame.Rect(456, 112, 120, 44), "退出演示", "demo_exit", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(954, 112, 100, 44), "退出演示", "demo_exit", style="ghost", font_size=theme.FONT_TINY
         )
         self.demo_buttons = [self.demo_pause_button, self.demo_exit_button]
+        self.hint_next_button = ui.Button(
+            pygame.Rect(0, 0, 104, 36),
+            "下一条",
+            "hint_next",
+            style="sky",
+            font_size=theme.FONT_TINY,
+        )
+        self.hint_next_button.visible = False
         self.back_button = ui.Button(
             pygame.Rect(theme.WINDOW_WIDTH - 190, 36, 130, 52), "返回", "back", style="ghost"
         )
@@ -128,9 +149,9 @@ class PlayScene(Scene):
         self.restart_button.enabled = running
         self.predict_button.enabled = self.level.prediction_steps > 0
         if self.level.prediction_steps <= 0:
-            self.predict_button.text = "预测 无"
+            self.predict_button.text = "[P] 预测 无"
         else:
-            self.predict_button.text = "预测 开" if self.show_prediction else "预测 关"
+            self.predict_button.text = "[P] 预测 开" if self.show_prediction else "[P] 预测 关"
         self.alert_button.text = "警觉 开" if self.show_alerts else "警觉 关"
         self.demo_pause_button.text = "继续" if self.demo_paused else "暂停"
 
@@ -170,6 +191,12 @@ class PlayScene(Scene):
                     return
             return
 
+        if self.phase == "run" and self.hint_next_button.visible:
+            hint_action = self.hint_next_button.handle_event(event)
+            if hint_action:
+                self._advance_hint(play_sound=True)
+                return
+
         if self.back_button.handle_event(event):
             self._leave()
             return
@@ -182,6 +209,23 @@ class PlayScene(Scene):
 
         if event.type == pygame.KEYDOWN:
             self._handle_key(event)
+
+    def _hint_texts(self) -> Tuple[str, ...]:
+        if self.level.hint_text:
+            return self.level.hint_text
+        if self.level.hint:
+            return (self.level.hint,)
+        return ()
+
+    def _advance_hint(self, *, play_sound: bool = False) -> bool:
+        texts = self._hint_texts()
+        if not texts or self.hint_index >= len(texts) - 1:
+            return False
+        self.hint_index += 1
+        self.hint_timer = 0.0
+        if play_sound:
+            self.app.sound.play("click")
+        return True
 
     def _handle_key(self, event: pygame.event.Event) -> None:
         if event.key == pygame.K_ESCAPE:
@@ -570,16 +614,16 @@ class PlayScene(Scene):
         if self.modal is not None:
             self.modal.update(pygame.mouse.get_pos())
             return
+        hint_texts = self._hint_texts()
         if (
             self.phase == "run"
             and self.show_hints
             and self.animator.busy is False
-            and len(self.level.hint_text) > 1
+            and len(hint_texts) > 1
         ):
             self.hint_timer += dt
             if self.hint_timer >= HINT_DELAY:
-                self.hint_timer = 0.0
-                self.hint_index = min(self.hint_index + 1, len(self.level.hint_text) - 1)
+                self._advance_hint()
         if self.phase == "result" and not self.result_shown:
             self.result_timer += dt
             if self.result_timer >= RESULT_DELAY:
@@ -692,8 +736,8 @@ class PlayScene(Scene):
 
     def board_center(self, pos: Pos) -> Tuple[int, int]:
         return (
-            theme.BOARD_ORIGIN[0] + int((pos[1] + 0.5) * theme.CELL_SIZE),
-            theme.BOARD_ORIGIN[1] + int((pos[0] + 0.5) * theme.CELL_SIZE),
+            self.board_origin[0] + int((pos[1] + 0.5) * theme.CELL_SIZE),
+            self.board_origin[1] + int((pos[0] + 0.5) * theme.CELL_SIZE),
         )
 
     def _draw_background(self, surface: pygame.Surface) -> None:
@@ -739,14 +783,23 @@ class PlayScene(Scene):
         pygame.draw.line(surface, theme.PANEL_BORDER, (60, 104), (1220, 104), 2)
 
     def _draw_top_bar(self, surface: pygame.Surface) -> None:
-        self._draw_stat(surface, 60, 112, 140, "回合", f"{self.sim.turns} / {self.level.max_turns}")
         self._draw_stat(
             surface,
-            208,
+            660,
             112,
-            120,
+            118,
+            "回合",
+            f"{self.sim.turns} / {self.level.max_turns}",
+            value_size=theme.FONT_SMALL,
+        )
+        self._draw_stat(
+            surface,
+            782,
+            112,
+            80,
             "牛",
             f"{self.sim.caught_count} / {len(self.sim.cows)}",
+            value_size=theme.FONT_SMALL,
         )
         if self.phase == "demo":
             self.demo_pause_button.draw(surface, self.fonts)
@@ -756,7 +809,9 @@ class PlayScene(Scene):
                 if self.demo_done
                 else f"{self.demo_index} / {len(self.demo_actions)}"
             )
-            self._draw_stat(surface, 592, 112, 148, "演示", progress)
+            self._draw_stat(
+                surface, 1060, 112, 160, "演示", progress, value_size=theme.FONT_SMALL
+            )
         else:
             for button in (
                 self.undo_button,
@@ -766,16 +821,16 @@ class PlayScene(Scene):
             ):
                 button.draw(surface, self.fonts)
 
-    def _draw_stat(self, surface, x, y, width, label, value):
+    def _draw_stat(self, surface, x, y, width, label, value, *, value_size=theme.FONT_H3):
         rect = pygame.Rect(x, y, width, 44)
         theme.rounded_rect(surface, rect, theme.PANEL_BG, radius=12)
         theme.rounded_rect(surface, rect, theme.PANEL_BORDER, radius=12, width=2)
         theme.draw_text(
-            surface, self.fonts, label, (rect.left + 10, rect.centery), theme.FONT_TINY,
+            surface, self.fonts, label, (rect.left + 8, rect.centery), theme.FONT_TINY,
             theme.INK_LIGHT, anchor="midleft",
         )
         theme.draw_text(
-            surface, self.fonts, value, (rect.right - 10, rect.centery), theme.FONT_H3,
+            surface, self.fonts, value, (rect.right - 8, rect.centery), value_size,
             theme.INK, anchor="midright", bold=True,
         )
 
@@ -810,10 +865,13 @@ class PlayScene(Scene):
             return None
 
     def _draw_panel(self, surface: pygame.Surface) -> None:
-        theme.panel(surface, theme.PANEL_RECT)
-        left = theme.PANEL_RECT.left + 24
-        width = theme.PANEL_RECT.width - 48
-        y = theme.PANEL_RECT.top + 20
+        panel = self.panel_rect
+        theme.panel(surface, panel)
+        left = panel.left + 24
+        width = panel.width - 48
+        y = panel.top + 20
+        self.hint_card_rect = None
+        self.hint_next_button.visible = False
 
         label_map = {
             "main": f"第 {self.level_number:02d} 关",
@@ -831,60 +889,62 @@ class PlayScene(Scene):
         )
         y += 44
         ui.draw_divider(surface, y, left, width)
-        y += 16
+        y += 18
 
         if self.phase == "demo":
             self._draw_demo_panel(surface, left, width)
             return
 
-        if self.show_hints and self.level.learning_objective:
-            display_text = self.level.learning_objective
-        elif self.show_hints:
-            display_text = self.level.hint or self.level.description
-        else:
-            display_text = self.level.description
-        if display_text:
-            wrapped = self.fonts.wrap(display_text, theme.FONT_SMALL, width, theme.INK_SOFT)
+        objective = self.level.learning_objective if self.show_hints else ""
+        if objective:
+            theme.draw_text(
+                surface, self.fonts, "本关学习", (left, y), theme.FONT_TINY,
+                theme.SKY_DEEP, bold=True,
+            )
+            y += 24
+            wrapped = self.fonts.wrap(objective, theme.FONT_BODY, width, theme.INK)
             surface.blit(wrapped, (left, y))
-            y += wrapped.get_height() + 10
+            y += wrapped.get_height() + 12
+
+        if self.level.description and self.level.description != objective:
+            if objective:
+                theme.draw_text(
+                    surface, self.fonts, "关卡说明", (left, y), theme.FONT_TINY,
+                    theme.INK_LIGHT,
+                )
+                y += 24
+            wrapped = self.fonts.wrap(
+                self.level.description, theme.FONT_SMALL, width, theme.INK_SOFT
+            )
+            surface.blit(wrapped, (left, y))
+            y += wrapped.get_height() + 12
 
         ui.draw_pill(
             surface, self.fonts, "目标：抓住全部牛", (left + 76, y + 18), theme.LEAF_DARK
         )
-        y += 50
+        y += 46
+        theme.draw_text(
+            surface,
+            self.fonts,
+            "金色出口：牛可进入，农夫不可通行",
+            (left, y),
+            theme.FONT_TINY,
+            theme.INK_LIGHT,
+        )
+        y += 32
         if self.sim.near_exit(3) and not self.sim.status.is_finished:
             ui.draw_pill(
                 surface, self.fonts, "出口就在附近！", (left + 80, y + 12), EXIT_COLOR
             )
             y += 34
 
-        if self.show_hints and self.level.hint_text:
-            self._draw_hint_box(surface, left, y, width)
-            y += 112
-        card_y = max(438, y)
-        card = pygame.Rect(left, card_y, width, 142)
-        theme.rounded_rect(surface, card, theme.CREAM, radius=14)
-        theme.rounded_rect(surface, card, theme.PANEL_BORDER, radius=14, width=2)
-        theme.draw_text(
-            surface, self.fonts, "本关规则", (card.left + 16, card.top + 10),
-            theme.FONT_TINY, theme.INK_LIGHT,
-        )
-        lines = [
-            "W/↑ 朝上 · S/↓ 朝下 · A/← 朝左 · D/→ 朝右",
-            "空格前进 · U 撤销 · R 重开 · P 预测",
-            f"回合上限 {self.level.max_turns} · 预测 {self.level.prediction_steps} 步",
-            "金色出口：牛可进入，农夫不可通行",
-        ]
-        line_y = card.top + 34
-        for line in lines:
-            theme.draw_text(
-                surface, self.fonts, line, (card.left + 16, line_y),
-                theme.FONT_SMALL, theme.INK_SOFT,
-            )
-            line_y += 26
+        if self.show_hints and self.phase == "run":
+            texts = self._hint_texts()
+            if texts:
+                self._draw_hint_card(surface, left, max(438, y), width)
 
     def _draw_demo_panel(self, surface: pygame.Surface, left: int, width: int) -> None:
-        y = theme.PANEL_RECT.top + 130
+        y = self.panel_rect.top + 130
         theme.draw_text(
             surface,
             self.fonts,
@@ -993,25 +1053,70 @@ class PlayScene(Scene):
             )
             line_y += 32
 
-    def _draw_hint_box(self, surface: pygame.Surface, x: int, y: int, width: int) -> None:
-        box = pygame.Rect(x, y, width, 102)
-        theme.rounded_rect(surface, box, theme.SKY_PALE, radius=16)
-        theme.rounded_rect(surface, box, theme.SKY_DEEP, radius=16, width=2)
-        ui.draw_pill(surface, self.fonts, "教学提示", (box.left + 54, box.top + 22), theme.SKY_DEEP)
-        text = self.fonts.wrap(
-            self.level.hint_text[self.hint_index],
-            theme.FONT_SMALL,
-            width - 40,
-            theme.INK,
+    def _draw_hint_card(
+        self, surface: pygame.Surface, left: int, top: int, width: int
+    ) -> None:
+        texts = self._hint_texts()
+        if not texts:
+            return
+        index = min(self.hint_index, len(texts) - 1)
+        multi = bool(self.level.hint_text)
+        height = 190 if multi else 140
+        card = pygame.Rect(left, top, width, height)
+        theme.soft_shadow(surface, card, radius=18, alpha=32, offset=(0, 5))
+        theme.rounded_rect(surface, card, theme.SKY_PALE, radius=18)
+        theme.rounded_rect(surface, card, theme.SKY_DEEP, radius=18, width=3)
+        label = (
+            "教学提示"
+            if self.level.learning_objective or "教学" in self.level.tags
+            else "关卡提示"
         )
-        surface.blit(text, (box.left + 20, box.top + 44))
-        counter = self.fonts.render(
-            f"{self.hint_index + 1}/{len(self.level.hint_text)}",
-            theme.FONT_TINY,
-            theme.INK_LIGHT,
-            True,
+        ui.draw_pill(
+            surface, self.fonts, label, (card.left + 58, card.top + 25), theme.SKY_DEEP
         )
-        surface.blit(counter, (box.right - 18 - counter.get_width(), box.top + 14))
+
+        next_visible = multi and index < len(texts) - 1
+        self.hint_next_button.rect = pygame.Rect(card.right - 120, card.top + 8, 104, 36)
+        self.hint_next_button.visible = next_visible
+        if next_visible:
+            self.hint_next_button.draw(surface, self.fonts)
+
+        if multi:
+            counter = self.fonts.render(
+                f"{index + 1}/{len(texts)}", theme.FONT_TINY, theme.INK_LIGHT, True
+            )
+            if next_visible:
+                counter_x = self.hint_next_button.rect.left - 16 - counter.get_width()
+            else:
+                counter_x = card.right - 20 - counter.get_width()
+            surface.blit(counter, (counter_x, card.top + 15))
+
+        body_text = texts[index]
+        body = self.fonts.wrap(body_text, theme.FONT_BODY, card.width - 40, theme.INK)
+        max_height = 96 if multi else 72
+        if body.get_height() > max_height:
+            body = self.fonts.wrap(body_text, theme.FONT_SMALL, card.width - 40, theme.INK)
+        surface.blit(body, (card.left + 20, card.top + 56))
+
+        if multi:
+            dot_y = card.bottom - 25
+            for dot_index in range(len(texts)):
+                color = theme.SKY_DEEP if dot_index == index else theme.PANEL_BORDER
+                pygame.draw.circle(
+                    surface,
+                    color,
+                    (card.left + 24 + dot_index * 18, dot_y),
+                    4 if dot_index == index else 3,
+                )
+            auto_text = (
+                "提示自动推进 · 也可点「下一条」"
+                if next_visible
+                else "提示已全部展开"
+            )
+            auto = self.fonts.render(auto_text, theme.FONT_TINY, theme.INK_LIGHT)
+            surface.blit(auto, (card.left + 150, dot_y - auto.get_height() // 2))
+
+        self.hint_card_rect = card
 
     def _draw_footer(self, surface: pygame.Surface) -> None:
         if self.phase == "demo":
@@ -1019,12 +1124,14 @@ class PlayScene(Scene):
                 surface,
                 self.fonts,
                 "演示中不响应玩家操作 · 顶部按钮可暂停/继续或退出演示",
+                x=self.stage_origin[0],
             )
             return
         draw_footer(
             surface,
             self.fonts,
-            "W/↑ 朝上，S/↓ 朝下，A/← 朝左，D/→ 朝右，空格前进，U 撤销，R 重开",
+            "WASD/方向键 转向 · 空格 前进 · U 撤销 · R 重开 · P 预测",
+            x=self.stage_origin[0],
         )
         if self.show_prediction and self.level.prediction_steps > 0 and self.toast_timer <= 0:
             text = self.fonts.wrap(
@@ -1033,12 +1140,12 @@ class PlayScene(Scene):
                 theme.BOARD_SIZE,
                 theme.INK_LIGHT,
             )
-            surface.blit(text, (theme.BOARD_ORIGIN[0], 752))
+            surface.blit(text, (self.stage_origin[0], 760))
 
     def _draw_toast(self, surface: pygame.Surface) -> None:
         body = self.fonts.wrap(self.toast_text, theme.FONT_SMALL, 460, theme.WHITE_WARM)
         rect = pygame.Rect(0, 0, body.get_width() + 40, body.get_height() + 24)
-        rect.center = (theme.BOARD_ORIGIN[0] + theme.BOARD_SIZE // 2, 770)
+        rect.center = (self.stage_origin[0] + theme.BOARD_SIZE // 2, 770)
         theme.soft_shadow(surface, rect, radius=14, alpha=60, offset=(0, 4))
         theme.rounded_rect(surface, rect, theme.CLAY, radius=14)
         surface.blit(body, (rect.left + 20, rect.top + 12))

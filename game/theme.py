@@ -427,6 +427,11 @@ CELL_SIZE = 56
 BOARD_ORIGIN = (60, 180)
 BOARD_SIZE = CELL_SIZE * 10
 
+# Editor / shared legacy layout (board left, panel right).
 PANEL_RECT = pygame.Rect(740, 104, 492, 700)
+
+# Play scene layout: sidebar left, board stage right.
+PLAY_PANEL_RECT = pygame.Rect(60, 104, 492, 700)
+PLAY_BOARD_STAGE_ORIGIN = (660, 180)
 HEADER_RECT = pygame.Rect(60, 28, 1172, 76)
 FOOTER_RECT = pygame.Rect(60, 792, 1172, 34)

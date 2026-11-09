@@ -91,8 +91,15 @@ def draw_header(
     pygame.draw.line(surface, theme.PANEL_BORDER, (60, 104), (60 + 1160, 104), 2)
 
 
-def draw_footer(surface: pygame.Surface, fonts: theme.FontBook, text: str) -> None:
-    theme.draw_text(surface, fonts, text, (62, 808), theme.FONT_TINY, theme.INK_LIGHT)
+def draw_footer(
+    surface: pygame.Surface,
+    fonts: theme.FontBook,
+    text: str,
+    *,
+    x: int = 62,
+    y: int = 808,
+) -> None:
+    theme.draw_text(surface, fonts, text, (x, y), theme.FONT_TINY, theme.INK_LIGHT)
 
 
 def make_back_button(key: str = "back") -> ui.Button:

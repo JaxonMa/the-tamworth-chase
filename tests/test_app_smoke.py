@@ -390,3 +390,104 @@ def test_editor_can_export_unverified_after_timeout(app, tmp_path, monkeypatch):
     assert scene.exported_path is not None
     payload = json.loads(scene.exported_path.read_text(encoding="utf-8"))
     assert payload["levels"][0]["verification"]["status"] == "unverified"
+
+
+def test_play_layout_is_mirrored_and_hint_card_has_no_rules_slot(app):
+    from game import theme
+
+    app.store.set_setting("hints", True)
+    app.store.set_setting("preview", True)
+    app.store.set_setting("alerts", True)
+    app.start_level(app.levels[0])
+    scene = app.scene
+    assert scene.panel_rect == theme.PLAY_PANEL_RECT
+    assert scene.panel_rect.right < scene.board_origin[0]
+    assert scene.board_origin == (744, 264)
+    assert scene.renderer.origin == scene.board_origin
+    assert scene.undo_button.text == "[U] 撤销"
+    assert scene.restart_button.text == "[R] 重开"
+    assert scene.predict_button.text == "[P] 预测 开"
+    assert scene.alert_button.text == "警觉 开"
+    assert scene.undo_button.rect.left > scene.panel_rect.right
+
+    _render(app)
+    assert scene.hint_card_rect is not None
+    assert scene.hint_card_rect.size == (444, 190)
+    assert scene.hint_next_button.visible is True
+
+
+def test_predict_button_click_toggles_only_once(app):
+    app.store.set_setting("hints", True)
+    app.store.set_setting("preview", True)
+    app.start_level(app.levels[0])
+    scene = app.scene
+    assert scene.show_prediction is True
+    _click(scene, scene.predict_button.rect.center)
+    assert scene.show_prediction is False
+    assert scene.predict_button.text == "[P] 预测 关"
+    _click(scene, scene.predict_button.rect.center)
+    assert scene.show_prediction is True
+
+
+def test_hint_card_next_button_advances_and_hides_on_last(app):
+    app.store.set_setting("hints", True)
+    app.start_level(app.levels[0])
+    scene = app.scene
+    _render(app)
+    assert scene.hint_index == 0
+    assert scene.hint_next_button.visible
+    _click(scene, scene.hint_next_button.rect.center)
+    assert scene.hint_index == 1
+    _render(app)
+    assert scene.hint_next_button.visible
+
+    while scene.hint_index < len(scene.level.hint_text) - 1:
+        _click(scene, scene.hint_next_button.rect.center)
+        _render(app)
+    assert scene.hint_index == len(scene.level.hint_text) - 1
+    assert scene.hint_next_button.visible is False
+
+
+def test_hints_setting_hides_the_sidebar_hint_card(app):
+    app.store.set_setting("hints", True)
+    app.start_level(app.levels[0])
+    _render(app)
+    assert app.scene.hint_card_rect is not None
+    app.store.set_setting("hints", False)
+    app.start_level(app.levels[0])
+    scene = app.scene
+    _render(app)
+    assert scene.hint_card_rect is None
+    assert scene.hint_next_button.visible is False
+    app.store.set_setting("hints", True)
+
+
+def test_single_hint_level_uses_hint_card_without_paging(app):
+    level = app.challenges[0]
+    app.start_level(level, mode="challenge", challenge_key=level.level_id, return_to="challenge")
+    scene = app.scene
+    assert scene.level.hint_text == ()
+    assert scene.level.hint
+    _render(app)
+    assert scene.hint_card_rect is not None
+    assert scene.hint_card_rect.height == 140
+    assert scene.hint_next_button.visible is False
+
+
+def test_ten_by_ten_board_fills_right_stage(app):
+    app.start_level(app.levels[9])
+    scene = app.scene
+    assert scene.board_origin == (660, 180)
+    assert scene.renderer.origin == (660, 180)
+    _render(app)
+    assert scene.hint_card_rect is not None
+
+
+def test_editor_keeps_original_board_and_panel_sides(app):
+    from game import theme
+
+    app.open_scene("editor")
+    _render(app)
+    assert theme.PANEL_RECT.left == 740
+    assert theme.BOARD_ORIGIN == (60, 180)
+    app.open_scene("menu")

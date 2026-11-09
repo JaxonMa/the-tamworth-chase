@@ -156,7 +156,7 @@ class SettingsScene(Scene):
         lines = [
             "游戏名：The Tamworth Chase",
             "中文副标题：《塔姆沃斯追逐》",
-            "版本：1.5.1",
+            "版本：1.6.0",
             "界面字体：CEF Fonts CJK（本地内置）",
             "全部美术由程序绘制，运行时不联网。",
             "",

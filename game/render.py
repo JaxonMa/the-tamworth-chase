@@ -246,21 +246,30 @@ class BoardView:
 class BoardRenderer:
     """Draws the meadow, the actors and every overlay."""
 
-    def __init__(self, cache: art.ArtCache, fonts: theme.FontBook) -> None:
+    def __init__(
+        self,
+        cache: art.ArtCache,
+        fonts: theme.FontBook,
+        origin: Tuple[int, int] = ORIGIN,
+    ) -> None:
         self.cache = cache
         self.fonts = fonts
+        self.origin = origin
 
     # -- helpers -------------------------------------------------------
-    @staticmethod
-    def cell_center(pos: Tuple[float, float]) -> Tuple[int, int]:
+    def cell_center(self, pos: Tuple[float, float]) -> Tuple[int, int]:
         return (
-            ORIGIN[0] + int((pos[1] + 0.5) * CELL),
-            ORIGIN[1] + int((pos[0] + 0.5) * CELL),
+            self.origin[0] + int((pos[1] + 0.5) * CELL),
+            self.origin[1] + int((pos[0] + 0.5) * CELL),
         )
 
-    @staticmethod
-    def cell_rect(pos: Pos) -> pygame.Rect:
-        return pygame.Rect(ORIGIN[0] + pos[1] * CELL, ORIGIN[1] + pos[0] * CELL, CELL, CELL)
+    def cell_rect(self, pos: Pos) -> pygame.Rect:
+        return pygame.Rect(
+            self.origin[0] + pos[1] * CELL,
+            self.origin[1] + pos[0] * CELL,
+            CELL,
+            CELL,
+        )
 
     # -- public API ----------------------------------------------------
     def draw(self, surface: pygame.Surface, view: BoardView) -> None:
@@ -277,19 +286,19 @@ class BoardRenderer:
         self._draw_placeables(surface, view)
         self._draw_actors(surface, view)
         if view.effects is not None:
-            view.effects.draw(surface, ORIGIN)
+            view.effects.draw(surface, self.origin)
         if view.overlay_alpha:
             overlay = pygame.Surface(
                 (CELL * view.level.width, CELL * view.level.height), pygame.SRCALPHA
             )
             overlay.fill((*theme.CREAM, view.overlay_alpha))
-            surface.blit(overlay, ORIGIN)
+            surface.blit(overlay, self.origin)
 
     # -- pieces --------------------------------------------------------
     def _draw_frame(self, surface: pygame.Surface, level: Level) -> None:
         frame = pygame.Rect(
-            ORIGIN[0] - 14,
-            ORIGIN[1] - 14,
+            self.origin[0] - 14,
+            self.origin[1] - 14,
             CELL * level.width + 28,
             CELL * level.height + 28,
         )
@@ -305,7 +314,14 @@ class BoardRenderer:
         def kind_at(row: int, col: int) -> TileKind:
             return level.tile_at((row, col))
 
-        draw_grid(surface, self.cache, level.width, level.height, kind_at)
+        draw_grid(
+            surface,
+            self.cache,
+            level.width,
+            level.height,
+            kind_at,
+            origin=self.origin,
+        )
 
     @staticmethod
     def _fence_variant(level: Level, row: int, col: int, kind: TileKind = TileKind.FENCE) -> int:
@@ -335,7 +351,7 @@ class BoardRenderer:
             pygame.draw.lines(layer, (*color, 110), False, points, 4)
             for point in points[1:-1:2]:
                 pygame.draw.circle(layer, (*color, 150), point, 3)
-        surface.blit(layer, ORIGIN)
+        surface.blit(layer, self.origin)
 
     def _draw_highlight(self, surface: pygame.Surface, view: BoardView) -> None:
         if view.highlight is None:
@@ -398,14 +414,14 @@ class BoardRenderer:
         layer = pygame.Surface(
             (CELL * view.level.width, CELL * view.level.height), pygame.SRCALPHA
         )
-        offset = (-ORIGIN[0], -ORIGIN[1])
+        offset = (-self.origin[0], -self.origin[1])
         for index, path in enumerate(paths):
             if len(path) < 2:
                 continue
             color = colors[index % len(colors)]
             shifted = [(x + offset[0], y + offset[1]) for x, y in path]
             self._dashed_polyline(layer, shifted, (*color, 135))
-        surface.blit(layer, ORIGIN)
+        surface.blit(layer, self.origin)
 
         for step_index, frame in enumerate(frames):
             for cow_index, pos in enumerate(frame.cow_positions):

@@ -95,6 +95,8 @@ def test_failure_modal_offers_solution_and_restores_failure(app):
     assert scene.sim.status.value == "playing"
     assert len(scene.demo_actions) == 1
     assert scene.modal is None
+    assert scene.demo_pause_button.rect.left > scene.panel_rect.right
+    assert scene.demo_exit_button.rect.left > scene.demo_pause_button.rect.right
 
     import pygame
     from game.models import Action
