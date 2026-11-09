@@ -39,6 +39,7 @@
 20. [项目结构](#项目结构)
 21. [设计说明与假设](#设计说明与假设)
 22. [已知限制](#已知限制)
+23. [许可证](#许可证)
 
 ## 功能特性
 
@@ -413,6 +414,8 @@ commit message 使用英语。
 
 ```
 main.py                     入口
+LICENSE                     MIT 项目许可证
+THIRD_PARTY_NOTICES.md      字体与音乐许可说明
 game/
   models.py                 无 pygame 的模型：Action、Level、TickResult
   core.py                   绝对转向、牛 AI、出口、撤销、预测
@@ -482,3 +485,17 @@ tools/                      求解器 CLI、截图工具
 - 解析器本身不限制 10×10，但编辑器画布限制为 10×10。
 - 显示解法同步搜索，最多可能让界面停住约 3 秒，再提示「暂时无法给出解法」。
 - 解法演示只有固定节奏，没有调速或单步控制。
+
+## 许可证
+
+The Tamworth Chase 使用 **MIT License** 发布，完整文本见 [LICENSE](LICENSE)。
+
+MIT 许可证覆盖项目自身的源代码与程序化美术；随游戏打包的第三方资源保留各自
+原有许可：
+
+- **CEF Fonts CJK**：SIL Open Font License 1.1，全文见
+  `assets/fonts/OFL.txt`。
+- **《Meadow Thoughts》**（Écrivain）：CC0 1.0，来源与 SHA-256 见
+  `assets/music/README.md`。
+
+完整第三方声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

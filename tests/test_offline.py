@@ -1,4 +1,4 @@
-"""Guard rails for the offline promise and the bundled font."""
+"""Guard rails for the offline promise, bundled assets and licensing."""
 
 from __future__ import annotations
 
@@ -66,3 +66,13 @@ def test_gitignore_covers_environment_and_artifacts():
     text = (ROOT / ".gitignore").read_text(encoding="utf-8")
     for pattern in (".venv/", "__pycache__/", "*.pyc", "build/", "dist/", "*.egg-info/"):
         assert pattern in text
+
+
+def test_project_license_and_third_party_notices():
+    license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
+    assert "MIT License" in license_text
+    assert "Jaxon Ma" in license_text
+
+    notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+    assert "SIL Open Font License 1.1" in notices
+    assert "CC0 1.0" in notices

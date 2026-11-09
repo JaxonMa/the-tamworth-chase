@@ -42,6 +42,7 @@ deleted.
 20. [Project layout](#project-layout)
 21. [Design notes and assumptions](#design-notes-and-assumptions)
 22. [Known limitations](#known-limitations)
+23. [License](#license)
 
 ## Features
 
@@ -478,6 +479,8 @@ Reference solutions live in `tests/solutions.json` and
 
 ```
 main.py                     Entry point
+LICENSE                     MIT project license
+THIRD_PARTY_NOTICES.md      Font and music license notices
 game/
   models.py                 Head-less models: Action, Level, TickResult
   core.py                   Absolute steering, cow AI, exits, undo, prediction
@@ -568,3 +571,18 @@ tools/                      Solver CLI and screenshot helper
 - The solution search is synchronous, so a difficult custom level can pause the
   interface for up to three seconds before reporting **暂时无法给出解法**.
 - Solution playback has a fixed pace and no step-by-step or speed controls.
+
+## License
+
+The Tamworth Chase is released under the **MIT License**. See
+[LICENSE](LICENSE) for the full text.
+
+The MIT license covers the original source code and procedural artwork. Bundled
+third-party assets keep their own licenses:
+
+- **CEF Fonts CJK** — SIL Open Font License 1.1; full text in
+  `assets/fonts/OFL.txt`.
+- **“Meadow Thoughts”** by Écrivain — CC0 1.0; source and SHA-256 in
+  `assets/music/README.md`.
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the complete notices.
