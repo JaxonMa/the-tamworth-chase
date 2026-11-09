@@ -13,7 +13,7 @@ from ..levels import LevelError
 from ..models import Direction, Pos, TileKind
 from ..render import CELL, ORIGIN, draw_grid
 from ..solver import solve_level
-from .base import Scene, draw_background, draw_footer, draw_header, make_back_button
+from .base import Scene, draw_background, draw_footer, make_back_button
 
 TOOL_TERRAIN = "terrain"
 TOOL_FARMER = "farmer"
@@ -59,7 +59,7 @@ class EditorScene(Scene):
         for index, kind in enumerate(PAINT_TILES):
             self.terrain_buttons.append(
                 ui.Button(
-                    pygame.Rect(611 + index * 72, 120, 64, 30),
+                    pygame.Rect(764 + index * 89, 150, 82, 38),
                     TERRAIN_LABELS[kind],
                     f"paint:{kind.value}",
                     style="ghost",
@@ -67,57 +67,57 @@ class EditorScene(Scene):
                 )
             )
         self.actor_buttons = [
-            ui.Button(pygame.Rect(611, 157, 64, 30), "农夫", "actor:farmer", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(684, 157, 64, 30), "牛", "actor:cow", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(757, 157, 64, 30), "加牛", "actor:add", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(830, 157, 64, 30), "减牛", "actor:remove", style="ghost", font_size=theme.FONT_TINY),
-            ui.Button(pygame.Rect(903, 157, 64, 30), "换牛", "actor:cycle", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(764, 196, 84, 38), "农夫", "actor:farmer", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(855, 196, 84, 38), "牛", "actor:cow", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(946, 196, 84, 38), "加牛", "actor:add", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(1037, 196, 84, 38), "减牛", "actor:remove", style="ghost", font_size=theme.FONT_TINY),
+            ui.Button(pygame.Rect(1128, 196, 84, 38), "换牛", "actor:cycle", style="ghost", font_size=theme.FONT_TINY),
         ]
         self.exit_button = ui.Button(
-            pygame.Rect(611, 194, 112, 30), "出口格", "tool:exit", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(764, 242, 140, 38), "出口格", "tool:exit", style="ghost", font_size=theme.FONT_TINY
         )
         self.obstacle_button = ui.Button(
-            pygame.Rect(730, 194, 112, 30), "固定障碍", "tool:obstacle", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(912, 242, 140, 38), "固定障碍", "tool:obstacle", style="ghost", font_size=theme.FONT_TINY
         )
         self.facing_button = ui.Button(
-            pygame.Rect(611, 230, 173, 30), "农夫朝向", "cycle_facing", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(764, 288, 216, 38), "农夫朝向", "cycle_facing", style="ghost", font_size=theme.FONT_TINY
         )
         self.cow_facing_button = ui.Button(
-            pygame.Rect(790, 230, 176, 30), "牛朝向", "cycle_cow_facing", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(988, 288, 220, 38), "牛朝向", "cycle_cow_facing", style="ghost", font_size=theme.FONT_TINY
         )
         self.exit_tie_button = ui.Button(
-            pygame.Rect(611, 267, 173, 30), "出口平局：右", "tie_exit", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(764, 334, 216, 38), "出口平局：右", "tie_exit", style="ghost", font_size=theme.FONT_TINY
         )
         self.flee_tie_button = ui.Button(
-            pygame.Rect(790, 267, 176, 30), "逃跑平局：右", "tie_flee", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(988, 334, 220, 38), "逃跑平局：右", "tie_flee", style="ghost", font_size=theme.FONT_TINY
         )
         self.block_sight_button = ui.Button(
-            pygame.Rect(611, 304, 173, 30), "牛挡视线：关", "block_sight", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(764, 380, 216, 38), "牛挡视线：关", "block_sight", style="ghost", font_size=theme.FONT_TINY
         )
         self.block_cows_button = ui.Button(
-            pygame.Rect(790, 304, 176, 30), "牛互相阻挡：关", "block_cows", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(988, 380, 220, 38), "牛互相阻挡：关", "block_cows", style="ghost", font_size=theme.FONT_TINY
         )
         self.rule_minus: List[ui.Button] = []
         self.rule_plus: List[ui.Button] = []
         for index in range(4):
-            y = 350 + index * 34
+            y = 438 + index * 42
             self.rule_minus.append(
-                ui.Button(pygame.Rect(611, y, 34, 27), "−", f"rule:{index}:-", style="ghost")
+                ui.Button(pygame.Rect(764, y, 42, 34), "−", f"rule:{index}:-", style="ghost")
             )
             self.rule_plus.append(
-                ui.Button(pygame.Rect(770, y, 34, 27), "+", f"rule:{index}:+", style="ghost")
+                ui.Button(pygame.Rect(962, y, 42, 34), "+", f"rule:{index}:+", style="ghost")
             )
         self.play_button = ui.Button(
-            pygame.Rect(611, 531, 168, 40), "试玩", "play", style="primary", font_size=theme.FONT_H3
+            pygame.Rect(764, 664, 210, 50), "试玩", "play", style="primary", font_size=theme.FONT_H3
         )
         self.export_button = ui.Button(
-            pygame.Rect(792, 531, 174, 40), "导出关卡", "export", style="default", font_size=theme.FONT_H3
+            pygame.Rect(990, 664, 218, 50), "导出关卡", "export", style="default", font_size=theme.FONT_H3
         )
         self.import_button = ui.Button(
-            pygame.Rect(611, 579, 168, 34), "导入关卡", "import", style="ghost"
+            pygame.Rect(764, 724, 210, 42), "导入关卡", "import", style="ghost"
         )
         self.clear_button = ui.Button(
-            pygame.Rect(792, 579, 174, 34), "清空重来", "clear", style="ghost"
+            pygame.Rect(990, 724, 218, 42), "清空重来", "clear", style="ghost"
         )
         self.buttons = [
             *self.terrain_buttons,
@@ -329,11 +329,11 @@ class EditorScene(Scene):
             accent=theme.CLAY,
             badge="未验证",
             buttons=[
-                ui.Button(pygame.Rect(0, 0, 128, 40), "取消", "cancel", style="ghost"),
-                ui.Button(pygame.Rect(0, 0, 176, 40), "仍然导出（未验证）", "export_unverified", style="primary"),
+                ui.Button(pygame.Rect(0, 0, 160, 50), "取消", "cancel", style="ghost"),
+                ui.Button(pygame.Rect(0, 0, 220, 50), "仍然导出（未验证）", "export_unverified", style="primary"),
             ],
-            width=560,
-            height=312,
+            width=700,
+            height=390,
         )
 
     def _finish_export(self, level, verification) -> None:
@@ -363,7 +363,7 @@ class EditorScene(Scene):
         for index, path in enumerate(files[:5]):
             buttons.append(
                 ui.Button(
-                    pygame.Rect(0, 0, 368, 37),
+                    pygame.Rect(0, 0, 460, 46),
                     path.stem[:28],
                     f"file:{index}",
                     style="ghost",
@@ -371,20 +371,20 @@ class EditorScene(Scene):
                 )
             )
         self._import_files = files[:5]
-        cancel = ui.Button(pygame.Rect(0, 0, 120, 37), "取消", "cancel", style="ghost")
+        cancel = ui.Button(pygame.Rect(0, 0, 150, 46), "取消", "cancel", style="ghost")
         self.import_buttons = buttons
         self.modal = ui.Modal(
             "导入关卡",
             "选择一个之前导出的关卡文件：",
             accent=theme.SKY_DEEP,
             buttons=[cancel],
-            width=560,
-            height=400,
+            width=620,
+            height=420,
         )
-        y = self.modal.rect.top + 110
+        y = self.modal.rect.top + 150
         for button in buttons:
-            button.rect.topleft = (self.modal.rect.left + 96, y)
-            y += 42
+            button.rect.topleft = (self.modal.rect.left + 60, y)
+            y += 54
         self.modal.buttons = buttons + [cancel]
 
     def _modal_action(self, action: str) -> None:
@@ -423,19 +423,20 @@ class EditorScene(Scene):
         if self.toast_timer > 0:
             self.toast_timer = max(0.0, self.toast_timer - dt)
         if self.modal is not None:
-            self.modal.update(self.app.mouse_pos())
+            self.modal.update(pygame.mouse.get_pos())
 
     # ------------------------------------------------------------------
     def draw(self, surface: pygame.Surface) -> None:
         draw_background(surface)
-        draw_header(
-            surface,
-            self.fonts,
-            "关卡编辑器",
-            self.model.name,
-            badge="编辑器",
-            badge_color=theme.CLAY,
+        title = "关卡编辑器"
+        badge = "编辑器"
+        badge_color = theme.CLAY
+        theme.draw_text(surface, self.fonts, title, (62, 34), theme.FONT_H1, theme.INK, bold=True)
+        ui.draw_pill(surface, self.fonts, badge, (62 + 300, 58), badge_color)
+        theme.draw_text(
+            surface, self.fonts, self.model.name, (62 + 400, 50), theme.FONT_SMALL, theme.INK_SOFT
         )
+        pygame.draw.line(surface, theme.PANEL_BORDER, (60, 104), (1220, 104), 2)
         self.back_button.draw(surface, self.fonts)
 
         self._draw_board(surface)
@@ -496,8 +497,8 @@ class EditorScene(Scene):
 
     def _draw_panel(self, surface: pygame.Surface) -> None:
         theme.panel(surface, theme.PANEL_RECT)
-        left = theme.PANEL_RECT.left + 19
-        theme.draw_text(surface, self.fonts, "地形", (left, 98), theme.FONT_TINY, theme.INK_LIGHT)
+        left = theme.PANEL_RECT.left + 24
+        theme.draw_text(surface, self.fonts, "地形", (left, 122), theme.FONT_TINY, theme.INK_LIGHT)
         for button in self.terrain_buttons:
             button.style = (
                 "primary"
@@ -516,6 +517,10 @@ class EditorScene(Scene):
         self.exit_button.draw(surface, self.fonts)
         self.obstacle_button.style = "primary" if self.tool == TOOL_OBSTACLE else "ghost"
         self.obstacle_button.draw(surface, self.fonts)
+        theme.draw_text(
+            surface, self.fonts, "牛会躲农夫", (1064, 260),
+            theme.FONT_TINY, theme.INK_LIGHT,
+        )
         active_cow = self.model.cows[self.model.active_cow] if self.model.cows else None
         self.facing_button.text = f"农夫朝向：{self.model.farmer_facing.label}"
         self.facing_button.draw(surface, self.fonts)
@@ -540,13 +545,13 @@ class EditorScene(Scene):
             ("出口视野", self.model.exit_sight_range if self.model.exit_sight_range >= 0 else "∞"),
         ]
         for index, (label, value) in enumerate(rules):
-            y = 350 + index * 34
+            y = 438 + index * 42
             theme.draw_text(
-                surface, self.fonts, label, (left + 40, y + 14), theme.FONT_SMALL, theme.INK,
+                surface, self.fonts, label, (left + 50, y + 17), theme.FONT_SMALL, theme.INK,
                 anchor="midleft",
             )
             theme.draw_text(
-                surface, self.fonts, str(value), (left + 120, y + 14), theme.FONT_H3,
+                surface, self.fonts, str(value), (left + 150, y + 17), theme.FONT_H3,
                 theme.CLAY_DARK, anchor="center", bold=True,
             )
             self.rule_minus[index].draw(surface, self.fonts)
@@ -555,18 +560,18 @@ class EditorScene(Scene):
         hint = self.fonts.wrap(
             "画地形、摆农夫与牛、设置出口和视线规则；导出前会自动做可解性验证。",
             theme.FONT_SMALL,
-            355,
+            444,
             theme.INK_SOFT,
         )
-        surface.blit(hint, (left, 483))
+        surface.blit(hint, (left, 598))
 
         for button in (self.play_button, self.export_button, self.import_button, self.clear_button):
             button.draw(surface, self.fonts)
 
     def _draw_toast(self, surface: pygame.Surface) -> None:
-        body = self.fonts.wrap(self.toast_text, theme.FONT_SMALL, 416, theme.WHITE_WARM)
-        rect = pygame.Rect(0, 0, body.get_width() + 32, body.get_height() + 19)
-        rect.center = (ORIGIN[0] + CELL * 5, 77)
+        body = self.fonts.wrap(self.toast_text, theme.FONT_SMALL, 520, theme.WHITE_WARM)
+        rect = pygame.Rect(0, 0, body.get_width() + 40, body.get_height() + 24)
+        rect.center = (ORIGIN[0] + CELL * 5, 96)
         theme.soft_shadow(surface, rect, radius=14, alpha=60, offset=(0, 4))
         theme.rounded_rect(surface, rect, theme.CLAY, radius=14)
         surface.blit(body, (rect.left + 20, rect.top + 12))

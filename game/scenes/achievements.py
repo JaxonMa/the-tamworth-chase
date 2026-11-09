@@ -21,9 +21,9 @@ class AchievementScene(Scene):
     def on_enter(self) -> None:
         self.cards = []
         columns = 3
-        width, height = 286, 152
-        gap_x, gap_y = 19, 21
-        start_x, start_y = 50, 120
+        width, height = 358, 190
+        gap_x, gap_y = 24, 26
+        start_x, start_y = 62, 150
         for index, achievement in enumerate(self.entries):
             row, col = divmod(index, columns)
             rect = pygame.Rect(
@@ -71,32 +71,32 @@ class AchievementScene(Scene):
         theme.rounded_rect(
             surface, rect, theme.SUN if unlocked else theme.PANEL_BORDER, radius=18, width=3 if unlocked else 2
         )
-        medal_center = (rect.left + 43, rect.centery)
-        pygame.draw.circle(surface, theme.SUN if unlocked else theme.CREAM_DARK, medal_center, 24)
-        pygame.draw.circle(surface, theme.SUN if unlocked else theme.PANEL_BORDER, medal_center, 24, 3)
+        medal_center = (rect.left + 54, rect.centery)
+        pygame.draw.circle(surface, theme.SUN if unlocked else theme.CREAM_DARK, medal_center, 30)
+        pygame.draw.circle(surface, theme.SUN if unlocked else theme.PANEL_BORDER, medal_center, 30, 3)
         if unlocked:
             pygame.draw.lines(
                 surface,
                 theme.WHITE_WARM,
                 False,
                 [
-                    (medal_center[0] - 9, medal_center[1]),
-                    (medal_center[0] - 2, medal_center[1] + 7),
-                    (medal_center[0] + 10, medal_center[1] - 8),
+                    (medal_center[0] - 12, medal_center[1]),
+                    (medal_center[0] - 3, medal_center[1] + 9),
+                    (medal_center[0] + 13, medal_center[1] - 10),
                 ],
-                3,
+                4,
             )
         else:
             pygame.draw.rect(
                 surface,
                 theme.INK_LIGHT,
-                pygame.Rect(medal_center[0] - 8, medal_center[1] - 2, 16, 13),
+                pygame.Rect(medal_center[0] - 10, medal_center[1] - 2, 20, 16),
                 border_radius=4,
             )
             pygame.draw.arc(
                 surface,
                 theme.INK_LIGHT,
-                pygame.Rect(medal_center[0] - 6, medal_center[1] - 12, 12, 15),
+                pygame.Rect(medal_center[0] - 7, medal_center[1] - 14, 14, 18),
                 0,
                 3.14,
                 3,
@@ -105,24 +105,24 @@ class AchievementScene(Scene):
             surface,
             self.fonts,
             achievement.name,
-            (rect.left + 77, rect.top + 18),
+            (rect.left + 96, rect.top + 22),
             theme.FONT_H3,
             theme.INK if unlocked else theme.INK_LIGHT,
             bold=True,
         )
         description = self.fonts.wrap(
-            achievement.description, theme.FONT_SMALL, rect.width - 88, theme.INK_SOFT
+            achievement.description, theme.FONT_SMALL, rect.width - 108, theme.INK_SOFT
         )
-        surface.blit(description, (rect.left + 77, rect.top + 46))
-        hint = self.fonts.wrap(achievement.hint, theme.FONT_TINY, rect.width - 96, theme.INK_LIGHT)
-        surface.blit(hint, (rect.left + 77, rect.bottom - 51))
+        surface.blit(description, (rect.left + 96, rect.top + 58))
+        hint = self.fonts.wrap(achievement.hint, theme.FONT_TINY, rect.width - 116, theme.INK_LIGHT)
+        surface.blit(hint, (rect.left + 96, rect.bottom - 64))
         date_text = self.store.achievements.get(achievement.achievement_id)
         if unlocked and date_text:
             theme.draw_text(
                 surface,
                 self.fonts,
                 date_text[:10],
-                (rect.right - 13, rect.top + 13),
+                (rect.right - 16, rect.top + 16),
                 theme.FONT_TINY,
                 theme.INK_LIGHT,
                 anchor="topright",

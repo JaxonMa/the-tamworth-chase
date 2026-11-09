@@ -36,7 +36,6 @@ class App:
         pygame.init()
         pygame.display.set_caption(GAME_TITLE)
         self.screen = pygame.display.set_mode((theme.WINDOW_WIDTH, theme.WINDOW_HEIGHT))
-        self.display = self.screen
         self.clock = pygame.time.Clock()
         self.running = True
         self.features = set(features) if features is not None else set(ALL_FEATURES)
@@ -161,9 +160,6 @@ class App:
     # ------------------------------------------------------------------
     # Loop
     # ------------------------------------------------------------------
-    def mouse_pos(self) -> tuple:
-        return pygame.mouse.get_pos()
-
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.QUIT:
             self.running = False
@@ -186,9 +182,6 @@ class App:
             overlay.set_alpha(int(255 * min(1.0, self.transition)))
             self.screen.blit(overlay, (0, 0))
 
-    def present(self) -> None:
-        pygame.display.flip()
-
     def run(self) -> int:
         while self.running:
             dt = min(0.05, self.clock.tick(theme.FPS) / 1000.0)
@@ -196,7 +189,7 @@ class App:
                 self.handle_event(event)
             self.update(dt)
             self.draw()
-            self.present()
+            pygame.display.flip()
         pygame.quit()
         return 0
 

@@ -23,9 +23,9 @@ class ChallengeScene(Scene):
         self.levels = list(self.app.challenges)
         self.cards = []
         self.thumbnails = {}
-        width, height = 286, 189
-        gap_x, gap_y = 19, 19
-        start_x, start_y = 50, 120
+        width, height = 358, 236
+        gap_x, gap_y = 24, 24
+        start_x, start_y = 62, 150
         for index, level in enumerate(self.levels):
             row, col = divmod(index, 3)
             rect = pygame.Rect(
@@ -42,7 +42,7 @@ class ChallengeScene(Scene):
                 accent=theme.CLAY,
             )
             self.cards.append(card)
-            self.thumbnails[level.level_id] = make_thumbnail(self.cache, level, cell=6)
+            self.thumbnails[level.level_id] = make_thumbnail(self.cache, level, cell=7)
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if self.back_button.handle_event(event):
@@ -91,7 +91,7 @@ class ChallengeScene(Scene):
                 surface,
                 self.fonts,
                 "还没有挑战数据。",
-                (512, 320),
+                (640, 400),
                 theme.FONT_H2,
                 theme.INK_LIGHT,
                 anchor="center",
@@ -105,16 +105,16 @@ class ChallengeScene(Scene):
         rect = card.rect
         thumbnail = self.thumbnails.get(card.key)
         if thumbnail is not None:
-            frame = thumbnail.get_rect(topleft=(rect.left + 27, rect.top + 13))
-            theme.rounded_rect(surface, frame.inflate(6, 6), theme.CREAM_DARK, radius=6)
+            frame = thumbnail.get_rect(topleft=(rect.left + 34, rect.top + 16))
+            theme.rounded_rect(surface, frame.inflate(8, 8), theme.CREAM_DARK, radius=8)
             surface.blit(thumbnail, frame)
-            theme.rounded_rect(surface, frame.inflate(6, 6), theme.PANEL_BORDER, radius=6, width=2)
-        text_left = rect.left + 106
+            theme.rounded_rect(surface, frame.inflate(8, 8), theme.PANEL_BORDER, radius=8, width=2)
+        text_left = rect.left + 132
         theme.draw_text(
             surface,
             self.fonts,
             level.name,
-            (text_left, rect.top + 14),
+            (text_left, rect.top + 18),
             theme.FONT_H3,
             theme.INK,
             bold=True,
@@ -124,21 +124,21 @@ class ChallengeScene(Scene):
             surface,
             self.fonts,
             f"最好 {best_value} 回合" if best_value is not None else "未挑战",
-            (rect.right - 14, rect.top + 18),
+            (rect.right - 18, rect.top + 22),
             theme.FONT_SMALL,
             theme.INK_SOFT,
             anchor="topright",
         )
-        description = self.fonts.wrap(level.description, theme.FONT_SMALL, rect.width - 122, theme.INK_SOFT)
-        surface.blit(description, (text_left, rect.top + 40))
+        description = self.fonts.wrap(level.description, theme.FONT_SMALL, rect.width - 152, theme.INK_SOFT)
+        surface.blit(description, (text_left, rect.top + 50))
         best = self.store.challenge_best(card.key)
         theme.draw_text(
             surface,
             self.fonts,
             f"最好成绩：{best} 回合" if best is not None else "还没有完成过",
-            (rect.left + 30, rect.bottom - 32),
+            (rect.left + 20, rect.bottom - 42),
             theme.FONT_SMALL,
             theme.INK_SOFT,
         )
         tag = " / ".join(level.tags[:2]) if level.tags else "挑战"
-        ui.draw_pill(surface, self.fonts, tag, (rect.right - 56, rect.bottom - 27), theme.CLAY)
+        ui.draw_pill(surface, self.fonts, tag, (rect.right - 70, rect.bottom - 34), theme.CLAY)

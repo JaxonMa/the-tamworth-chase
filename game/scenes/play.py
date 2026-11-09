@@ -101,16 +101,16 @@ class PlayScene(Scene):
 
     def _build_buttons(self) -> None:
         self.undo_button = ui.Button(
-            pygame.Rect(694, 90, 64, 35), "[U] 撤销", "undo", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(868, 112, 80, 44), "[U] 撤销", "undo", style="ghost", font_size=theme.FONT_TINY
         )
         self.restart_button = ui.Button(
-            pygame.Rect(763, 90, 64, 35), "[R] 重开", "restart", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(954, 112, 80, 44), "[R] 重开", "restart", style="ghost", font_size=theme.FONT_TINY
         )
         self.predict_button = ui.Button(
-            pygame.Rect(832, 90, 80, 35), "[P] 预测 开", "predict", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(1040, 112, 100, 44), "[P] 预测 开", "predict", style="ghost", font_size=theme.FONT_TINY
         )
         self.alert_button = ui.Button(
-            pygame.Rect(917, 90, 59, 35), "警觉 开", "alerts", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(1146, 112, 74, 44), "警觉 开", "alerts", style="ghost", font_size=theme.FONT_TINY
         )
         self.buttons = [
             self.undo_button,
@@ -119,14 +119,14 @@ class PlayScene(Scene):
             self.alert_button,
         ]
         self.demo_pause_button = ui.Button(
-            pygame.Rect(694, 90, 64, 35), "暂停", "demo_pause", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(868, 112, 80, 44), "暂停", "demo_pause", style="ghost", font_size=theme.FONT_TINY
         )
         self.demo_exit_button = ui.Button(
-            pygame.Rect(763, 90, 80, 35), "退出演示", "demo_exit", style="ghost", font_size=theme.FONT_TINY
+            pygame.Rect(954, 112, 100, 44), "退出演示", "demo_exit", style="ghost", font_size=theme.FONT_TINY
         )
         self.demo_buttons = [self.demo_pause_button, self.demo_exit_button]
         self.hint_next_button = ui.Button(
-            pygame.Rect(0, 0, 83, 29),
+            pygame.Rect(0, 0, 104, 36),
             "下一条",
             "hint_next",
             style="sky",
@@ -134,7 +134,7 @@ class PlayScene(Scene):
         )
         self.hint_next_button.visible = False
         self.back_button = ui.Button(
-            pygame.Rect(theme.WINDOW_WIDTH - 152, 29, 104, 42), "返回", "back", style="ghost"
+            pygame.Rect(theme.WINDOW_WIDTH - 190, 36, 130, 52), "返回", "back", style="ghost"
         )
 
     def on_enter(self) -> None:
@@ -504,13 +504,13 @@ class PlayScene(Scene):
             accent=theme.SKY_DEEP,
             badge="演示未计成绩",
             buttons=[
-                ui.Button(pygame.Rect(0, 0, 128, 40), "再次演示", "show_solution", style="primary"),
-                ui.Button(pygame.Rect(0, 0, 88, 40), "重开", "retry", style="default"),
-                ui.Button(pygame.Rect(0, 0, 152, 40), "撤销到上一回合", "undo_result", style="ghost"),
-                ui.Button(pygame.Rect(0, 0, 88, 40), "返回", "leave", style="ghost"),
+                ui.Button(pygame.Rect(0, 0, 160, 50), "再次演示", "show_solution", style="primary"),
+                ui.Button(pygame.Rect(0, 0, 110, 50), "重开", "retry", style="default"),
+                ui.Button(pygame.Rect(0, 0, 190, 50), "撤销到上一回合", "undo_result", style="ghost"),
+                ui.Button(pygame.Rect(0, 0, 110, 50), "返回", "leave", style="ghost"),
             ],
-            width=608,
-            height=288,
+            width=760,
+            height=360,
         )
 
     def _undo(self) -> None:
@@ -610,7 +610,7 @@ class PlayScene(Scene):
         if self.toast_timer > 0:
             self.toast_timer = max(0.0, self.toast_timer - dt)
         if self.modal is not None:
-            self.modal.update(self.app.mouse_pos())
+            self.modal.update(pygame.mouse.get_pos())
             return
         hint_texts = self._hint_texts()
         if self.phase == "run" and self.show_hints and len(hint_texts) > 1:
@@ -651,13 +651,13 @@ class PlayScene(Scene):
             body,
             accent=EXIT_COLOR,
             buttons=[
-                ui.Button(pygame.Rect(0, 0, 152, 40), "撤销到上一回合", "undo_result", style="primary"),
-                ui.Button(pygame.Rect(0, 0, 128, 40), "显示解法", "show_solution", style="sky"),
-                ui.Button(pygame.Rect(0, 0, 120, 40), "重开本关", "retry", style="default"),
-                ui.Button(pygame.Rect(0, 0, 88, 40), "返回", "leave", style="ghost"),
+                ui.Button(pygame.Rect(0, 0, 190, 50), "撤销到上一回合", "undo_result", style="primary"),
+                ui.Button(pygame.Rect(0, 0, 160, 50), "显示解法", "show_solution", style="sky"),
+                ui.Button(pygame.Rect(0, 0, 150, 50), "重开本关", "retry", style="default"),
+                ui.Button(pygame.Rect(0, 0, 110, 50), "返回", "leave", style="ghost"),
             ],
-            width=624,
-            height=296,
+            width=780,
+            height=370,
         )
 
     def _show_win_modal(self) -> None:
@@ -675,20 +675,20 @@ class PlayScene(Scene):
             f"用了 {turns} 回合，抓住了 {len(self.sim.cows)} 头牛。\n"
             f"{teaching}{grade_text}{record_text}"
         )
-        buttons = [ui.Button(pygame.Rect(0, 0, 120, 40), "再玩一次", "retry", style="ghost")]
+        buttons = [ui.Button(pygame.Rect(0, 0, 150, 50), "再玩一次", "retry", style="ghost")]
         if self.mode == "main" and self.level_number < len(self.app.levels):
             buttons.append(
-                ui.Button(pygame.Rect(0, 0, 120, 40), "下一关", "next_level", style="primary")
+                ui.Button(pygame.Rect(0, 0, 150, 50), "下一关", "next_level", style="primary")
             )
-        buttons.append(ui.Button(pygame.Rect(0, 0, 120, 40), "返回", "leave", style="ghost"))
+        buttons.append(ui.Button(pygame.Rect(0, 0, 150, 50), "返回", "leave", style="ghost"))
         self.modal = ui.Modal(
             "全部抓住！",
             body,
             accent=theme.SUN,
             badge="教学关" if is_teaching else f"评价 {rank.value}",
             buttons=buttons,
-            width=544,
-            height=304,
+            width=680,
+            height=380,
         )
         self.app.sound.play("unlock")
 
@@ -741,8 +741,8 @@ class PlayScene(Scene):
             theme.CREAM_DARK,
         )
         layer = pygame.Surface((theme.WINDOW_WIDTH, theme.WINDOW_HEIGHT), pygame.SRCALPHA)
-        pygame.draw.circle(layer, (*theme.GRASS_LIGHT, 34), (72, 608), 192)
-        pygame.draw.circle(layer, (*theme.SKY, 22), (976, 96), 176)
+        pygame.draw.circle(layer, (*theme.GRASS_LIGHT, 34), (90, 760), 240)
+        pygame.draw.circle(layer, (*theme.SKY, 22), (1220, 120), 220)
         surface.blit(layer, (0, 0))
 
     def _draw_header(self, surface: pygame.Surface) -> None:
@@ -751,7 +751,7 @@ class PlayScene(Scene):
             if self.mode == "main"
             else self.level.name
         )
-        theme.draw_text(surface, self.fonts, title, (50, 27), theme.FONT_H1, theme.INK, bold=True)
+        theme.draw_text(surface, self.fonts, title, (62, 34), theme.FONT_H1, theme.INK, bold=True)
         badge_map = {
             "main": ("主线", theme.LEAF),
             "challenge": ("挑战", theme.CLAY),
@@ -760,7 +760,7 @@ class PlayScene(Scene):
         }
         badge, badge_color = badge_map.get(self.mode, ("主线", theme.LEAF))
         width = self.fonts.size_of(title, theme.FONT_H1, True)[0]
-        ui.draw_pill(surface, self.fonts, badge, (50 + width + 50, 46), badge_color)
+        ui.draw_pill(surface, self.fonts, badge, (62 + width + 62, 58), badge_color)
         status_text = {
             "run": "追逐中",
             "demo": "解法演示",
@@ -769,27 +769,27 @@ class PlayScene(Scene):
             surface,
             self.fonts,
             status_text,
-            (50 + width + 136, 46),
+            (62 + width + 170, 58),
             theme.CREAM_DARK,
             text_color=theme.INK_SOFT,
         )
-        pygame.draw.line(surface, theme.PANEL_BORDER, (48, 83), (976, 83), 2)
+        pygame.draw.line(surface, theme.PANEL_BORDER, (60, 104), (1220, 104), 2)
 
     def _draw_top_bar(self, surface: pygame.Surface) -> None:
         self._draw_stat(
             surface,
-            528,
-            90,
-            94,
+            660,
+            112,
+            118,
             "回合",
             f"{self.sim.turns} / {self.level.max_turns}",
             value_size=theme.FONT_SMALL,
         )
         self._draw_stat(
             surface,
-            626,
-            90,
-            64,
+            782,
+            112,
+            80,
             "牛",
             f"{self.sim.caught_count} / {len(self.sim.cows)}",
             value_size=theme.FONT_SMALL,
@@ -803,7 +803,7 @@ class PlayScene(Scene):
                 else f"{self.demo_index} / {len(self.demo_actions)}"
             )
             self._draw_stat(
-                surface, 848, 90, 128, "演示", progress, value_size=theme.FONT_SMALL
+                surface, 1060, 112, 160, "演示", progress, value_size=theme.FONT_SMALL
             )
         else:
             for button in (
@@ -815,7 +815,7 @@ class PlayScene(Scene):
                 button.draw(surface, self.fonts)
 
     def _draw_stat(self, surface, x, y, width, label, value, *, value_size=theme.FONT_H3):
-        rect = pygame.Rect(x, y, width, 35)
+        rect = pygame.Rect(x, y, width, 44)
         theme.rounded_rect(surface, rect, theme.PANEL_BG, radius=12)
         theme.rounded_rect(surface, rect, theme.PANEL_BORDER, radius=12, width=2)
         theme.draw_text(
@@ -860,9 +860,9 @@ class PlayScene(Scene):
     def _draw_panel(self, surface: pygame.Surface) -> None:
         panel = self.panel_rect
         theme.panel(surface, panel)
-        left = panel.left + 19
-        width = panel.width - 38
-        y = panel.top + 16
+        left = panel.left + 24
+        width = panel.width - 48
+        y = panel.top + 20
         self.hint_card_rect = None
         self.hint_next_button.visible = False
 
@@ -876,13 +876,13 @@ class PlayScene(Scene):
             surface, self.fonts, label_map.get(self.mode, "本关目标"), (left, y),
             theme.FONT_SMALL, theme.INK_LIGHT,
         )
-        y += 21
+        y += 26
         theme.draw_text(
             surface, self.fonts, self.level.name, (left, y), theme.FONT_H2, theme.INK, bold=True
         )
-        y += 35
+        y += 44
         ui.draw_divider(surface, y, left, width)
-        y += 14
+        y += 18
 
         if self.phase == "demo":
             self._draw_demo_panel(surface, left, width)
@@ -894,10 +894,10 @@ class PlayScene(Scene):
                 surface, self.fonts, "本关学习", (left, y), theme.FONT_TINY,
                 theme.SKY_DEEP, bold=True,
             )
-            y += 19
+            y += 24
             wrapped = self.fonts.wrap(objective, theme.FONT_BODY, width, theme.INK)
             surface.blit(wrapped, (left, y))
-            y += wrapped.get_height() + 10
+            y += wrapped.get_height() + 12
 
         if self.level.description and self.level.description != objective:
             if objective:
@@ -905,17 +905,17 @@ class PlayScene(Scene):
                     surface, self.fonts, "关卡说明", (left, y), theme.FONT_TINY,
                     theme.INK_LIGHT,
                 )
-                y += 19
+                y += 24
             wrapped = self.fonts.wrap(
                 self.level.description, theme.FONT_SMALL, width, theme.INK_SOFT
             )
             surface.blit(wrapped, (left, y))
-            y += wrapped.get_height() + 10
+            y += wrapped.get_height() + 12
 
         ui.draw_pill(
-            surface, self.fonts, "目标：抓住全部牛", (left + 61, y + 14), theme.LEAF_DARK
+            surface, self.fonts, "目标：抓住全部牛", (left + 76, y + 18), theme.LEAF_DARK
         )
-        y += 37
+        y += 46
         theme.draw_text(
             surface,
             self.fonts,
@@ -924,20 +924,20 @@ class PlayScene(Scene):
             theme.FONT_TINY,
             theme.INK_LIGHT,
         )
-        y += 26
+        y += 32
         if self.sim.near_exit(3) and not self.sim.status.is_finished:
             ui.draw_pill(
-                surface, self.fonts, "出口就在附近！", (left + 64, y + 10), EXIT_COLOR
+                surface, self.fonts, "出口就在附近！", (left + 80, y + 12), EXIT_COLOR
             )
-            y += 27
+            y += 34
 
         if self.show_hints and self.phase == "run":
             texts = self._hint_texts()
             if texts:
-                self._draw_hint_card(surface, left, max(350, y), width)
+                self._draw_hint_card(surface, left, max(438, y), width)
 
     def _draw_demo_panel(self, surface: pygame.Surface, left: int, width: int) -> None:
-        y = self.panel_rect.top + 104
+        y = self.panel_rect.top + 130
         theme.draw_text(
             surface,
             self.fonts,
@@ -947,7 +947,7 @@ class PlayScene(Scene):
             theme.INK,
             bold=True,
         )
-        y += 34
+        y += 42
         body = self.fonts.wrap(
             "求解器使用与本局完全相同的规则。\n"
             "演示期间不响应玩家操作，也不会计入成绩或解锁记录。",
@@ -956,24 +956,24 @@ class PlayScene(Scene):
             theme.INK_SOFT,
         )
         surface.blit(body, (left, y))
-        y += body.get_height() + 14
+        y += body.get_height() + 18
         ui.draw_pill(
             surface,
             self.fonts,
             "不计入成绩",
-            (left + 61, y + 3),
+            (left + 76, y + 4),
             theme.SKY_DEEP,
         )
-        y += 27
+        y += 34
 
-        progress = pygame.Rect(left, y, width, 114)
+        progress = pygame.Rect(left, y, width, 142)
         theme.rounded_rect(surface, progress, theme.CREAM, radius=16)
         theme.rounded_rect(surface, progress, theme.PANEL_BORDER, radius=16, width=2)
         theme.draw_text(
             surface,
             self.fonts,
             "演示进度",
-            (progress.left + 14, progress.top + 11),
+            (progress.left + 18, progress.top + 14),
             theme.FONT_TINY,
             theme.INK_LIGHT,
         )
@@ -982,7 +982,7 @@ class PlayScene(Scene):
             surface,
             self.fonts,
             f"{self.demo_index} / {total}",
-            (progress.left + 14, progress.top + 32),
+            (progress.left + 18, progress.top + 40),
             theme.FONT_H1,
             theme.INK,
             bold=True,
@@ -1000,7 +1000,7 @@ class PlayScene(Scene):
             surface,
             self.fonts,
             state_text,
-            (progress.right - 72, progress.top + 44),
+            (progress.right - 90, progress.top + 55),
             state_color,
         )
         last_text = (
@@ -1012,20 +1012,20 @@ class PlayScene(Scene):
             surface,
             self.fonts,
             last_text,
-            (progress.left + 14, progress.top + 86),
+            (progress.left + 18, progress.top + 108),
             theme.FONT_SMALL,
             theme.INK_SOFT,
         )
 
-        card_y = progress.bottom + 16
-        card = pygame.Rect(left, card_y, width, 133)
+        card_y = progress.bottom + 20
+        card = pygame.Rect(left, card_y, width, 166)
         theme.rounded_rect(surface, card, theme.CREAM, radius=16)
         theme.rounded_rect(surface, card, theme.PANEL_BORDER, radius=16, width=2)
         theme.draw_text(
             surface,
             self.fonts,
             "演示控制",
-            (card.left + 14, card.top + 11),
+            (card.left + 18, card.top + 14),
             theme.FONT_TINY,
             theme.INK_LIGHT,
         )
@@ -1034,7 +1034,7 @@ class PlayScene(Scene):
             "顶部「退出演示」：立即回到失败时的局面",
             "演示结束后自动恢复，并打开演示结束弹窗",
         ]
-        line_y = card.top + 37
+        line_y = card.top + 46
         for line in lines:
             theme.draw_text(
                 surface,
@@ -1044,7 +1044,7 @@ class PlayScene(Scene):
                 theme.FONT_SMALL,
                 theme.INK_SOFT,
             )
-            line_y += 26
+            line_y += 32
 
     def _draw_hint_card(
         self, surface: pygame.Surface, left: int, top: int, width: int
@@ -1054,22 +1054,22 @@ class PlayScene(Scene):
             return
         index = min(self.hint_index, len(texts) - 1)
         multi = bool(self.level.hint_text)
-        height = 152 if multi else 112
+        height = 190 if multi else 140
         card = pygame.Rect(left, top, width, height)
-        theme.soft_shadow(surface, card, radius=14, alpha=32, offset=(0, 4))
-        theme.rounded_rect(surface, card, theme.SKY_PALE, radius=14)
-        theme.rounded_rect(surface, card, theme.SKY_DEEP, radius=14, width=3)
+        theme.soft_shadow(surface, card, radius=18, alpha=32, offset=(0, 5))
+        theme.rounded_rect(surface, card, theme.SKY_PALE, radius=18)
+        theme.rounded_rect(surface, card, theme.SKY_DEEP, radius=18, width=3)
         label = (
             "教学提示"
             if self.level.learning_objective or "教学" in self.level.tags
             else "关卡提示"
         )
         ui.draw_pill(
-            surface, self.fonts, label, (card.left + 46, card.top + 20), theme.SKY_DEEP
+            surface, self.fonts, label, (card.left + 58, card.top + 25), theme.SKY_DEEP
         )
 
         next_visible = multi and index < len(texts) - 1
-        self.hint_next_button.rect = pygame.Rect(card.right - 96, card.top + 6, 83, 29)
+        self.hint_next_button.rect = pygame.Rect(card.right - 120, card.top + 8, 104, 36)
         self.hint_next_button.visible = next_visible
         if next_visible:
             self.hint_next_button.draw(surface, self.fonts)
@@ -1081,24 +1081,24 @@ class PlayScene(Scene):
             if next_visible:
                 counter_x = self.hint_next_button.rect.left - 16 - counter.get_width()
             else:
-                counter_x = card.right - 16 - counter.get_width()
-            surface.blit(counter, (counter_x, card.top + 12))
+                counter_x = card.right - 20 - counter.get_width()
+            surface.blit(counter, (counter_x, card.top + 15))
 
         body_text = texts[index]
-        body = self.fonts.wrap(body_text, theme.FONT_BODY, card.width - 32, theme.INK)
-        max_height = 78 if multi else 58
+        body = self.fonts.wrap(body_text, theme.FONT_BODY, card.width - 40, theme.INK)
+        max_height = 96 if multi else 72
         if body.get_height() > max_height:
-            body = self.fonts.wrap(body_text, theme.FONT_SMALL, card.width - 32, theme.INK)
-        surface.blit(body, (card.left + 16, card.top + 45))
+            body = self.fonts.wrap(body_text, theme.FONT_SMALL, card.width - 40, theme.INK)
+        surface.blit(body, (card.left + 20, card.top + 56))
 
         if multi:
-            dot_y = card.bottom - 20
+            dot_y = card.bottom - 25
             for dot_index in range(len(texts)):
                 color = theme.SKY_DEEP if dot_index == index else theme.PANEL_BORDER
                 pygame.draw.circle(
                     surface,
                     color,
-                    (card.left + 19 + dot_index * 14, dot_y),
+                    (card.left + 24 + dot_index * 18, dot_y),
                     4 if dot_index == index else 3,
                 )
             auto_text = (
@@ -1107,7 +1107,7 @@ class PlayScene(Scene):
                 else "提示已全部展开"
             )
             auto = self.fonts.render(auto_text, theme.FONT_TINY, theme.INK_LIGHT)
-            surface.blit(auto, (card.left + 110, dot_y - auto.get_height() // 2))
+            surface.blit(auto, (card.left + 150, dot_y - auto.get_height() // 2))
 
         self.hint_card_rect = card
 
@@ -1133,12 +1133,12 @@ class PlayScene(Scene):
                 theme.BOARD_SIZE,
                 theme.INK_LIGHT,
             )
-            surface.blit(text, (self.stage_origin[0], 616))
+            surface.blit(text, (self.stage_origin[0], 760))
 
     def _draw_toast(self, surface: pygame.Surface) -> None:
-        body = self.fonts.wrap(self.toast_text, theme.FONT_SMALL, 368, theme.WHITE_WARM)
-        rect = pygame.Rect(0, 0, body.get_width() + 32, body.get_height() + 19)
-        rect.center = (self.stage_origin[0] + theme.BOARD_SIZE // 2, 616)
+        body = self.fonts.wrap(self.toast_text, theme.FONT_SMALL, 460, theme.WHITE_WARM)
+        rect = pygame.Rect(0, 0, body.get_width() + 40, body.get_height() + 24)
+        rect.center = (self.stage_origin[0] + theme.BOARD_SIZE // 2, 770)
         theme.soft_shadow(surface, rect, radius=14, alpha=60, offset=(0, 4))
         theme.rounded_rect(surface, rect, theme.CLAY, radius=14)
         surface.blit(body, (rect.left + 20, rect.top + 12))

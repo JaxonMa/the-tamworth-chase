@@ -42,9 +42,9 @@ class LevelSelectScene(Scene):
         levels = self.app.levels
         cards: List[LevelCard] = []
         columns = 5
-        card_w, card_h = 171, 240
-        gap_x, gap_y = 18, 21
-        start_x, start_y = 50, 110
+        card_w, card_h = 214, 300
+        gap_x, gap_y = 22, 26
+        start_x, start_y = 62, 138
         for index, level in enumerate(levels):
             row, col = divmod(index, columns)
             rect = pygame.Rect(
@@ -74,7 +74,7 @@ class LevelSelectScene(Scene):
         return cards
 
     def _thumbnail(self, level: Level) -> pygame.Surface:
-        return make_thumbnail(self.cache, level, cell=9)
+        return make_thumbnail(self.cache, level)
 
     # ------------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -122,7 +122,7 @@ class LevelSelectScene(Scene):
                 surface,
                 self.fonts,
                 "完成上一关后就能进入这片牧场。",
-                self.app.mouse_pos(),
+                pygame.mouse.get_pos(),
             )
 
     # ------------------------------------------------------------------
@@ -138,18 +138,18 @@ class LevelSelectScene(Scene):
         theme.rounded_rect(surface, rect, border, radius=20, width=3 if card.hovered else 2)
 
         # number ribbon
-        ribbon = pygame.Rect(rect.left, rect.top, rect.width, 35)
+        ribbon = pygame.Rect(rect.left, rect.top, rect.width, 44)
         theme.rounded_rect(surface, ribbon, theme.LEAF_LIGHT if card.unlocked else theme.CREAM_DARK, radius=20)
         pygame.draw.rect(
             surface,
             theme.LEAF_LIGHT if card.unlocked else theme.CREAM_DARK,
-            pygame.Rect(ribbon.left, ribbon.bottom - 16, ribbon.width, 16),
+            pygame.Rect(ribbon.left, ribbon.bottom - 20, ribbon.width, 20),
         )
         theme.draw_text(
             surface,
             self.fonts,
             f"第 {card.index + 1:02d} 关",
-            (rect.left + 11, rect.top + 7),
+            (rect.left + 14, rect.top + 9),
             theme.FONT_SMALL,
             theme.INK if card.unlocked else theme.INK_LIGHT,
             bold=True,
@@ -159,30 +159,30 @@ class LevelSelectScene(Scene):
                 surface,
                 self.fonts,
                 card.rank,
-                (rect.right - 21, rect.top + 18),
+                (rect.right - 26, rect.top + 22),
                 theme.RANK_COLORS.get(card.rank, theme.INK_LIGHT),
             )
         elif card.level.chapter:
             theme.draw_text(
                 surface,
                 self.fonts,
-                self.fonts.ellipsize(card.level.chapter, theme.FONT_TINY, 80),
-                (rect.right - 10, rect.top + 8),
+                self.fonts.ellipsize(card.level.chapter, theme.FONT_TINY, 100),
+                (rect.right - 12, rect.top + 10),
                 theme.FONT_TINY,
                 theme.INK_SOFT,
                 anchor="topright",
             )
 
         name = self.fonts.render(
-            self.fonts.ellipsize(card.level.name, theme.FONT_H3, rect.width - 22),
+            self.fonts.ellipsize(card.level.name, theme.FONT_H3, rect.width - 28),
             theme.FONT_H3,
             theme.INK if card.unlocked else theme.INK_LIGHT,
             True,
         )
-        surface.blit(name, name.get_rect(midtop=(rect.centerx, rect.top + 43)))
+        surface.blit(name, name.get_rect(midtop=(rect.centerx, rect.top + 54)))
 
-        thumb_rect = card.thumbnail.get_rect(center=(rect.centerx, rect.top + 126))
-        thumb_frame = thumb_rect.inflate(8, 8)
+        thumb_rect = card.thumbnail.get_rect(center=(rect.centerx, rect.top + 158))
+        thumb_frame = thumb_rect.inflate(10, 10)
         theme.rounded_rect(surface, thumb_frame, theme.CREAM_DARK, radius=10)
         surface.blit(card.thumbnail, thumb_rect)
         theme.rounded_rect(surface, thumb_frame, theme.PANEL_BORDER, radius=10, width=2)
@@ -196,18 +196,18 @@ class LevelSelectScene(Scene):
             surface,
             self.fonts,
             detail,
-            (rect.centerx, rect.bottom - 42),
+            (rect.centerx, rect.bottom - 52),
             theme.FONT_TINY,
             theme.INK_SOFT,
             anchor="center",
         )
         hint = card.level.learning_objective or card.level.hint
-        hint = self.fonts.ellipsize(hint, theme.FONT_TINY, rect.width - 22)
+        hint = self.fonts.ellipsize(hint, theme.FONT_TINY, rect.width - 26)
         theme.draw_text(
             surface,
             self.fonts,
             hint,
-            (rect.centerx, rect.bottom - 21),
+            (rect.centerx, rect.bottom - 26),
             theme.FONT_TINY,
             theme.INK_LIGHT,
             anchor="center",
@@ -219,14 +219,14 @@ class LevelSelectScene(Scene):
             surface.blit(veil, rect.topleft)
             # padlock
             cx, cy = rect.centerx, rect.centery
-            pygame.draw.circle(surface, theme.CREAM_DARK, (cx, cy), 24)
-            pygame.draw.circle(surface, theme.PANEL_BORDER, (cx, cy), 24, 2)
-            body = pygame.Rect(cx - 12, cy - 2, 24, 18)
+            pygame.draw.circle(surface, theme.CREAM_DARK, (cx, cy), 30)
+            pygame.draw.circle(surface, theme.PANEL_BORDER, (cx, cy), 30, 2)
+            body = pygame.Rect(cx - 15, cy - 2, 30, 22)
             theme.rounded_rect(surface, body, theme.INK_LIGHT, radius=6)
             pygame.draw.arc(
                 surface,
                 theme.INK_LIGHT,
-                pygame.Rect(cx - 8, cy - 15, 16, 19),
+                pygame.Rect(cx - 10, cy - 18, 20, 24),
                 0.0,
                 3.14,
                 4,
