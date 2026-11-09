@@ -57,7 +57,7 @@ class SettingsScene(Scene):
             bool(store.get_setting("hints", True)),
         )
         self.reset_main_button = ui.Button(
-            pygame.Rect(118, 556, 250, 46), "重置主线进度", "reset_main", style="ghost"
+            pygame.Rect(118, 564, 250, 46), "重置主线进度", "reset_main", style="ghost"
         )
         self.widgets = [
             self.sound_toggle,
@@ -143,13 +143,15 @@ class SettingsScene(Scene):
         draw_header(surface, self.fonts, "设置", "所有设置都保存在本地")
         self.back_button.draw(surface, self.fonts)
 
-        theme.panel(surface, pygame.Rect(80, 150, 620, 470))
+        panel_top = 150
+        panel_height = 500
+        theme.panel(surface, pygame.Rect(80, panel_top, 620, panel_height))
         for widget in self.widgets:
             widget.draw(surface, self.fonts)
-        ui.draw_divider(surface, 516, 118, 520)
+        ui.draw_divider(surface, 550, 118, 520)
         self.reset_main_button.draw(surface, self.fonts)
 
-        info = pygame.Rect(740, 150, 460, 470)
+        info = pygame.Rect(740, panel_top, 460, panel_height)
         theme.panel(surface, info)
         theme.draw_text(surface, self.fonts, "关于", (info.left + 26, info.top + 22), theme.FONT_H2, theme.INK, bold=True)
         ui.draw_divider(surface, info.top + 70, info.left + 26, info.width - 52)
@@ -160,15 +162,23 @@ class SettingsScene(Scene):
             "界面字体：CEF Fonts CJK（本地内置）",
             "全部美术由程序绘制，运行时不联网。",
             "",
-            "操作：W/↑ 朝上，S/↓ 朝下，A/← 朝左，D/→ 朝右，",
+            "操作：W/↑ 朝上，S/↓ 朝下，",
+            "A/← 朝左，D/→ 朝右，",
             "空格前进，U 撤销，R 重开，P 预测。",
             "同方向转向无效；出口对农夫不可通行。",
         ]
+        content_left = info.left + 26
+        content_width = info.width - 52
         y = info.top + 88
         for line in lines:
-            if line:
-                theme.draw_text(surface, self.fonts, line, (info.left + 26, y), theme.FONT_SMALL, theme.INK_SOFT)
-            y += 34
+            if not line:
+                y += 34
+                continue
+            wrapped = self.fonts.wrap(
+                line, theme.FONT_SMALL, content_width, theme.INK_SOFT
+            )
+            surface.blit(wrapped, (content_left, y))
+            y += wrapped.get_height() + 10
         if self.modal is not None:
             self.modal.draw(surface, self.fonts)
         draw_footer(surface, self.fonts, "设置会在关闭后自动保存")
