@@ -40,7 +40,7 @@ class Button:
         font_size: int = theme.FONT_BODY,
         enabled: bool = True,
         icon: Optional[pygame.Surface] = None,
-        radius: int = 14,
+        radius: int = 11,
         tooltip: str = "",
     ) -> None:
         self.rect = pygame.Rect(rect)
@@ -136,7 +136,7 @@ class Toggle:
 
     @property
     def switch_rect(self) -> pygame.Rect:
-        return pygame.Rect(self.rect.right - 62, self.rect.centery - 15, 62, 30)
+        return pygame.Rect(self.rect.right - 50, self.rect.centery - 12, 50, 24)
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         if event.type == pygame.MOUSEMOTION:
@@ -157,11 +157,11 @@ class Toggle:
         switch = self.switch_rect
         track = theme.PRIMARY_BG if self.value else theme.CREAM_DARK
         border = theme.PRIMARY_BORDER if self.value else theme.BUTTON_BORDER
-        theme.rounded_rect(surface, switch, track, radius=15)
-        theme.rounded_rect(surface, switch, border, radius=15, width=2)
-        knob_x = switch.right - 17 if self.value else switch.left + 17
-        pygame.draw.circle(surface, theme.WHITE_WARM, (knob_x, switch.centery), 11)
-        pygame.draw.circle(surface, border, (knob_x, switch.centery), 11, 2)
+        theme.rounded_rect(surface, switch, track, radius=12)
+        theme.rounded_rect(surface, switch, border, radius=12, width=2)
+        knob_x = switch.right - 14 if self.value else switch.left + 14
+        pygame.draw.circle(surface, theme.WHITE_WARM, (knob_x, switch.centery), 9)
+        pygame.draw.circle(surface, border, (knob_x, switch.centery), 9, 2)
 
 
 # ---------------------------------------------------------------------------
@@ -191,7 +191,7 @@ class Slider:
 
     @property
     def track_rect(self) -> pygame.Rect:
-        return pygame.Rect(self.rect.left, self.rect.top + 36, self.rect.width - 90, 8)
+        return pygame.Rect(self.rect.left, self.rect.top + 29, self.rect.width - 72, 6)
 
     def _value_from_x(self, x: int) -> float:
         track = self.track_rect
@@ -228,8 +228,8 @@ class Slider:
         filled = pygame.Rect(track.left, track.top, int(track.width * ratio), track.height)
         theme.rounded_rect(surface, filled, theme.PRIMARY_BG, radius=4)
         knob = (track.left + int(track.width * ratio), track.centery)
-        pygame.draw.circle(surface, theme.WHITE_WARM, knob, 12)
-        pygame.draw.circle(surface, theme.PRIMARY_BORDER, knob, 12, 2)
+        pygame.draw.circle(surface, theme.WHITE_WARM, knob, 10)
+        pygame.draw.circle(surface, theme.PRIMARY_BORDER, knob, 10, 2)
         theme.draw_text(
             surface, fonts, self.formatter(self.value),
             (self.rect.right, track.centery), theme.FONT_SMALL, theme.INK_SOFT, anchor="midright",
@@ -414,10 +414,10 @@ class Modal:
     def _layout_buttons(self) -> None:
         if not self.buttons:
             return
-        gap = 16
+        gap = 13
         total_width = sum(button.rect.width for button in self.buttons) + gap * (len(self.buttons) - 1)
         x = self.rect.centerx - total_width // 2
-        y = self.rect.bottom - 78
+        y = self.rect.bottom - 62
         for button in self.buttons:
             button.rect.topleft = (x, y)
             x += button.rect.width + gap
@@ -467,7 +467,7 @@ class Modal:
             notice = fonts.wrap(
                 self.notice,
                 theme.FONT_SMALL,
-                self.rect.width - 72,
+                self.rect.width - 58,
                 theme.CLAY_DARK,
             )
             surface.blit(
@@ -492,13 +492,13 @@ def draw_tooltip(
     text: str,
     pos: Tuple[int, int],
     *,
-    max_width: int = 320,
+    max_width: int = 256,
 ) -> pygame.Rect:
     """Draw a floating tooltip clamped inside the window."""
     body = fonts.wrap(text, theme.FONT_SMALL, max_width, theme.WHITE_WARM)
-    padding = 12
+    padding = 10
     rect = pygame.Rect(0, 0, body.get_width() + padding * 2, body.get_height() + padding * 2)
-    rect.topleft = (pos[0] + 14, pos[1] + 14)
+    rect.topleft = (pos[0] + 11, pos[1] + 11)
     rect.clamp_ip(pygame.Rect(0, 0, theme.WINDOW_WIDTH, theme.WINDOW_HEIGHT))
     theme.soft_shadow(surface, rect, radius=10, alpha=60, offset=(0, 4))
     theme.rounded_rect(surface, rect, theme.INK_SOFT, radius=10)
@@ -518,7 +518,7 @@ def draw_pill(
 ) -> pygame.Rect:
     label = fonts.render(text, font_size, text_color, True)
     rect = label.get_rect(center=center)
-    frame = rect.inflate(20, 10)
+    frame = rect.inflate(16, 8)
     theme.rounded_rect(surface, frame, color, radius=frame.height // 2)
     surface.blit(label, rect)
     return frame

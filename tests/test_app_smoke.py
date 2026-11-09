@@ -59,7 +59,7 @@ def play_actions(app, actions, *, animate: bool = False):
 def test_menu_renders_without_tutorial_entry(app):
     app.open_scene("menu")
     surface = _render(app)
-    assert surface.get_size() == (1280, 840)
+    assert surface.get_size() == (1024, 672)
     labels = [button.text for button in app.scene.buttons]
     assert "新手教程" not in labels
     assert not hasattr(app, "catalog")
@@ -402,7 +402,7 @@ def test_play_layout_is_mirrored_and_hint_card_has_no_rules_slot(app):
     scene = app.scene
     assert scene.panel_rect == theme.PLAY_PANEL_RECT
     assert scene.panel_rect.right < scene.board_origin[0]
-    assert scene.board_origin == (744, 264)
+    assert scene.board_origin == (595, 211)
     assert scene.renderer.origin == scene.board_origin
     assert scene.undo_button.text == "[U] 撤销"
     assert scene.restart_button.text == "[R] 重开"
@@ -412,7 +412,7 @@ def test_play_layout_is_mirrored_and_hint_card_has_no_rules_slot(app):
 
     _render(app)
     assert scene.hint_card_rect is not None
-    assert scene.hint_card_rect.size == (444, 190)
+    assert scene.hint_card_rect.size == (356, 152)
     assert scene.hint_next_button.visible is True
 
 
@@ -470,15 +470,15 @@ def test_single_hint_level_uses_hint_card_without_paging(app):
     assert scene.level.hint
     _render(app)
     assert scene.hint_card_rect is not None
-    assert scene.hint_card_rect.height == 140
+    assert scene.hint_card_rect.height == 112
     assert scene.hint_next_button.visible is False
 
 
 def test_ten_by_ten_board_fills_right_stage(app):
     app.start_level(app.levels[9])
     scene = app.scene
-    assert scene.board_origin == (660, 180)
-    assert scene.renderer.origin == (660, 180)
+    assert scene.board_origin == (528, 144)
+    assert scene.renderer.origin == (528, 144)
     _render(app)
     assert scene.hint_card_rect is not None
 
@@ -488,27 +488,19 @@ def test_editor_keeps_original_board_and_panel_sides(app):
 
     app.open_scene("editor")
     _render(app)
-    assert theme.PANEL_RECT.left == 740
-    assert theme.BOARD_ORIGIN == (60, 180)
+    assert theme.PANEL_RECT.left == 592
+    assert theme.BOARD_ORIGIN == (48, 144)
     app.open_scene("menu")
 
 
-def test_window_scales_to_four_fifths_and_mouse_maps_back(app):
-    import pygame
-
+def test_window_renders_natively_at_1024(app):
     from game import theme
 
     assert app.display.get_size() == (1024, 672)
-    assert app.screen.get_size() == (1280, 840)
-    assert theme.WINDOW_WIDTH * theme.DISPLAY_HEIGHT == theme.WINDOW_HEIGHT * theme.DISPLAY_WIDTH
-    assert app.to_logical((512, 336)) == (640, 420)
-    event = pygame.event.Event(
-        pygame.MOUSEMOTION, pos=(512, 336), rel=(8, 8), buttons=(0, 0, 0)
-    )
-    translated = app._translate_event(event)
-    assert translated.pos == (640, 420)
-    assert translated.rel == (10, 10)
-    assert _render(app).get_size() == (1280, 840)
+    assert app.screen.get_size() == (1024, 672)
+    assert theme.WINDOW_WIDTH == 1024
+    assert theme.WINDOW_HEIGHT == 672
+    assert _render(app).get_size() == (1024, 672)
 
 
 def test_tutorial_hints_auto_advance_while_the_player_acts(app):
@@ -527,17 +519,36 @@ def test_tutorial_hints_auto_advance_while_the_player_acts(app):
     assert scene.hint_index == 1
 
 
-def test_scaled_physical_click_reaches_logical_button(app):
+def test_native_mouse_click_reaches_button(app):
     import pygame
 
     from game.scenes.level_select import LevelSelectScene
 
     app.open_scene("menu")
     button = next(button for button in app.scene.buttons if button.text == "主线关卡")
-    center = button.rect.center
-    physical = (round(center[0] * 0.8), round(center[1] * 0.8))
     for event_type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
-        app.handle_event(pygame.event.Event(event_type, button=1, pos=physical))
+        app.handle_event(pygame.event.Event(event_type, button=1, pos=button.rect.center))
     assert isinstance(app.scene, LevelSelectScene)
     app.present()
+    app.open_scene("menu")
+
+
+def test_native_scene_widgets_stay_inside_the_window(app):
+    dimensions = [(1024, 672)]
+    for scene_key in ("menu", "level_select", "settings", "challenge", "daily", "editor", "achievement"):
+        app.open_scene(scene_key)
+        _render(app)
+        scene = app.scene
+        for widget in getattr(scene, "buttons", []) + getattr(scene, "widgets", []):
+            rect = getattr(widget, "rect", None)
+            if rect is not None:
+                assert rect.right <= dimensions[0][0], scene_key
+                assert rect.bottom <= dimensions[0][1], scene_key
+        for card in getattr(scene, "cards", []):
+            assert card.rect.right <= dimensions[0][0], scene_key
+            assert card.rect.bottom <= dimensions[0][1], scene_key
+        start_button = getattr(scene, "start_button", None)
+        if start_button is not None:
+            assert start_button.rect.right <= dimensions[0][0]
+            assert start_button.rect.bottom <= dimensions[0][1]
     app.open_scene("menu")

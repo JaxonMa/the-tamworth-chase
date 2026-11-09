@@ -21,10 +21,10 @@ class SettingsScene(Scene):
     def on_enter(self) -> None:
         store = self.store
         self.sound_toggle = ui.Toggle(
-            pygame.Rect(118, 210, 520, 46), "音效", "sound", bool(store.get_setting("sound", True))
+            pygame.Rect(94, 168, 416, 37), "音效", "sound", bool(store.get_setting("sound", True))
         )
         self.volume_slider = ui.Slider(
-            pygame.Rect(118, 262, 520, 54),
+            pygame.Rect(94, 210, 416, 43),
             "音量",
             "volume",
             float(store.get_setting("volume", 0.6)),
@@ -33,31 +33,31 @@ class SettingsScene(Scene):
             0.05,
         )
         self.effects_toggle = ui.Toggle(
-            pygame.Rect(118, 336, 520, 46),
+            pygame.Rect(94, 269, 416, 37),
             "低配模式（关闭粒子与复杂动效）",
             "low_effects",
             bool(store.get_setting("low_effects", False)),
         )
         self.preview_toggle = ui.Toggle(
-            pygame.Rect(118, 398, 520, 46),
+            pygame.Rect(94, 318, 416, 37),
             "默认显示路径预测",
             "preview",
             bool(store.get_setting("preview", True)),
         )
         self.alerts_toggle = ui.Toggle(
-            pygame.Rect(118, 454, 520, 46),
+            pygame.Rect(94, 363, 416, 37),
             "显示牛的警觉图标",
             "alerts",
             bool(store.get_setting("alerts", True)),
         )
         self.hints_toggle = ui.Toggle(
-            pygame.Rect(118, 500, 520, 46),
+            pygame.Rect(94, 400, 416, 37),
             "显示教学目标与提示",
             "hints",
             bool(store.get_setting("hints", True)),
         )
         self.reset_main_button = ui.Button(
-            pygame.Rect(118, 556, 250, 46), "重置主线进度", "reset_main", style="ghost"
+            pygame.Rect(94, 445, 200, 37), "重置主线进度", "reset_main", style="ghost"
         )
         self.widgets = [
             self.sound_toggle,
@@ -116,11 +116,11 @@ class SettingsScene(Scene):
             body,
             accent=theme.CLAY,
             buttons=[
-                ui.Button(pygame.Rect(0, 0, 150, 50), "取消", "cancel", style="ghost"),
-                ui.Button(pygame.Rect(0, 0, 170, 50), confirm, "confirm", style="danger"),
+                ui.Button(pygame.Rect(0, 0, 120, 40), "取消", "cancel", style="ghost"),
+                ui.Button(pygame.Rect(0, 0, 136, 40), confirm, "confirm", style="danger"),
             ],
-            width=600,
-            height=320,
+            width=480,
+            height=256,
         )
 
     def _modal_action(self, action: str) -> None:
@@ -143,20 +143,20 @@ class SettingsScene(Scene):
         draw_header(surface, self.fonts, "设置", "所有设置都保存在本地")
         self.back_button.draw(surface, self.fonts)
 
-        theme.panel(surface, pygame.Rect(80, 150, 620, 470))
+        theme.panel(surface, pygame.Rect(64, 120, 496, 376))
         for widget in self.widgets:
             widget.draw(surface, self.fonts)
-        ui.draw_divider(surface, 516, 118, 520)
+        ui.draw_divider(surface, 441, 94, 416)
         self.reset_main_button.draw(surface, self.fonts)
 
-        info = pygame.Rect(740, 150, 460, 470)
+        info = pygame.Rect(592, 120, 368, 376)
         theme.panel(surface, info)
-        theme.draw_text(surface, self.fonts, "关于", (info.left + 26, info.top + 22), theme.FONT_H2, theme.INK, bold=True)
-        ui.draw_divider(surface, info.top + 70, info.left + 26, info.width - 52)
+        theme.draw_text(surface, self.fonts, "关于", (info.left + 21, info.top + 18), theme.FONT_H2, theme.INK, bold=True)
+        ui.draw_divider(surface, info.top + 56, info.left + 21, info.width - 42)
         lines = [
             "游戏名：The Tamworth Chase",
             "中文副标题：《塔姆沃斯追逐》",
-            "版本：1.6.1",
+            "版本：1.7.0",
             "界面字体：CEF Fonts CJK（本地内置）",
             "全部美术由程序绘制，运行时不联网。",
             "",
@@ -164,11 +164,14 @@ class SettingsScene(Scene):
             "空格前进，U 撤销，R 重开，P 预测。",
             "同方向转向无效；出口对农夫不可通行。",
         ]
-        y = info.top + 88
+        y = info.top + 70
         for line in lines:
             if line:
-                theme.draw_text(surface, self.fonts, line, (info.left + 26, y), theme.FONT_SMALL, theme.INK_SOFT)
-            y += 34
+                wrapped = self.fonts.wrap(line, theme.FONT_SMALL, info.width - 42, theme.INK_SOFT)
+                surface.blit(wrapped, (info.left + 21, y))
+                y += wrapped.get_height() + 7
+            else:
+                y += 12
         if self.modal is not None:
             self.modal.draw(surface, self.fonts)
         draw_footer(surface, self.fonts, "设置会在关闭后自动保存")

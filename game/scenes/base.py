@@ -57,10 +57,10 @@ def draw_background(surface: pygame.Surface, *, warm: bool = False) -> None:
     theme.vertical_gradient(surface, pygame.Rect(0, 0, width, height), top, theme.CREAM_DARK)
     layer = pygame.Surface((width, height), pygame.SRCALPHA)
     for cx, cy, radius, color, alpha in (
-        (140, 120, 210, theme.SKY, 26),
-        (width - 200, 90, 240, theme.SUN_LIGHT, 30),
-        (width - 90, height - 60, 260, theme.GRASS_LIGHT, 40),
-        (120, height - 40, 220, theme.GRASS_LIGHT, 34),
+        (112, 96, 168, theme.SKY, 26),
+        (width - 160, 72, 192, theme.SUN_LIGHT, 30),
+        (width - 72, height - 48, 208, theme.GRASS_LIGHT, 40),
+        (96, height - 32, 176, theme.GRASS_LIGHT, 34),
     ):
         pygame.draw.circle(layer, (*color, alpha), (cx, cy), radius)
     surface.blit(layer, (0, 0))
@@ -74,21 +74,21 @@ def draw_header(
     badge: str = "",
     badge_color: Tuple[int, int, int] = theme.LEAF,
 ) -> None:
-    theme.draw_text(surface, fonts, title, (62, 34), theme.FONT_H1, theme.INK, bold=True)
-    x = 62
+    theme.draw_text(surface, fonts, title, (50, 27), theme.FONT_H1, theme.INK, bold=True)
+    x = 50
     width = fonts.size_of(title, theme.FONT_H1, True)[0]
     if badge:
         pill_rect = ui.draw_pill(
             surface,
             fonts,
             badge,
-            (x + width + 60, 58),
+            (x + width + 48, 46),
             badge_color,
         )
-        width += pill_rect.width + 24
+        width += pill_rect.width + 19
     if subtitle:
-        theme.draw_text(surface, fonts, subtitle, (x + width + 24, 50), theme.FONT_SMALL, theme.INK_SOFT)
-    pygame.draw.line(surface, theme.PANEL_BORDER, (60, 104), (60 + 1160, 104), 2)
+        theme.draw_text(surface, fonts, subtitle, (x + width + 19, 40), theme.FONT_SMALL, theme.INK_SOFT)
+    pygame.draw.line(surface, theme.PANEL_BORDER, (48, 83), (48 + 928, 83), 2)
 
 
 def draw_footer(
@@ -96,17 +96,17 @@ def draw_footer(
     fonts: theme.FontBook,
     text: str,
     *,
-    x: int = 62,
-    y: int = 808,
+    x: int = 50,
+    y: int = 646,
 ) -> None:
     theme.draw_text(surface, fonts, text, (x, y), theme.FONT_TINY, theme.INK_LIGHT)
 
 
 def make_back_button(key: str = "back") -> ui.Button:
-    return ui.Button(pygame.Rect(theme.WINDOW_WIDTH - 190, 36, 130, 52), "返回", key, style="ghost")
+    return ui.Button(pygame.Rect(theme.WINDOW_WIDTH - 152, 29, 104, 42), "返回", key, style="ghost")
 
 
-def make_thumbnail(cache: art.ArtCache, level, cell: int = 9) -> pygame.Surface:
+def make_thumbnail(cache: art.ArtCache, level, cell: int = 7) -> pygame.Surface:
     """Small map preview used by level / challenge / daily cards."""
     surface = pygame.Surface((level.width * cell, level.height * cell))
     surface.fill(theme.GRASS)
@@ -156,7 +156,7 @@ def draw_close_hint(surface: pygame.Surface, fonts: theme.FontBook) -> None:
         surface,
         fonts,
         "Esc 返回",
-        (theme.WINDOW_WIDTH - 210, 66),
+        (theme.WINDOW_WIDTH - 168, 53),
         theme.FONT_TINY,
         theme.INK_LIGHT,
         anchor="midleft",

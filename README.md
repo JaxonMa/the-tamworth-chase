@@ -105,10 +105,10 @@ On Windows use `.venv\Scripts\python.exe`.
 .venv/bin/python main.py
 ```
 
-The window is 1024×672. The game keeps a 1280×840 logical canvas and scales it
-proportionally to the window, so screenshots and head-less tests remain at
-1280×840. All player-facing text is Simplified Chinese; code, comments,
-docstrings and commit messages are English.
+The window is 1024×672 and every scene is laid out and rendered natively at that
+size, so text and UI art are pixel-sharp. Screenshots and head-less tests use the
+same 1024×672 canvas. All player-facing text is Simplified Chinese; code,
+comments, docstrings and commit messages are English.
 
 ## Controls
 
@@ -456,7 +456,7 @@ losses, multi-cow order and blocking, loop hints, prediction assumptions and
 exit marks, undo/restart, legacy fields, save version 6 migration, teaching
 objectives not gating clears, the mirrored play layout, dynamic board centering,
 key-labelled toolbar buttons, the sidebar teaching card and its next control,
-time-based hint advancement during play, scaled-window mouse mapping, editor
+time-based hint advancement during play, native 1024 layout geometry, editor
 solver export checks, achievements, daily determinism, offline scanning and every
 scene's head-less render. Playback tests
 cover the failure-dialog button, ignored player input, pause/resume, early exit,
@@ -562,5 +562,5 @@ tools/                      Solver CLI and screenshot helper
 - The solution search is synchronous, so a difficult custom level can pause the
   interface for up to three seconds before reporting **暂时无法给出解法**.
 - Solution playback has a fixed pace and no step-by-step or speed controls.
-- The 1024×672 window is produced by downscaling a 1280×840 logical frame, so
-  text can be slightly softer than a native-resolution UI.
+- The layout is designed for a fixed 1024×672 window; it does not currently
+  reflow for arbitrary window sizes.

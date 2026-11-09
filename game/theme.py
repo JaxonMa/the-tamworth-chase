@@ -101,13 +101,13 @@ RANK_COLORS = {
 # ---------------------------------------------------------------------------
 # Typography
 # ---------------------------------------------------------------------------
-FONT_TITLE = 62
-FONT_H1 = 40
-FONT_H2 = 30
-FONT_H3 = 25
-FONT_BODY = 22
-FONT_SMALL = 20
-FONT_TINY = 18
+FONT_TITLE = 50
+FONT_H1 = 32
+FONT_H2 = 24
+FONT_H3 = 20
+FONT_BODY = 18
+FONT_SMALL = 16
+FONT_TINY = 14
 
 FONT_RELATIVE_PATH = ("fonts", "CEFFontsCJK-Regular.ttf")
 
@@ -419,22 +419,19 @@ def draw_text(
 # ---------------------------------------------------------------------------
 # Layout constants shared by every scene
 # ---------------------------------------------------------------------------
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 840
-DISPLAY_SCALE = 0.8
-DISPLAY_WIDTH = int(WINDOW_WIDTH * DISPLAY_SCALE)
-DISPLAY_HEIGHT = int(WINDOW_HEIGHT * DISPLAY_SCALE)
+WINDOW_WIDTH = 1024
+WINDOW_HEIGHT = 672
 FPS = 60
 
-CELL_SIZE = 56
-BOARD_ORIGIN = (60, 180)
+CELL_SIZE = 45
+BOARD_ORIGIN = (48, 144)
 BOARD_SIZE = CELL_SIZE * 10
 
 # Editor / shared legacy layout (board left, panel right).
-PANEL_RECT = pygame.Rect(740, 104, 492, 700)
+PANEL_RECT = pygame.Rect(592, 83, 394, 560)
 
 # Play scene layout: sidebar left, board stage right.
-PLAY_PANEL_RECT = pygame.Rect(60, 104, 492, 700)
-PLAY_BOARD_STAGE_ORIGIN = (660, 180)
-HEADER_RECT = pygame.Rect(60, 28, 1172, 76)
-FOOTER_RECT = pygame.Rect(60, 792, 1172, 34)
+PLAY_PANEL_RECT = pygame.Rect(48, 83, 394, 560)
+PLAY_BOARD_STAGE_ORIGIN = (528, 144)
+HEADER_RECT = pygame.Rect(48, 22, 928, 61)
+FOOTER_RECT = pygame.Rect(48, 634, 928, 28)

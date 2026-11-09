@@ -19,13 +19,13 @@ class DailyScene(Scene):
         self.level = None
         self.thumbnail: Optional[pygame.Surface] = None
         self.start_button = ui.Button(
-            pygame.Rect(0, 0, 260, 56), "开始今日挑战", "start", style="primary", font_size=theme.FONT_H3
+            pygame.Rect(0, 0, 208, 45), "开始今日挑战", "start", style="primary", font_size=theme.FONT_H3
         )
         self.start_button.rect.topleft = (510, 552)
 
     def on_enter(self) -> None:
         self.level = self.app.daily_level()
-        self.thumbnail = make_thumbnail(self.cache, self.level, cell=14)
+        self.thumbnail = make_thumbnail(self.cache, self.level, cell=11)
         self.start_button.enabled = True
 
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -59,27 +59,27 @@ class DailyScene(Scene):
         self.back_button.draw(surface, self.fonts)
 
         # today card
-        card = pygame.Rect(300, 140, 680, 480)
+        card = pygame.Rect(240, 112, 544, 384)
         theme.soft_shadow(surface, card, radius=26, alpha=44, offset=(0, 8))
         theme.rounded_rect(surface, card, theme.PANEL_BG, radius=26)
         theme.rounded_rect(surface, card, theme.SKY_DEEP, radius=26, width=3)
         theme.draw_text(
-            surface, self.fonts, f"{today.month} 月 {today.day} 日的牧场", (card.left + 32, card.top + 22),
+            surface, self.fonts, f"{today.month} 月 {today.day} 日的牧场", (card.left + 26, card.top + 18),
             theme.FONT_H2, theme.INK, bold=True,
         )
         theme.draw_text(
             surface,
             self.fonts,
             "同一天打开，永远是同一片牧场。",
-            (card.left + 32, card.top + 62),
+            (card.left + 26, card.top + 50),
             theme.FONT_SMALL,
             theme.INK_SOFT,
         )
         if self.thumbnail is not None:
-            frame = self.thumbnail.get_rect(center=(card.centerx, card.top + 258))
-            theme.rounded_rect(surface, frame.inflate(12, 12), theme.CREAM_DARK, radius=12)
+            frame = self.thumbnail.get_rect(center=(card.centerx, card.top + 206))
+            theme.rounded_rect(surface, frame.inflate(10, 10), theme.CREAM_DARK, radius=10)
             surface.blit(self.thumbnail, frame)
-            theme.rounded_rect(surface, frame.inflate(12, 12), theme.PANEL_BORDER, radius=12, width=2)
+            theme.rounded_rect(surface, frame.inflate(10, 10), theme.PANEL_BORDER, radius=10, width=2)
 
         record = self.store.daily_result(date_key(today))
         if record and record.get("cleared"):
@@ -87,7 +87,7 @@ class DailyScene(Scene):
                 surface,
                 self.fonts,
                 f"今日最好成绩：{record.get('turns')} 回合",
-                (card.centerx, card.top + 342),
+                (card.centerx, card.top + 274),
                 theme.FONT_H3,
                 theme.LEAF_DARK,
                 anchor="center",
@@ -98,24 +98,24 @@ class DailyScene(Scene):
                 surface,
                 self.fonts,
                 "今天还没有完成挑战。",
-                (card.centerx, card.top + 342),
+                (card.centerx, card.top + 274),
                 theme.FONT_SMALL,
                 theme.INK_LIGHT,
                 anchor="center",
             )
 
         # last seven days
-        history = pygame.Rect(300, 640, 680, 96)
+        history = pygame.Rect(240, 512, 544, 77)
         theme.rounded_rect(surface, history, theme.CREAM, radius=18)
         theme.rounded_rect(surface, history, theme.PANEL_BORDER, radius=18, width=2)
         theme.draw_text(
-            surface, self.fonts, "最近七天", (history.left + 20, history.top + 12), theme.FONT_TINY, theme.INK_LIGHT
+            surface, self.fonts, "最近七天", (history.left + 16, history.top + 10), theme.FONT_TINY, theme.INK_LIGHT
         )
         for index in range(7):
             day = today - timedelta(days=6 - index)
             key = date_key(day)
             result = self.store.daily_result(key)
-            cell = pygame.Rect(history.left + 20 + index * 92, history.top + 36, 84, 46)
+            cell = pygame.Rect(history.left + 16 + index * 74, history.top + 29, 67, 44)
             done = bool(result and result.get("cleared"))
             color = theme.LEAF_LIGHT if done else theme.CREAM_DARK
             theme.rounded_rect(surface, cell, color, radius=10)
@@ -123,7 +123,7 @@ class DailyScene(Scene):
                 surface,
                 self.fonts,
                 f"{day.month}/{day.day}",
-                (cell.centerx, cell.top + 8),
+                (cell.centerx, cell.top + 6),
                 theme.FONT_TINY,
                 theme.INK_SOFT,
                 anchor="midtop",
@@ -133,11 +133,11 @@ class DailyScene(Scene):
                 surface,
                 self.fonts,
                 label,
-                (cell.centerx, cell.top + 30),
+                (cell.centerx, cell.top + 23),
                 theme.FONT_TINY,
                 theme.INK if done else theme.INK_LIGHT,
                 anchor="midtop",
             )
-        self.start_button.rect.topleft = (card.centerx - 130, card.bottom - 74)
+        self.start_button.rect.topleft = (card.centerx - 104, card.bottom - 59)
         self.start_button.draw(surface, self.fonts)
         draw_footer(surface, self.fonts, "每日挑战只用本地日期作为种子，不上传、不联网")

@@ -37,18 +37,18 @@ class MenuScene(Scene):
                 "存档迁移",
                 notice,
                 accent=theme.SKY_DEEP,
-                buttons=[ui.Button(pygame.Rect(0, 0, 150, 50), "知道了", "dismiss", style="primary")],
-                width=620,
-                height=280,
+                buttons=[ui.Button(pygame.Rect(0, 0, 120, 40), "知道了", "dismiss", style="primary")],
+                width=496,
+                height=224,
             )
         self._scaled = {
-            "farmer": pygame.transform.smoothscale(self.cache.farmer(Direction.SOUTH), (118, 118)),
+            "farmer": pygame.transform.smoothscale(self.cache.farmer(Direction.SOUTH), (94, 94)),
             "cow": pygame.transform.smoothscale(
-                self.cache.cow(Direction.WEST), (124, 124)
+                self.cache.cow(Direction.WEST), (99, 99)
             ),
-            "hat": art.build_hat(52),
+            "hat": art.build_hat(42),
             "bale": self.cache.prop("obstacle"),
-            "fence": art.build_fence(58),
+            "fence": art.build_fence(46),
         }
         if not self.store.get_setting("seen_welcome"):
             self.store.set_setting("seen_welcome", True)
@@ -68,18 +68,18 @@ class MenuScene(Scene):
         entries.append(("quit", "退出游戏", "ghost"))
 
         buttons = []
-        y = 330
+        y = 264
         for key, label, style in entries:
             buttons.append(
                 ui.Button(
-                    pygame.Rect(72, y, 330, 50),
+                    pygame.Rect(58, y, 264, 40),
                     label,
                     key,
                     style=style,
                     font_size=theme.FONT_BODY,
                 )
             )
-            y += 58
+            y += 46
         return buttons
 
     # ------------------------------------------------------------------
@@ -107,11 +107,11 @@ class MenuScene(Scene):
                 "今天的阳光很好，随时欢迎回来。",
                 accent=theme.LEAF,
                 buttons=[
-                    ui.Button(pygame.Rect(0, 0, 150, 50), "再玩一会", "stay", style="primary"),
-                    ui.Button(pygame.Rect(0, 0, 150, 50), "退出", "quit", style="ghost"),
+                    ui.Button(pygame.Rect(0, 0, 120, 40), "再玩一会", "stay", style="primary"),
+                    ui.Button(pygame.Rect(0, 0, 120, 40), "退出", "quit", style="ghost"),
                 ],
-                width=520,
-                height=270,
+                width=416,
+                height=216,
             )
             return
         self.app.open_scene(key)
@@ -138,84 +138,84 @@ class MenuScene(Scene):
 
     # ------------------------------------------------------------------
     def _draw_title(self, surface: pygame.Surface) -> None:
-        card = pygame.Rect(52, 38, 440, 268)
-        theme.soft_shadow(surface, card, radius=28, alpha=36, offset=(0, 8))
-        theme.rounded_rect(surface, card, theme.WHITE_WARM, radius=28)
-        theme.rounded_rect(surface, card, theme.PANEL_BORDER, radius=28, width=2)
+        card = pygame.Rect(42, 30, 352, 214)
+        theme.soft_shadow(surface, card, radius=22, alpha=36, offset=(0, 6))
+        theme.rounded_rect(surface, card, theme.WHITE_WARM, radius=22)
+        theme.rounded_rect(surface, card, theme.PANEL_BORDER, radius=22, width=2)
 
         # small leaf badge
-        pygame.draw.circle(surface, theme.LEAF, (card.left + 34, card.top + 34), 9)
-        pygame.draw.circle(surface, theme.LEAF_DARK, (card.left + 34, card.top + 34), 9, 2)
+        pygame.draw.circle(surface, theme.LEAF, (card.left + 27, card.top + 27), 7)
+        pygame.draw.circle(surface, theme.LEAF_DARK, (card.left + 27, card.top + 27), 7, 2)
 
-        title = self.fonts.render(TITLE, 46, theme.INK, True)
-        surface.blit(title, (card.left + 28, card.top + 26))
+        title = self.fonts.render(TITLE, 34, theme.INK, True)
+        surface.blit(title, (card.left + 22, card.top + 21))
         theme.draw_text(
-            surface, self.fonts, SUBTITLE, (card.left + 30, card.top + 84), theme.FONT_H3, theme.LEAF_DARK
+            surface, self.fonts, SUBTITLE, (card.left + 24, card.top + 67), theme.FONT_H3, theme.LEAF_DARK
         )
         pygame.draw.line(
             surface,
             theme.PANEL_BORDER,
-            (card.left + 30, card.top + 128),
-            (card.right - 30, card.top + 128),
+            (card.left + 24, card.top + 102),
+            (card.right - 24, card.top + 102),
             2,
         )
-        text = self.fonts.wrap(TAGLINE, theme.FONT_SMALL, card.width - 60, theme.INK_SOFT)
-        surface.blit(text, (card.left + 30, card.top + 142))
+        text = self.fonts.wrap(TAGLINE, theme.FONT_SMALL, card.width - 48, theme.INK_SOFT)
+        surface.blit(text, (card.left + 24, card.top + 114))
         theme.draw_text(
             surface,
             self.fonts,
             "手绘田园 · 网格解谜",
-            (card.left + 30, card.bottom - 30),
+            (card.left + 24, card.bottom - 24),
             theme.FONT_TINY,
             theme.INK_LIGHT,
         )
 
     def _draw_illustration(self, surface: pygame.Surface) -> None:
-        center = (900, 470)
+        center = (720, 376)
         # soft meadow circle
-        meadow = pygame.Surface((660, 560), pygame.SRCALPHA)
-        pygame.draw.ellipse(meadow, (*theme.GRASS_LIGHT, 220), (0, 120, 660, 420))
-        pygame.draw.ellipse(meadow, (*theme.GRASS, 190), (20, 150, 620, 370))
-        surface.blit(meadow, (center[0] - 330, center[1] - 300))
+        meadow = pygame.Surface((528, 448), pygame.SRCALPHA)
+        pygame.draw.ellipse(meadow, (*theme.GRASS_LIGHT, 220), (0, 96, 528, 336))
+        pygame.draw.ellipse(meadow, (*theme.GRASS, 190), (16, 120, 496, 296))
+        surface.blit(meadow, (center[0] - 264, center[1] - 240))
 
         # trees
-        for x, y, scale in ((600, 456, 1.85), (1206, 496, 1.45)):
+        for x, y, scale in ((480, 365, 1.48), (965, 397, 1.16)):
             tree = pygame.transform.smoothscale(art.build_tree(64), (int(64 * scale), int(64 * scale)))
             surface.blit(tree, tree.get_rect(midbottom=(x, y)))
 
         # fence
         fence = self._scaled["fence"]
         for index in range(11):
-            surface.blit(fence, (626 + index * 58, 690))
+            surface.blit(fence, (501 + index * 46, 552))
 
-        bob = math.sin(self.time * 2.2) * 4
-        cow_bob = math.sin(self.time * 1.8 + 1.2) * 3
-        farmer_rect = self._scaled["farmer"].get_rect(midbottom=(800, 676 + bob))
-        cow_rect = self._scaled["cow"].get_rect(midbottom=(1040, 686 + cow_bob))
-        shadow = pygame.Surface((120, 30), pygame.SRCALPHA)
+        bob = math.sin(self.time * 2.2) * 3
+        cow_bob = math.sin(self.time * 1.8 + 1.2) * 2
+        farmer_rect = self._scaled["farmer"].get_rect(midbottom=(640, 541 + bob))
+        cow_rect = self._scaled["cow"].get_rect(midbottom=(832, 549 + cow_bob))
+        shadow = pygame.Surface((96, 24), pygame.SRCALPHA)
         pygame.draw.ellipse(shadow, (*theme.SHADOW, 40), shadow.get_rect())
-        surface.blit(shadow, (farmer_rect.centerx - 60, farmer_rect.bottom - 16))
-        surface.blit(shadow, (cow_rect.centerx - 60, cow_rect.bottom - 14))
+        surface.blit(shadow, (farmer_rect.centerx - 48, farmer_rect.bottom - 13))
+        surface.blit(shadow, (cow_rect.centerx - 48, cow_rect.bottom - 11))
         surface.blit(self._scaled["farmer"], farmer_rect)
         surface.blit(self._scaled["cow"], cow_rect)
 
         # hay bale
-        surface.blit(self._scaled["bale"], (930, 646))
+        surface.blit(self._scaled["bale"], (744, 517))
 
         # drifting petals
         for index, (speed, phase, size, sway) in enumerate(self._petals):
             t = (self.time * 0.22 * speed + phase) % 1.0
-            x = 640 + int(520 * ((index * 0.13 + phase) % 1.0)) + int(math.sin(self.time + index) * 10)
-            y = 180 + int(420 * t)
+            x = 512 + int(416 * ((index * 0.13 + phase) % 1.0)) + int(math.sin(self.time + index) * 8)
+            y = 144 + int(336 * t)
             color = (theme.PINK, theme.SUN_LIGHT, theme.WHITE_WARM)[index % 3]
-            pygame.draw.circle(surface, color, (x, y), int(3 * size))
+            pygame.draw.circle(surface, color, (x, y), int(2 * size))
 
         # little floating hearts above the pair
         for index in range(2):
             t = (self.time * 0.5 + index * 0.5) % 1.0
             alpha = int(255 * (1 - t))
-            layer = pygame.Surface((24, 24), pygame.SRCALPHA)
-            pygame.draw.circle(layer, (*theme.CLAY_LIGHT, alpha), (8, 10), 6)
-            pygame.draw.circle(layer, (*theme.CLAY_LIGHT, alpha), (16, 10), 6)
-            pygame.draw.polygon(layer, (*theme.CLAY_LIGHT, alpha), [(2, 12), (22, 12), (12, 23)])
+            layer = pygame.Surface((20, 20), pygame.SRCALPHA)
+            pygame.draw.circle(layer, (*theme.CLAY_LIGHT, alpha), (7, 8), 5)
+            pygame.draw.circle(layer, (*theme.CLAY_LIGHT, alpha), (13, 8), 5)
+            pygame.draw.polygon(layer, (*theme.CLAY_LIGHT, alpha), [(2, 10), (18, 10), (10, 19)])
             surface.blit(layer, (880 + index * 46, 520 - int(60 * t)))
