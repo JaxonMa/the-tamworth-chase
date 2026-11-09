@@ -105,8 +105,10 @@ On Windows use `.venv\Scripts\python.exe`.
 .venv/bin/python main.py
 ```
 
-The window is 1280×840. All player-facing text is Simplified Chinese; code,
-comments, docstrings and commit messages are English.
+The window is 1024×672. The game keeps a 1280×840 logical canvas and scales it
+proportionally to the window, so screenshots and head-less tests remain at
+1280×840. All player-facing text is Simplified Chinese; code, comments,
+docstrings and commit messages are English.
 
 ## Controls
 
@@ -272,7 +274,8 @@ The ten main levels are a single learning sequence:
   prompts. The objective and description appear in the left sidebar; the current
   hint appears in a high-contrast card in the lower sidebar (the old rules slot),
   with a page count, **下一条** button and progress dots. The card advances
-  automatically after 9 seconds or manually through the button.
+  automatically after 9 seconds of real play, whether or not the player is
+  moving, or manually through the button.
 - Completion unlocks the next level regardless of which mechanics were used.
   There are no practice gates and no separate tutorial progress.
 - Teaching levels hide the S/A/B/C badge in the victory dialog; the internal
@@ -453,8 +456,9 @@ losses, multi-cow order and blocking, loop hints, prediction assumptions and
 exit marks, undo/restart, legacy fields, save version 6 migration, teaching
 objectives not gating clears, the mirrored play layout, dynamic board centering,
 key-labelled toolbar buttons, the sidebar teaching card and its next control,
-editor solver export checks, achievements, daily determinism, offline scanning
-and every scene's head-less render. Playback tests
+time-based hint advancement during play, scaled-window mouse mapping, editor
+solver export checks, achievements, daily determinism, offline scanning and every
+scene's head-less render. Playback tests
 cover the failure-dialog button, ignored player input, pause/resume, early exit,
 automatic restore, the dedicated **演示结束** dialog, replay/restart from that
 dialog, no-solution notices, time limits and cache invalidation.
@@ -558,3 +562,5 @@ tools/                      Solver CLI and screenshot helper
 - The solution search is synchronous, so a difficult custom level can pause the
   interface for up to three seconds before reporting **暂时无法给出解法**.
 - Solution playback has a fixed pace and no step-by-step or speed controls.
+- The 1024×672 window is produced by downscaling a 1280×840 logical frame, so
+  text can be slightly softer than a native-resolution UI.
