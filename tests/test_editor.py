@@ -94,6 +94,7 @@ def test_tiebreak_and_block_controls(model):
 
 def test_grid_round_trip(model):
     model.set_tile((4, 4), TileKind.POND)
+    model.set_tile((4, 5), TileKind.FLOWERS)
     model.max_turns = 45
     model.prediction_steps = 8
     model.sight_range = 5
@@ -105,6 +106,7 @@ def test_grid_round_trip(model):
     assert restored.farmer == model.farmer
     assert restored.cows[0][0] == model.cows[0][0]
     assert restored.tiles[4][4] is TileKind.POND
+    assert restored.tiles[4][5] is TileKind.FLOWERS
     assert restored.max_turns == 45
     assert restored.prediction_steps == 8
     assert restored.sight_range == 5

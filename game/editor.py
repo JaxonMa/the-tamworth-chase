@@ -98,18 +98,10 @@ class EditorModel:
 
     @classmethod
     def from_level(cls, level: Level) -> "EditorModel":
-        rows = level_to_dict(level)["grid"]
         model = cls(width=level.width, height=level.height)
-        model.tiles = []
-        for row, text in enumerate(rows):
-            line: List[TileKind] = []
-            for col, char in enumerate(text):
-                pos = (row, col)
-                if pos == level.farmer_start or char == COW_CHAR:
-                    line.append(TileKind.GRASS)
-                else:
-                    line.append(_char_to_tile(char))
-            model.tiles.append(line)
+        model.tiles = [list(row) for row in level.tiles]
+        for pos in (level.farmer_start, *level.cow_positions):
+            model.tiles[pos[0]][pos[1]] = TileKind.GRASS
         model.farmer = level.farmer_start
         model.farmer_facing = level.farmer_facing
         model.cows = [
@@ -151,16 +143,6 @@ class EditorModel:
             self.exits.discard(pos)
             self.obstacles.discard(pos)
         return True
-
-    def cycle_tile(self, pos: Pos) -> None:
-        if not self.inside(pos):
-            return
-        current = self.tiles[pos[0]][pos[1]]
-        try:
-            index = PAINT_TILES.index(current)
-        except ValueError:
-            index = 0
-        self.set_tile(pos, PAINT_TILES[(index + 1) % len(PAINT_TILES)])
 
     def toggle_exit(self, pos: Pos) -> bool:
         if not self.inside(pos) or self.blocked(pos) or self.actor_at(pos):
@@ -342,13 +324,6 @@ class EditorModel:
         if self.farmer in positions:
             problems.append("农夫和牛不能站在同一格")
         return problems
-
-
-def _char_to_tile(char: str) -> TileKind:
-    for kind, value in _TILE_TO_CHAR.items():
-        if value == char:
-            return kind
-    return TileKind.GRASS
 
 
 # ---------------------------------------------------------------------------

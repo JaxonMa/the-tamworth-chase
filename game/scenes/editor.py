@@ -40,9 +40,8 @@ class EditorScene(Scene):
         self.toast_text = ""
         self.toast_timer = 0.0
         self.modal: Optional[ui.Modal] = None
-        self.import_buttons: List[ui.Button] = []
-        self.exported_path: Optional[Path] = None
         self.pending_export = None
+        self._import_files: List[Path] = []
         self.buttons: List[ui.Button] = []
         self._build_widgets()
 
@@ -343,7 +342,6 @@ class EditorScene(Scene):
             self._toast(f"导出失败：{exc}")
             self.app.sound.play("error")
             return
-        self.exported_path = path
         self.pending_export = None
         self.modal = None
         self.app.sound.play("unlock")
@@ -358,7 +356,6 @@ class EditorScene(Scene):
             self._toast("custom_levels 里还没有导出的关卡。")
             self.app.sound.play("error")
             return
-        self.import_buttons = []
         buttons: List[ui.Button] = []
         for index, path in enumerate(files[:5]):
             buttons.append(
@@ -372,7 +369,6 @@ class EditorScene(Scene):
             )
         self._import_files = files[:5]
         cancel = ui.Button(pygame.Rect(0, 0, 150, 46), "取消", "cancel", style="ghost")
-        self.import_buttons = buttons
         self.modal = ui.Modal(
             "导入关卡",
             "选择一个之前导出的关卡文件：",

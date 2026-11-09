@@ -202,20 +202,29 @@ def test_turn_limit_modal(app):
 
 def test_editor_export_import_flow(app, tmp_path, monkeypatch):
     from game import editor as editor_module
+    from game.models import TileKind
 
     monkeypatch.setattr(editor_module, "custom_levels_dir", lambda: tmp_path)
     app.open_scene("editor")
     scene = app.scene
-    scene.model.set_tile((3, 3), __import__("game.models", fromlist=["TileKind"]).TileKind.TREE)
+    scene.model.set_tile((3, 3), TileKind.TREE)
     scene._export()
-    assert scene.exported_path is not None and scene.exported_path.exists()
     files = editor_module.list_custom_levels(tmp_path)
-    assert files
+    assert len(files) == 1
     level = editor_module.import_level(files[0])
     assert level.tile_at((3, 3)).value == "tree"
     assert level.exit_cells
     assert "cow_behavior" not in editor_module.level_to_dict(level)
     assert level.extra["verification"]["status"] == "solved"
+
+    scene.model.set_tile((4, 4), TileKind.POND)
+    scene._open_import()
+    assert scene.modal is not None
+    assert any(button.key == "file:0" for button in scene.modal.buttons)
+    scene._modal_action("file:0")
+    assert scene.modal is None
+    assert scene.model.tiles[3][3] is TileKind.TREE
+    assert scene.model.tiles[4][4] is not TileKind.POND
 
 
 def test_challenge_level_runs(app):
@@ -366,7 +375,6 @@ def test_editor_rejects_unsolvable_export(app, tmp_path, monkeypatch):
     app.open_scene("editor")
     scene = app.scene
     scene._export()
-    assert scene.exported_path is None
     assert "无解" in scene.toast_text
     assert not list(tmp_path.glob("*.json"))
 
@@ -387,8 +395,9 @@ def test_editor_can_export_unverified_after_timeout(app, tmp_path, monkeypatch):
     scene._export()
     assert scene.modal is not None
     scene._modal_action("export_unverified")
-    assert scene.exported_path is not None
-    payload = json.loads(scene.exported_path.read_text(encoding="utf-8"))
+    files = editor_module.list_custom_levels(tmp_path)
+    assert len(files) == 1
+    payload = json.loads(files[0].read_text(encoding="utf-8"))
     assert payload["levels"][0]["verification"]["status"] == "unverified"
 
 
