@@ -28,19 +28,20 @@ deleted.
 6. [Rules](#rules)
 7. [The cows](#the-cows)
 8. [Winning and losing](#winning-and-losing)
-9. [Progressive main campaign](#progressive-main-campaign)
-10. [Prediction, alerts and loops](#prediction-alerts-and-loops)
-11. [Challenge, daily and achievements](#challenge-daily-and-achievements)
-12. [Level editor and solver](#level-editor-and-solver)
-13. [Level data schema](#level-data-schema)
-14. [Save data](#save-data)
-15. [Fonts and licensing](#fonts-and-licensing)
-16. [Art and audio](#art-and-audio)
-17. [Offline promise](#offline-promise)
-18. [Tests](#tests)
-19. [Project layout](#project-layout)
-20. [Design notes and assumptions](#design-notes-and-assumptions)
-21. [Known limitations](#known-limitations)
+9. [Show solution playback](#show-solution-playback)
+10. [Progressive main campaign](#progressive-main-campaign)
+11. [Prediction, alerts and loops](#prediction-alerts-and-loops)
+12. [Challenge, daily and achievements](#challenge-daily-and-achievements)
+13. [Level editor and solver](#level-editor-and-solver)
+14. [Level data schema](#level-data-schema)
+15. [Save data](#save-data)
+16. [Fonts and licensing](#fonts-and-licensing)
+17. [Art and audio](#art-and-audio)
+18. [Offline promise](#offline-promise)
+19. [Tests](#tests)
+20. [Project layout](#project-layout)
+21. [Design notes and assumptions](#design-notes-and-assumptions)
+22. [Known limitations](#known-limitations)
 
 ## Features
 
@@ -61,6 +62,9 @@ deleted.
 - **All cows or nothing.** Every cow must be caught.
 - **Multi-level undo.** Undo back to the opening position, including facing,
   every cow's pose, caught flags and turn count.
+- **Show solution after a failure.** The failure dialog can replay a shortest
+  winning route with pause/continue and exit controls; it never counts as a
+  player clear.
 - **Configurable preview.** Each level chooses how many cow steps to show
   (0–20, default 5), assuming the farmer keeps his current position and facing.
 - **Progressive teaching in the campaign.** The main campaign itself teaches
@@ -119,7 +123,8 @@ comments, docstrings and commit messages are English.
 Pressing the direction that matches the current facing shows **已朝该方向** and
 does not consume a turn. The top bar also has **撤销**, **重开**, **预测** and
 **警觉** buttons. Teaching hints can be switched off in Settings. There is no
-wait command, pause, single-step or speed control.
+wait command and no player-controlled gameplay pause, single-step or speed
+control. The only pause is the optional pause inside solution playback.
 
 ## Rules
 
@@ -129,8 +134,8 @@ wait command, pause, single-step or speed control.
 playing ⇄ undo / restart → win / loss
 ```
 
-There is no placement phase. A result dialog offers **撤销到上一回合**,
-**重开本关** and **返回**.
+There is no placement phase. A failure dialog offers **撤销到上一回合**,
+**显示解法**, **重开本关** and **返回**; the solution button is covered below.
 
 ### One turn
 
@@ -208,6 +213,36 @@ Sight means:
 - **Teaching objectives are never win conditions.** They only drive hints and
   the post-level summary. Any valid win unlocks the next level.
 
+## Show solution playback
+
+A failed attempt can be inspected with **显示解法** in the failure dialog.
+
+- The button asks the shared `game.solver` for a shortest win **from the level's
+  opening state**, using the real `Simulation`; no second rule implementation
+  is involved.
+- Playback opens a separate simulation. The failed run object and its undo
+  history are left untouched, so progress, achievements and best times are not
+  changed by the computer's moves.
+- The board stays visible. The top bar shows **暂停 / 继续**, **退出演示**, and
+  the current step count. The panel explains that the playback is not scored.
+  Tutorial hints and the normal action buttons are hidden during playback.
+- Player actions, restart shortcuts and the back button are ignored while the
+  computer is driving. Only the two playback controls respond.
+- After the final action the win is held briefly, then the original failed state
+  is restored and the same failure dialog returns. **退出演示** restores it
+  immediately. Undo, restart and another playback are available again.
+- The search is synchronous and bounded by `DEMO_MAX_NODES` (100,000) and
+  `DEMO_MAX_SECONDS` (3.0). If it exhausts the state space or reaches a limit,
+  the dialog stays open and shows **暂时无法给出解法**; the other buttons keep
+  working.
+- Solved and exhausted results are cached in
+  `game.solver.solve_level_cached`, keyed by `RULES_VERSION` plus the level's
+  rule-relevant data and search limits. A rule change or a changed level
+  calculates a fresh route. Resource-limited attempts are not cached, so the
+  player can retry a transient timeout.
+- The playback pace is fixed at 0.46 seconds per action plus the normal 0.2 s
+  movement animation. There is no speed slider.
+
 ## Progressive main campaign
 
 The ten main levels are a single learning sequence:
@@ -243,7 +278,8 @@ and dashed paths, with a Chinese caption explaining the assumption. A predicted
 cow reaching an exit is marked in red. `0` disables the preview for that level.
 
 The top bar's **警觉** button toggles alert icons above fleeing cows; Settings
-also has a **显示教学目标与提示** switch for teaching guidance.
+also has a **显示教学目标与提示** switch for teaching guidance. During solution
+playback the preview is hidden so the replay stays easy to read.
 
 If the complete pose — farmer position/facing, every cow position/facing and
 caught flags — repeats, a Chinese **局面进入循环** hint appears. It never loses
@@ -273,11 +309,14 @@ the run; the player can continue and break the loop.
 - Cycle cow facing, exit/flee tiebreaks, `cows_block_sight` and
   `cows_block_each_other`. Cow behaviour is always unified.
 - **Export validation:** before writing, the editor calls the same
-  `game.solver.solve_level` used by tests. An exhausted search rejects the
-  export with a Chinese explanation. A search limit opens a dialog: cancel, or
-  export as **unverified**. Verified exports include
+  `game.solver.solve_level` used by tests and playback. An exhausted search
+  rejects the export with a Chinese explanation. A search limit opens a dialog:
+  cancel, or export as **unverified**. Verified exports include
   `verification: {status, shortest_turns}`; unverified files are marked and the
   import screen warns about them.
+- **Playback versus export:** the editor uses a fresh bounded search for export
+  validation; the failure dialog uses the cached playback entry point. Both call
+  the same BFS over `Simulation`.
 - Import reads the first level from a bundle. The editor level name is fixed to
   “我的牧场”; there is no text input.
 
@@ -403,7 +442,9 @@ boxed-in cows, exit seeking, exit/flee tiebreaks, all-caught wins, any-exit
 losses, multi-cow order and blocking, loop hints, prediction assumptions and
 exit marks, undo/restart, legacy fields, save version 6 migration, teaching
 objectives not gating clears, editor solver export checks, achievements, daily
-determinism, offline scanning and every scene's head-less render.
+determinism, offline scanning and every scene's head-less render. Playback tests
+cover the failure-dialog button, ignored player input, pause/resume, early exit,
+automatic restore, no-solution notices, time limits and cache invalidation.
 
 Reference solutions live in `tests/solutions.json` and
 `tests/challenge_solutions.json`. The shared solver also powers the editor:
@@ -419,7 +460,7 @@ main.py                     Entry point
 game/
   models.py                 Head-less models: Action, Level, TickResult
   core.py                   Absolute steering, cow AI, exits, undo, prediction
-  solver.py                 Shared bounded BFS over the real Simulation
+  solver.py                 Shared bounded BFS, limits and playback cache
   levels.py                 Schema parsing, validation, serialisation
   progress.py               Save sections, v6 tutorial merge
   achievements.py           Achievement rules
@@ -463,9 +504,20 @@ tools/                      Solver CLI and screenshot helper
 - **Fixed terrain** is the grid plus optional `walls` and `obstacles`.
 - **Prediction** covers cows only, with the farmer fixed. The optional
   “candidate farmer action” preview is not implemented.
-- **Solver limits** are deterministic node caps. Exhausted search is
-  `unsolvable`; reaching a cap is `limit`, which the editor treats as
-  “unverified”.
+- **Solver limits** are deterministic node caps plus an optional wall-clock
+  limit. Exhausted search is `unsolvable`; reaching a cap is `limit`, which the
+  editor treats as “unverified” and the failure dialog reports as
+  **暂时无法给出解法**.
+- **Solution playback is a teaching aid, not a skip.** It restores the failed
+  state afterwards and never records a clear, best time or achievement.
+- **Solution cache invalidation** uses `RULES_VERSION` and the rule-relevant
+  level data (terrain, actors, exits, obstacles, turn budget, sight and
+  tiebreaks), not the current attempt's position.
+- **Playback searches synchronously** with a three-second cap. The worst shipped
+  level currently takes about 1.4 s on the development machine; the interface
+  briefly blocks while the search runs.
+- **Fixed playback pace:** the action interval is deliberately constant; a
+  speed control is future work.
 
 ## Known limitations
 
@@ -481,3 +533,6 @@ tools/                      Solver CLI and screenshot helper
   interesting puzzle state; shipped levels avoid it.
 - Large levels are limited to the editor's 10×10 canvas; the parser itself is
   not limited to 10×10.
+- The solution search is synchronous, so a difficult custom level can pause the
+  interface for up to three seconds before reporting **暂时无法给出解法**.
+- Solution playback has a fixed pace and no step-by-step or speed controls.
