@@ -38,9 +38,4 @@ Thumbs.db
 *.log
 
 # Task notes kept outside version control
-prompt.md
-prompt2.md
-prompt3.md
-prompt4.md
-prompt5.md
-prompt6.md
+prompts/
