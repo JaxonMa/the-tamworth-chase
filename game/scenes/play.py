@@ -11,10 +11,16 @@ from ..animation import TurnAnimator
 from ..core import Simulation
 from ..models import Action, GameStatus, Level, Pos, Rank
 from ..render import BoardRenderer, BoardView, EffectSystem
+from ..solver import solve_level_cached
 from .base import Scene, draw_footer
 
 RESULT_DELAY = 0.95
 HINT_DELAY = 9.0
+DEMO_START_DELAY = 0.4
+DEMO_STEP_DELAY = 0.46
+DEMO_END_HOLD = 1.3
+DEMO_MAX_NODES = 100_000
+DEMO_MAX_SECONDS = 3.0
 LOOP_COLOR = theme.SKY_DEEP
 EXIT_COLOR = theme.CLAY
 
@@ -64,6 +70,15 @@ class PlayScene(Scene):
         self.trail_cows: List[List[Pos]] = []
         self._prediction_cache: Tuple = ()
         self._prediction_key = None
+        self._failure_sim: Optional[Simulation] = None
+        self._failure_loop_events = 0
+        self.demo_actions: Tuple[Action, ...] = ()
+        self.demo_index = 0
+        self.demo_timer = 0.0
+        self.demo_paused = False
+        self.demo_done = False
+        self.demo_done_timer = 0.0
+        self.demo_last_action: Optional[Action] = None
         self.buttons: List[ui.Button] = []
         self._seed_trails()
         self._build_buttons()
@@ -90,6 +105,13 @@ class PlayScene(Scene):
             self.predict_button,
             self.alert_button,
         ]
+        self.demo_pause_button = ui.Button(
+            pygame.Rect(336, 112, 112, 44), "暂停", "demo_pause", style="ghost", font_size=theme.FONT_TINY
+        )
+        self.demo_exit_button = ui.Button(
+            pygame.Rect(456, 112, 120, 44), "退出演示", "demo_exit", style="ghost", font_size=theme.FONT_TINY
+        )
+        self.demo_buttons = [self.demo_pause_button, self.demo_exit_button]
         self.back_button = ui.Button(
             pygame.Rect(theme.WINDOW_WIDTH - 190, 36, 130, 52), "返回", "back", style="ghost"
         )
@@ -101,14 +123,16 @@ class PlayScene(Scene):
     # Helpers
     # ------------------------------------------------------------------
     def _refresh_buttons(self) -> None:
-        self.undo_button.enabled = self.sim.can_undo and not self.animator.busy
-        self.restart_button.enabled = True
+        running = self.phase == "run"
+        self.undo_button.enabled = running and self.sim.can_undo and not self.animator.busy
+        self.restart_button.enabled = running
         self.predict_button.enabled = self.level.prediction_steps > 0
         if self.level.prediction_steps <= 0:
             self.predict_button.text = "预测 无"
         else:
             self.predict_button.text = "预测 开" if self.show_prediction else "预测 关"
         self.alert_button.text = "警觉 开" if self.show_alerts else "警觉 关"
+        self.demo_pause_button.text = "继续" if self.demo_paused else "暂停"
 
     def _seed_trails(self) -> None:
         self.trail_farmer = [self.sim.farmer.pos]
@@ -136,6 +160,14 @@ class PlayScene(Scene):
             action = self.modal.handle_event(event)
             if action:
                 self._modal_action(action)
+            return
+
+        if self.phase == "demo":
+            for button in self.demo_buttons:
+                action = button.handle_event(event)
+                if action:
+                    self._demo_button_action(action)
+                    return
             return
 
         if self.back_button.handle_event(event):
@@ -288,6 +320,138 @@ class PlayScene(Scene):
                 },
             )
 
+    # ------------------------------------------------------------------
+    # Solution playback
+    # ------------------------------------------------------------------
+    def _start_solution_demo(self) -> None:
+        """Solve the level from its opening state and start a replay."""
+        if (
+            self.phase != "result"
+            or self._failure_sim is not None
+            or not self.sim.status.is_failure
+        ):
+            return
+        result = solve_level_cached(
+            self.level,
+            max_nodes=DEMO_MAX_NODES,
+            max_seconds=DEMO_MAX_SECONDS,
+        )
+        if not result.solved:
+            notice = "暂时无法给出解法"
+            if result.status == "limit":
+                notice += "（搜索超时或超出限制）"
+            if self.modal is not None:
+                self.modal.notice = notice
+            self._toast(notice, 3.0)
+            self.app.sound.play("error")
+            return
+
+        self._failure_sim = self.sim
+        self._failure_loop_events = self.loop_events
+        self.sim = Simulation(self.level)
+        self.modal = None
+        self.phase = "demo"
+        self.demo_actions = tuple(Action(item) for item in result.actions)
+        self.demo_index = 0
+        self.demo_timer = DEMO_START_DELAY
+        self.demo_paused = False
+        self.demo_done = False
+        self.demo_done_timer = 0.0
+        self.demo_last_action = None
+        self.result_shown = False
+        self.result_timer = 0.0
+        self.animator.clear()
+        self.effects.clear()
+        self._prediction_key = None
+        self.hint_timer = 0.0
+        self._seed_trails()
+        self._refresh_buttons()
+        self.app.sound.play("click")
+        self._toast("自动演示中：结束后回到失败时的局面。", 2.6)
+
+    def _demo_button_action(self, action: str) -> None:
+        if action == "demo_pause":
+            self.demo_paused = not self.demo_paused
+            self._refresh_buttons()
+            self._toast("演示已暂停。" if self.demo_paused else "继续演示。", 1.4)
+            self.app.sound.play("click")
+        elif action == "demo_exit":
+            self.app.sound.play("click")
+            self._restore_after_demo()
+
+    def _advance_demo(self) -> None:
+        if self.demo_done:
+            return
+        if self.demo_index >= len(self.demo_actions):
+            self.demo_done = True
+            self.demo_done_timer = 0.0
+            self._toast("演示结束。", 1.6)
+            return
+
+        action = self.demo_actions[self.demo_index]
+        self.demo_timer = DEMO_STEP_DELAY
+        result = self.sim.apply_action(action)
+        self.demo_index += 1
+        self.demo_last_action = action
+        if not result.invalid:
+            self.animator.play(result)
+            self.trail_farmer.append(self.sim.farmer.pos)
+            for index, cow in enumerate(self.sim.cows):
+                if index < len(self.trail_cows):
+                    self.trail_cows[index].append(cow.pos)
+            if result.caught_now:
+                for index in result.caught_now:
+                    if index < len(self.sim.cows):
+                        self.effects.ring(
+                            self.board_center(self.sim.cows[index].pos), theme.SUN, 70, 0.6
+                        )
+                self.app.sound.play("place")
+            if result.loop_hint:
+                self._toast("演示路线遇到重复局面，继续按求解器路线行动。", 2.0)
+        if result.status is GameStatus.WON:
+            self.demo_done = True
+            self.demo_done_timer = 0.0
+            if self.sim.last_tick is not None:
+                self.effects.burst_petals(
+                    self.board_center(self.sim.farmer.pos),
+                    18 if not self.effects.low_effects else 0,
+                )
+            self.app.sound.play("unlock")
+            self._toast("演示完成：这条路线可以通关。", 2.4)
+        elif result.status.is_finished:
+            self.demo_done = True
+            self.demo_done_timer = 0.0
+            self._toast("演示未能通关，即将回到失败局面。", 2.2)
+        elif self.demo_index >= len(self.demo_actions):
+            self.demo_done = True
+            self.demo_done_timer = 0.0
+            self._toast("演示结束。", 1.6)
+        self._refresh_buttons()
+
+    def _restore_after_demo(self) -> None:
+        if self._failure_sim is None:
+            return
+        self.sim = self._failure_sim
+        self._failure_sim = None
+        self.demo_actions = ()
+        self.demo_index = 0
+        self.demo_timer = 0.0
+        self.demo_paused = False
+        self.demo_done = False
+        self.demo_done_timer = 0.0
+        self.demo_last_action = None
+        self.animator.clear()
+        self.effects.clear()
+        self._prediction_key = None
+        self.loop_events = self._failure_loop_events
+        self.phase = "result"
+        self.result_shown = True
+        self.result_timer = 0.0
+        self.toast_timer = 0.0
+        self._seed_trails()
+        self._refresh_buttons()
+        self._show_failure_modal()
+
     def _undo(self) -> None:
         if self.animator.busy:
             return
@@ -353,8 +517,31 @@ class PlayScene(Scene):
     # ------------------------------------------------------------------
     # Update
     # ------------------------------------------------------------------
+    def _update_demo(self, dt: float) -> None:
+        if not self.demo_paused:
+            was_busy = self.animator.busy
+            self.animator.update(dt)
+            if was_busy and not self.animator.busy:
+                self._refresh_buttons()
+            self.effects.update(dt)
+            if self.demo_done:
+                if not self.animator.busy:
+                    self.demo_done_timer += dt
+                    if self.demo_done_timer >= DEMO_END_HOLD:
+                        self._restore_after_demo()
+                        return
+            elif not self.animator.busy:
+                self.demo_timer -= dt
+                if self.demo_timer <= 0.0:
+                    self._advance_demo()
+        if self.toast_timer > 0:
+            self.toast_timer = max(0.0, self.toast_timer - dt)
+
     def update(self, dt: float) -> None:
         super().update(dt)
+        if self.phase == "demo":
+            self._update_demo(dt)
+            return
         was_busy = self.animator.busy
         self.animator.update(dt)
         if was_busy and not self.animator.busy:
@@ -389,23 +576,33 @@ class PlayScene(Scene):
         if self.sim.status is GameStatus.WON:
             self._show_win_modal()
             return
+        self._show_failure_modal()
+
+    def _show_failure_modal(self) -> None:
         if self.sim.status is GameStatus.LOST_EXIT:
             title = "牛从出口逃走了"
-            body = "一头牛抵达了金色出口，本局失败。\n可以撤销到上一回合，或重新开始。"
+            body = (
+                "一头牛抵达了金色出口，本局失败。\n"
+                "可以撤销到上一回合、重开本关，或让电脑演示一条通关路线。"
+            )
         else:
             title = "回合数已用完"
-            body = f"本关最多 {self.level.max_turns} 回合，牛还没有全部抓住。\n可以撤销到上一回合，或重新开始。"
+            body = (
+                f"本关最多 {self.level.max_turns} 回合，牛还没有全部抓住。\n"
+                "可以撤销到上一回合、重开本关，或让电脑演示一条通关路线。"
+            )
         self.modal = ui.Modal(
             title,
             body,
             accent=EXIT_COLOR,
             buttons=[
                 ui.Button(pygame.Rect(0, 0, 190, 50), "撤销到上一回合", "undo_result", style="primary"),
-                ui.Button(pygame.Rect(0, 0, 170, 50), "重开本关", "retry", style="default"),
-                ui.Button(pygame.Rect(0, 0, 130, 50), "返回", "leave", style="ghost"),
+                ui.Button(pygame.Rect(0, 0, 160, 50), "显示解法", "show_solution", style="sky"),
+                ui.Button(pygame.Rect(0, 0, 150, 50), "重开本关", "retry", style="default"),
+                ui.Button(pygame.Rect(0, 0, 110, 50), "返回", "leave", style="ghost"),
             ],
-            width=680,
-            height=350,
+            width=780,
+            height=370,
         )
 
     def _show_win_modal(self) -> None:
@@ -441,6 +638,9 @@ class PlayScene(Scene):
         self.app.sound.play("unlock")
 
     def _modal_action(self, action: str) -> None:
+        if action == "show_solution":
+            self._start_solution_demo()
+            return
         self.app.sound.play("click")
         self.modal = None
         if action == "undo_result":
@@ -465,7 +665,8 @@ class PlayScene(Scene):
         self._draw_board(surface)
         self._draw_panel(surface)
         self._draw_footer(surface)
-        self.back_button.draw(surface, self.fonts)
+        if self.phase != "demo":
+            self.back_button.draw(surface, self.fonts)
         if self.toast_timer > 0 and self.toast_text:
             self._draw_toast(surface)
         if self.modal is not None:
@@ -505,7 +706,10 @@ class PlayScene(Scene):
         badge, badge_color = badge_map.get(self.mode, ("主线", theme.LEAF))
         width = self.fonts.size_of(title, theme.FONT_H1, True)[0]
         ui.draw_pill(surface, self.fonts, badge, (62 + width + 62, 58), badge_color)
-        status_text = "追逐中" if self.phase == "run" else "本局结束"
+        status_text = {
+            "run": "追逐中",
+            "demo": "解法演示",
+        }.get(self.phase, "本局结束")
         ui.draw_pill(
             surface,
             self.fonts,
@@ -526,8 +730,23 @@ class PlayScene(Scene):
             "牛",
             f"{self.sim.caught_count} / {len(self.sim.cows)}",
         )
-        for button in (self.undo_button, self.restart_button, self.predict_button, self.alert_button):
-            button.draw(surface, self.fonts)
+        if self.phase == "demo":
+            self.demo_pause_button.draw(surface, self.fonts)
+            self.demo_exit_button.draw(surface, self.fonts)
+            progress = (
+                "完成"
+                if self.demo_done
+                else f"{self.demo_index} / {len(self.demo_actions)}"
+            )
+            self._draw_stat(surface, 592, 112, 148, "演示", progress)
+        else:
+            for button in (
+                self.undo_button,
+                self.restart_button,
+                self.predict_button,
+                self.alert_button,
+            ):
+                button.draw(surface, self.fonts)
 
     def _draw_stat(self, surface, x, y, width, label, value):
         rect = pygame.Rect(x, y, width, 44)
@@ -547,7 +766,11 @@ class PlayScene(Scene):
             level=self.level,
             sim=self.sim,
             animator=self.animator,
-            show_prediction=self.show_prediction and not self.sim.status.is_finished,
+            show_prediction=(
+                self.show_prediction
+                and not self.sim.status.is_finished
+                and self.phase == "run"
+            ),
             prediction=self._prediction(),
             effects=self.effects,
             pulse=self.time,
@@ -591,6 +814,10 @@ class PlayScene(Scene):
         y += 44
         ui.draw_divider(surface, y, left, width)
         y += 16
+
+        if self.phase == "demo":
+            self._draw_demo_panel(surface, left, width)
+            return
 
         if self.show_hints and self.level.learning_objective:
             display_text = self.level.learning_objective
@@ -638,6 +865,116 @@ class PlayScene(Scene):
             )
             line_y += 26
 
+    def _draw_demo_panel(self, surface: pygame.Surface, left: int, width: int) -> None:
+        y = theme.PANEL_RECT.top + 130
+        theme.draw_text(
+            surface,
+            self.fonts,
+            "电脑演示通关路线",
+            (left, y),
+            theme.FONT_H2,
+            theme.INK,
+            bold=True,
+        )
+        y += 42
+        body = self.fonts.wrap(
+            "求解器使用与本局完全相同的规则。\n"
+            "演示期间不响应玩家操作，也不会计入成绩或解锁记录。",
+            theme.FONT_SMALL,
+            width,
+            theme.INK_SOFT,
+        )
+        surface.blit(body, (left, y))
+        y += body.get_height() + 18
+        ui.draw_pill(
+            surface,
+            self.fonts,
+            "不计入成绩",
+            (left + 76, y + 4),
+            theme.SKY_DEEP,
+        )
+        y += 34
+
+        progress = pygame.Rect(left, y, width, 142)
+        theme.rounded_rect(surface, progress, theme.CREAM, radius=16)
+        theme.rounded_rect(surface, progress, theme.PANEL_BORDER, radius=16, width=2)
+        theme.draw_text(
+            surface,
+            self.fonts,
+            "演示进度",
+            (progress.left + 18, progress.top + 14),
+            theme.FONT_TINY,
+            theme.INK_LIGHT,
+        )
+        total = len(self.demo_actions)
+        theme.draw_text(
+            surface,
+            self.fonts,
+            f"{self.demo_index} / {total}",
+            (progress.left + 18, progress.top + 40),
+            theme.FONT_H1,
+            theme.INK,
+            bold=True,
+        )
+        if self.demo_done:
+            state_text = "演示完成"
+            state_color = theme.LEAF_DARK
+        elif self.demo_paused:
+            state_text = "已暂停"
+            state_color = theme.CLAY_DARK
+        else:
+            state_text = "自动播放中"
+            state_color = theme.SKY_DEEP
+        ui.draw_pill(
+            surface,
+            self.fonts,
+            state_text,
+            (progress.right - 90, progress.top + 55),
+            state_color,
+        )
+        last_text = (
+            f"上一步：{self.demo_last_action.label}"
+            if self.demo_last_action is not None
+            else "准备开始演示"
+        )
+        theme.draw_text(
+            surface,
+            self.fonts,
+            last_text,
+            (progress.left + 18, progress.top + 108),
+            theme.FONT_SMALL,
+            theme.INK_SOFT,
+        )
+
+        card_y = progress.bottom + 20
+        card = pygame.Rect(left, card_y, width, 166)
+        theme.rounded_rect(surface, card, theme.CREAM, radius=16)
+        theme.rounded_rect(surface, card, theme.PANEL_BORDER, radius=16, width=2)
+        theme.draw_text(
+            surface,
+            self.fonts,
+            "演示控制",
+            (card.left + 18, card.top + 14),
+            theme.FONT_TINY,
+            theme.INK_LIGHT,
+        )
+        lines = [
+            "顶部「暂停 / 继续」：冻结或恢复自动播放",
+            "顶部「退出演示」：立即回到失败时的局面",
+            "演示结束后会自动恢复，不会跳过失败结算",
+        ]
+        line_y = card.top + 46
+        for line in lines:
+            theme.draw_text(
+                surface,
+                self.fonts,
+                line,
+                (card.left + 18, line_y),
+                theme.FONT_SMALL,
+                theme.INK_SOFT,
+            )
+            line_y += 32
+
     def _draw_hint_box(self, surface: pygame.Surface, x: int, y: int, width: int) -> None:
         box = pygame.Rect(x, y, width, 102)
         theme.rounded_rect(surface, box, theme.SKY_PALE, radius=16)
@@ -659,6 +996,13 @@ class PlayScene(Scene):
         surface.blit(counter, (box.right - 18 - counter.get_width(), box.top + 14))
 
     def _draw_footer(self, surface: pygame.Surface) -> None:
+        if self.phase == "demo":
+            draw_footer(
+                surface,
+                self.fonts,
+                "演示中不响应玩家操作 · 顶部按钮可暂停/继续或退出演示",
+            )
+            return
         draw_footer(
             surface,
             self.fonts,

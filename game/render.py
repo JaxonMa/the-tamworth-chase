@@ -81,8 +81,13 @@ class EffectSystem:
     def set_low_effects(self, value: bool) -> None:
         self.low_effects = value
         if value:
-            self.particles.clear()
-            self.rings.clear()
+            self.clear()
+
+    def clear(self) -> None:
+        """Remove every transient flourish without changing the setting."""
+        self.particles.clear()
+        self.rings.clear()
+        self.hats.clear()
 
     def update(self, dt: float) -> None:
         self.time += dt

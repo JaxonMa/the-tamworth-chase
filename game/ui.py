@@ -397,6 +397,7 @@ class Modal:
         height: int = 380,
         badge: str = "",
         dismissable: bool = False,
+        notice: str = "",
     ) -> None:
         self.title = title
         self.body = body
@@ -404,6 +405,7 @@ class Modal:
         self.buttons = list(buttons)
         self.badge = badge
         self.dismissable = dismissable
+        self.notice = notice
         screen = pygame.Rect(0, 0, theme.WINDOW_WIDTH, theme.WINDOW_HEIGHT)
         self.rect = pygame.Rect(0, 0, width, height)
         self.rect.center = screen.center
@@ -460,6 +462,18 @@ class Modal:
         if self.body:
             text = fonts.wrap(self.body, theme.FONT_BODY, self.rect.width - 72, theme.INK_SOFT)
             surface.blit(text, (self.rect.left + 36, self.rect.top + 108))
+
+        if self.notice:
+            notice = fonts.wrap(
+                self.notice,
+                theme.FONT_SMALL,
+                self.rect.width - 72,
+                theme.CLAY_DARK,
+            )
+            surface.blit(
+                notice,
+                (self.rect.left + 36, self.rect.bottom - 128 - notice.get_height()),
+            )
 
         for button in self.buttons:
             button.draw(surface, fonts)
