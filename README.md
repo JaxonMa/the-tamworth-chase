@@ -1,340 +1,298 @@
 # The Tamworth Chase
 
-*A cozy, hand-drawn chase through the meadow — steer the farmer, guard the gate.*
+简体中文 · [English](README_EN.md)
 
-Farmer John drives with absolute-direction steering: every command turns him to
-face up, down, left or right, or moves him one tile forward. Cows always keep the
-exit in mind: they flee when the farmer is in sight, but fleeing is only a
-temporary detour — when no escape move is useful they fall back to the exit.
-Catch every cow before any cow escapes.
+*一款手绘田园风的回合制追逐游戏：驾驶农夫，守住出口。*
 
-The game is a single-player, turn-based puzzle. It runs fully offline: no
-accounts, servers, telemetry or network requests at runtime.
+农夫 John 采用绝对方向操控：每个回合，他要么转向朝上、朝下、朝左或朝右，
+要么朝当前方向前进一格。牛始终以出口为目标：看到农夫时会先躲开；一旦逃跑
+拉不开距离，就立刻掉头奔向出口。玩家必须在任意一头牛逃出牧场之前，抓住
+全部牛。
 
-## Rename note
+这是一款单人回合制解谜游戏，完全离线运行：没有账号、服务器或遥测，运行时
+也不会发起网络请求。
 
-The project was previously released as **The Tamworth Two**. The name is now
-**The Tamworth Chase** (Chinese subtitle 《塔姆沃斯追逐》). The save file lives at
-`~/.the_tamworth_chase/save.json`; an old save is copied there once and is never
-deleted.
+## 目录
 
-## Contents
+1. [功能特性](#功能特性)
+2. [环境要求](#环境要求)
+3. [安装](#安装)
+4. [运行](#运行)
+5. [操作方式](#操作方式)
+6. [规则](#规则)
+7. [牛的行为](#牛的行为)
+8. [胜负条件](#胜负条件)
+9. [显示解法](#显示解法)
+10. [主线教学](#主线教学)
+11. [预测、警觉与循环](#预测警觉与循环)
+12. [挑战、每日与成就](#挑战每日与成就)
+13. [编辑器与求解器](#编辑器与求解器)
+14. [关卡数据格式](#关卡数据格式)
+15. [存档](#存档)
+16. [字体与许可](#字体与许可)
+17. [美术与音效](#美术与音效)
+18. [离线承诺](#离线承诺)
+19. [测试](#测试)
+20. [项目结构](#项目结构)
+21. [设计说明](#设计说明)
+22. [已知限制](#已知限制)
+23. [许可证](#许可证)
 
-1. [Features](#features)
-2. [Requirements](#requirements)
-3. [Installation](#installation)
-4. [Running](#running)
-5. [Controls](#controls)
-6. [Rules](#rules)
-7. [The cows](#the-cows)
-8. [Winning and losing](#winning-and-losing)
-9. [Show solution playback](#show-solution-playback)
-10. [Progressive main campaign](#progressive-main-campaign)
-11. [Prediction, alerts and loops](#prediction-alerts-and-loops)
-12. [Challenge, daily and achievements](#challenge-daily-and-achievements)
-13. [Level editor and solver](#level-editor-and-solver)
-14. [Level data schema](#level-data-schema)
-15. [Save data](#save-data)
-16. [Fonts and licensing](#fonts-and-licensing)
-17. [Art and audio](#art-and-audio)
-18. [Offline promise](#offline-promise)
-19. [Tests](#tests)
-20. [Project layout](#project-layout)
-21. [Design notes and assumptions](#design-notes-and-assumptions)
-22. [Known limitations](#known-limitations)
-23. [License](#license)
+## 功能特性
 
-## Features
+- **全程驾驶，没有布置阶段。** 进入关卡即可操作，玩家不能自行摆放障碍。
+- **游玩页采用镜像布局。** 关卡目标与教学提示在左侧栏，棋盘、回合与牛的状态
+  以及操作按钮在右侧；编辑器则仍是棋盘在左、工具栏在右。
+- **绝对方向。** `W`/`↑` 朝上，`S`/`↓` 朝下，`A`/`←` 朝左，`D`/`→` 朝右，
+  空格朝当前方向前进一格。再次转向当前朝向无效，也不消耗回合。
+- **没有等待操作。** 每个有效回合都必须转向或前进。
+- **牛的目标是出口。** 看到农夫时，牛会先躲开；如果前进和左右转都无法拉开
+  距离，它会立刻回到奔向出口的逻辑，不会在角落里原地打转。
+- **农夫不能走出口。** 出口只对牛开放，农夫不能进入或停留在出口格。若朝出口
+  前进，本回合照常消耗，并提示「出口不可通行，本回合已消耗」。这样玩家就
+  不能靠站在出口上阻止牛逃脱。
+- **任何一头牛逃出即失败。** 牛到达任意出口格，本局立即结束。
+- **抓住全部牛才算过关。**
+- **多步撤销。** 可以恢复到农夫的位置和朝向、每头牛的位置和朝向、被抓住状态
+  以及回合数。
+- **失败后可查看解法。** 失败弹窗可以演示一条最短通关路线，支持暂停、继续和
+  退出；演示不会记为玩家通关。
+- **预测步数可调。** 每关可以设置显示牛未来多少步（0–20，默认 5）；预测基于
+  农夫保持当前位置与朝向不变。
+- **教学融入主线。** 没有独立教程入口、章节选择页或教程存档段；前 8 个主线关
+  承担教学功能。
+- **教学目标不阻塞通关。** `learning_objective` 只用于提示和结算展示；玩家用
+  任何合理方式通关，都会解锁下一关。
+- **挑战、每日与成就。** 包含 5 个挑战关、一个用本地日期生成并经过求解器验证
+  的每日牧场，以及 5 项成就。
+- **关卡编辑器。** 可以绘制地形、放置农夫和最多三头牛、设置出口、固定障碍、
+  视野范围和回合上限，并支持试玩、导出和导入 JSON。导出前会自动验证可解性。
+- **绘本风程序化美术。** 草地、栅栏、树篱、水塘、牛、农夫、出口门和警觉气泡
+  全部由代码绘制，没有使用 emoji 充当游戏对象。
+- **背景音乐。** 内置 CC0 竖琴循环《Meadow Thoughts》（Écrivain），以低于音效的
+  音量循环播放。
 
-- **Pure driving.** No placement phase and no player-placed obstacle. A level
-  starts immediately; every turn the player turns or moves.
-- **Mirrored play layout.** Level guidance and teaching hints live in the left
-  sidebar; the board, turn/cow stats and action buttons are on the right.
-- **Absolute steering.** `W`/`↑` faces up, `S`/`↓` faces down, `A`/`←` faces
-  left, `D`/`→` faces right, and Space moves one tile in the current direction.
-  The direction matching the current facing is invalid and free.
-- **No waiting.** Every valid turn changes the facing or moves the farmer.
-- **Exit-first cow AI.** Cows seek the exit; seeing the farmer triggers a
-  temporary flee. If no escape move actually increases the distance, the cow
-  immediately falls back to seeking the exit instead of spinning in a corner.
-- **Farmer cannot use exits.** Exit gates are passable for cows only. The farmer
-  cannot enter or occupy an exit; trying to move onto one consumes the turn and
-  shows **出口不可通行，本回合已消耗**. This prevents blocking the exit by
-  standing on it.
-- **Escape pressure.** A cow reaching any exit loses the run immediately.
-- **All cows or nothing.** Every cow must be caught.
-- **Multi-level undo.** Undo back to the opening position, including facing,
-  every cow's pose, caught flags and turn count.
-- **Show solution after a failure.** The failure dialog can replay a shortest
-  winning route with pause/continue and exit controls; it never counts as a
-  player clear.
-- **Configurable preview.** Each level chooses how many cow steps to show
-  (0–20, default 5), assuming the farmer keeps his current position and facing.
-- **Progressive teaching in the campaign.** The main campaign itself teaches
-  the mechanics. There is no separate tutorial entry, chapter picker or tutorial
-  save section.
-- **Teaching objectives never gate progress.** `learning_objective` is shown as
-  guidance; clearing a level by any valid route unlocks the next one.
-- **Challenge and daily modes.** Five curated challenges and a local daily
-  meadow generated from the date and verified with the shared solver.
-- **Level editor.** Paint terrain, place the farmer and up to three cows, set
-  exits, fixed obstacles, sight ranges and turn budgets, test-play, export and
-  import JSON. Export is checked by the shared solver first.
-- **Procedural picture-book art.** Grass, fences, hedges, ponds, cows, the
-  farmer, gates and alert bubbles are drawn in code. No emoji are used as game
-  objects.
-- **Background music.** A bundled CC0 solo-harp loop, “Meadow Thoughts” by
-  Écrivain, plays quietly under the sound effects.
+## 环境要求
 
-## Requirements
-
-- Python 3.10 or newer (tested with 3.14.7)
+- Python 3.10 或更新版本（验证使用 3.14.7）
 - `pygame-ce` 2.5.x
-- `pytest` for tests only
-- A desktop session for the game window
+- `pytest`（仅测试需要）
+- 桌面环境（用于显示游戏窗口）
 
-## Installation
+## 安装
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-On Windows use `.venv\Scripts\python.exe`.
+Windows 下使用 `.venv\Scripts\python.exe`。
 
-## Running
+## 运行
 
 ```bash
 .venv/bin/python main.py
 ```
 
-The window is 1280×840. All player-facing text is Simplified Chinese; code,
-comments, docstrings and commit messages are English.
+游戏窗口为 1280×840。玩家可见文本使用简体中文；代码标识符、注释、docstring
+和 commit message 使用英语。
 
-## Controls
+## 操作方式
 
-| Input | Action |
+| 输入 | 行为 |
 |---|---|
-| `W` / `↑` | Face up (consumes a turn when different) |
-| `S` / `↓` | Face down (consumes a turn when different) |
-| `A` / `←` | Face left (consumes a turn when different) |
-| `D` / `→` | Face right (consumes a turn when different) |
-| Space | Move forward one tile |
-| `U` | Undo one turn |
-| `R` | Restart the level |
-| `P` | Toggle the path preview |
-| `Esc` | Return to the previous screen |
+| `W` / `↑` | 朝上（当前已朝上时不消耗回合） |
+| `S` / `↓` | 朝下（当前已朝下时不消耗回合） |
+| `A` / `←` | 朝左（当前已朝左时不消耗回合） |
+| `D` / `→` | 朝右（当前已朝右时不消耗回合） |
+| 空格 | 朝当前方向前进一格 |
+| `U` | 撤销一个回合 |
+| `R` | 重开本关 |
+| `P` | 开关路径预测 |
+| `Esc` | 返回上一级 |
 
-Pressing the direction that matches the current facing shows **已朝该方向** and
-does not consume a turn. The right-hand toolbar labels its shortcuts directly
-on the buttons: **`[U] 撤销`**, **`[R] 重开`**, **`[P] 预测 开/关`**, plus
-**警觉**. The left sidebar shows the level objective, a short description, the
-goal and the current teaching card. Teaching hints can be switched off in
-Settings. There is no wait command and no player-controlled gameplay pause,
-single-step or speed control. The only pause is the optional pause inside
-solution playback.
+按当前朝向对应的方向键时，界面会提示「已朝该方向」，且不消耗回合。右侧工具栏
+把快捷键直接印在按钮上，例如「[U] 撤销」「[R] 重开」「[P] 预测 开/关」，以及
+「警觉」。左侧栏显示本关学习目标、关卡说明、目标和当前教学提示卡；教学提示
+可以在设置页关闭。
 
-## Rules
+游戏没有等待操作，也没有玩家可控制的对局暂停、单步或速度档位。唯一的暂停出现
+在解法演示中。
 
-### State machine
+## 规则
+
+### 状态机
 
 ```
-playing ⇄ undo / restart → win / loss
+游玩中 ⇄ 撤销 / 重开 → 胜利 / 失败
 ```
 
-There is no placement phase. A failure dialog offers **撤销到上一回合**,
-**显示解法**, **重开本关** and **返回**; the solution button is covered below.
+进入关卡后直接开始，没有布置阶段。失败弹窗提供「撤销到上一回合」「显示解法」
+「重开本关」和「返回」四个选项。
 
-### One turn
+### 一个回合
 
-1. The player performs exactly one action: face up/down/left/right, or move
-   forward.
-2. A turn to a different direction changes the facing, keeps the position and
-   consumes the turn. A turn to the current facing is invalid and costs nothing.
-3. Forward moves one tile in the current facing:
-   - A fence, board edge or fixed obstacle blocks the move; the turn is consumed
-     and **前方受阻，本回合已消耗** is shown.
-   - An exit cell blocks the farmer; the turn is consumed and
-     **出口不可通行，本回合已消耗** is shown.
-   - A cow in the destination is caught.
-4. If every cow is caught, the level is won immediately.
-5. Every cow moves once, in level order. After each cow move, reaching an exit
-   fails the run; sharing the farmer's tile catches that cow.
-6. After all cows, all caught means victory; otherwise the turn counter
-   increases. Reaching the level's turn budget without a win fails the run.
+1. 玩家每回合执行一个动作：朝上、下、左或右转，或者前进。
+2. 转向不同方向时，位置不变、朝向改变，并消耗一个回合；转向当前朝向无效，
+   不消耗回合。
+3. 前进时：
+   - 撞上栅栏、边界或固定障碍：位置和朝向不变，本回合消耗，提示「前方受阻，
+     本回合已消耗」。
+   - 目标格是出口：位置和朝向不变，本回合消耗，提示「出口不可通行，本回合
+     已消耗」。
+   - 目标格有牛：农夫移入该格，抓住这头牛。
+4. 农夫行动后，如果所有牛都已被抓住，立即获胜。
+5. 所有牛按照固定顺序各移动一次。每头牛移动后，如果到达出口，本局立即失败；
+   如果与农夫处在同一格，则被抓住。
+6. 一回合结算完毕时，回合数加一。若全部牛都已被抓住，则获胜；若仍未获胜且
+   回合数达到本关上限，则失败。
 
-A winning move on the last allowed turn is checked before the budget and is
-accepted. Level loading rejects an initial farmer position on an exit.
+最后一回合的获胜操作会先于回合上限结算，因此仍然有效。加载关卡时，农夫初始
+位置不能与出口重叠。
 
-## The cows
+## 牛的行为
 
-All cows use the same decision order.
+所有牛使用同一套决策顺序。
 
-### 1. Can the cow see the farmer?
+### 1. 能否看到农夫
 
-Sight means:
+同时满足以下条件时，牛能看到农夫：
 
-- same row or same column;
-- no wall, fixed obstacle or board edge between the two;
-- Manhattan distance within `sight_range` (`-1` means unlimited);
-- optionally, other cows block sight when `cows_block_sight` is true.
+- 两者在同一行或同一列；
+- 中间没有墙、固定障碍或边界；
+- 曼哈顿距离不超过 `sight_range`（-1 表示无限）；
+- 如果 `cows_block_sight` 为真，其他牛也会挡住视线。
 
-### 2. Attempt a temporary flee
+### 2. 先尝试临时逃跑
 
-- If the forward tile is passable and moving there strictly increases the
-  Manhattan distance to the farmer, the cow moves forward.
-- Otherwise it considers left/right turns. A side is an escape option only when
-  its forward cell is passable and its distance is strictly larger.
-- If at least one side is an escape option, the cow turns toward the farther
-  passable side. Ties use `flee_tiebreak` (default `right`).
-- If neither side is a useful escape, the cow does **not** turn in place. It
-  immediately falls through to the exit logic. This is the fix for cows that
-  used to spin in corners while the farmer was visible.
+- 如果前方可通行，且前进后与农夫的曼哈顿距离严格变大，牛就向前走一格。
+- 否则考虑左转和右转。只有「前方格可通行，且转向后距离严格变大」的一侧才算
+  有效逃跑方向。
+- 至少有一侧可以逃跑时，牛朝距离更远的一侧转向；距离相同时由 `flee_tiebreak`
+  决定（默认 `right`）。
+- 两侧都不能有效逃跑时，牛不会原地转向，而是直接进入第 3 步的出口逻辑。
+  这样牛就不会在角落里原地打转。
 
-### 3. Seek the exit
+### 3. 奔向出口
 
-- A visible exit is in the cow's straight line (same row or column), no terrain
-  blocks it, and its distance is within `exit_sight_range` (`-1` unlimited).
-- If several exits are visible, the nearest wins; ties use `(row, column)` order.
-- If the cow already faces the chosen exit and the forward tile is passable, it
-  moves forward. Otherwise it turns toward the exit; if the exit is directly
-  behind, `exit_tiebreak` (default `right`) chooses the first 90° turn.
-- If no exit is visible, it patrols: move forward when possible; otherwise turn
-  90° clockwise in place.
-- If every adjacent cell is blocked, the cow holds still instead of rotating
-  forever. Shipped levels avoid this state; it is a defensive fallback.
+- 出口出现在直线视野内，即同行或同列、中间没有遮挡，且距离不超过
+  `exit_sight_range`（-1 表示无限）。
+- 多个出口可见时，牛选择曼哈顿距离最近的；距离相同时按 `(行, 列)` 字典序决定。
+- 如果牛已经朝向选中的出口且前方可通行，就直接前进；否则转向出口方向。出口
+  在正后方时，由 `exit_tiebreak` 决定先往哪边转 90°（默认 `right`），之后继续转。
+- 看不到出口时，牛会沿墙巡逻：前方可走就前进，否则原地顺时针转 90°。
+- 如果四个相邻格全部不可通行，牛会停在原地，而不是无限旋转。现有关卡避免这种
+  设计，这只是一个安全兜底。
 
-### 4. Multi-cow order
+### 4. 多牛顺序与确定性
 
-- Cows move in level order, deterministically.
-- `cows_block_each_other` (default false) makes another active cow block the
-  forward tile.
-- A caught cow is skipped for movement, sight, exits and rendering; its stored
-  position is retained only for undo.
+- 牛按照关卡配置中的顺序移动，顺序固定，结果确定。
+- `cows_block_each_other` 为真时，前方有其他活动牛会被视为不可通行；默认关闭。
+- 被抓住的牛不再参与移动、视线判断、出口判定和渲染；它的位置仍保存在快照中，
+  用于撤销。
 
-## Winning and losing
+## 胜负条件
 
-- **Win:** all cows are caught.
-- **Lose — escape:** any cow reaches any exit cell.
-- **Lose — turns:** the turn budget is reached without a win.
-- **Failure dialog:** distinguishes **牛从出口逃走了** from **回合数已用完**.
-- **Teaching objectives are never win conditions.** They only drive hints and
-  the post-level summary. Any valid win unlocks the next level.
+- **胜利：** 抓住全部牛。单牛关抓住那一头即可，多牛关必须全部抓住。
+- **失败：** 任意一头牛到达任意出口格。
+- **失败：** 回合数达到 `max_turns` 且仍未获胜。
+- **失败弹窗：** 区分「牛从出口逃走了」和「回合数已用完」两种情况。
+- **教学目标不是通关条件。** 提示、求解器分析和结算展示可以使用教学目标；
+  通关、解锁和评价只取决于正常的胜负条件。
 
-## Show solution playback
+## 显示解法
 
-A failed attempt can be inspected with **显示解法** in the failure dialog.
+失败后，可以在失败弹窗中点击「显示解法」，让电脑演示一条最短通关路线。
 
-- The button asks the shared `game.solver` for a shortest win **from the level's
-  opening state**, using the real `Simulation`; no second rule implementation
-  is involved.
-- Playback opens a separate simulation. The failed run object and its undo
-  history are left untouched, so progress, achievements and best times are not
-  changed by the computer's moves.
-- The board stays visible. The right-hand toolbar shows **暂停 / 继续**, **退出演示**, and
-  the current step count. The panel explains that the playback is not scored.
-  Tutorial hints and the normal action buttons are hidden during playback.
-- Player actions, restart shortcuts and the back button are ignored while the
-  computer is driving. Only the two playback controls respond.
-- After the final action the win is held briefly, then the original failed state
-  is restored. A dedicated **演示结束** dialog appears instead of the earlier
-  failure dialog; it offers **再次演示**, **重开**, **撤销到上一回合** and
-  **返回**. **退出演示** restores the failed state immediately and opens the
-  same end dialog. Undo, restart and another playback are available again.
-- The search is synchronous and bounded by `DEMO_MAX_NODES` (100,000) and
-  `DEMO_MAX_SECONDS` (3.0). If it exhausts the state space or reaches a limit,
-  the dialog stays open and shows **暂时无法给出解法**; the other buttons keep
-  working.
-- Solved and exhausted results are cached in
-  `game.solver.solve_level_cached`, keyed by `RULES_VERSION` plus the level's
-  rule-relevant data and search limits. A rule change or a changed level
-  calculates a fresh route. Resource-limited attempts are not cached, so the
-  player can retry a transient timeout.
-- The playback pace is fixed at 0.46 seconds per action plus the normal 0.2 s
-  movement animation. There is no speed slider.
+- 求解器从本关的初始局面出发，使用真实的 `Simulation` 和共享 BFS 寻找最短
+  胜利路线，不另写一套规则。
+- 演示使用独立的模拟实例。失败时的原局面和撤销记录保持不变，因此电脑的移动
+  不会写入通关记录、最好成绩或成就。
+- 演示期间棋盘保持可见。顶部右侧显示「暂停/继续」「退出演示」和当前步数，
+  左侧说明会注明演示不计成绩；普通操作按钮和教学提示暂时隐藏。
+- 演示过程中，玩家操作、重开快捷键和返回按钮都会被忽略，只响应两个演示控制
+  按钮。
+- 最后一步完成后会短暂停留，随后恢复失败时的局面，并显示独立的「演示结束」
+  弹窗，而不是原来的失败弹窗。弹窗提供「再次演示」「重开」「撤销到上一回合」
+  和「返回」。点击「退出演示」会立即恢复失败局面并打开同一个结束弹窗；之后
+  仍可撤销、重开或再次演示。
+- 同步搜索受 `DEMO_MAX_NODES`（100,000）和 `DEMO_MAX_SECONDS`（3.0 秒）限制。
+  状态空间穷尽或达到限制时，弹窗保持打开并提示「暂时无法给出解法」，其他按钮
+  仍然可用。
+- 已求出解和已穷尽的结果会缓存在 `game.solver.solve_level_cached` 中。缓存键
+  包含 `RULES_VERSION`、关卡的规则数据和搜索限制；规则或关卡变化后会重新
+  求解。因资源限制而中止的搜索不会缓存，玩家可以再次点击重试。
+- 演示节奏固定为每步 0.46 秒，加上正常的 0.2 秒移动动画；没有速度滑块。
 
-## Progressive main campaign
+## 主线教学
 
-The ten main levels are a single learning sequence:
+10 个主线关组成一条连续的教学序列：
 
-| # | Level | Teaching focus | Cows | Max | Shortest |
+| # | 关卡 | 教学重点 | 牛 | 回合上限 | 最短解 |
 |---|---|---|---:|---:|---:|
-| 01 | 朝哪走 | absolute turns and forward | 1 | 14 | 6 |
-| 02 | 撞墙的代价 | a blocked forward wastes a turn | 1 | 18 | 9 |
-| 03 | 出口在哪 | cows seek the exit | 1 | 12 | 4 |
-| 04 | 警觉的牛 | fleeing and falling back to the exit | 1 | 12 | 7 |
-| 05 | 出口不可通行 | exits block the farmer | 1 | 14 | 7 |
-| 06 | 墙后的伏击 | terrain blocks sight | 1 | 10 | 4 |
-| 07 | 出口前的拦截 | intercept before the exit | 1 | 9 | 4 |
-| 08 | 预判与撤销 | prediction and undo | 1 | 14 | 6 |
-| 09 | 苔藓高地 | multiple cows | 2 | 27 | 19 |
-| 10 | 最后的牧场 | multiple cows and exit pressure | 2 | 33 | 25 |
+| 01 | 朝哪走 | 绝对转向与前进 | 1 | 14 | 6 |
+| 02 | 撞墙的代价 | 撞墙会浪费回合 | 1 | 18 | 9 |
+| 03 | 出口在哪 | 牛会奔向出口 | 1 | 12 | 4 |
+| 04 | 警觉的牛 | 牛会逃跑，逃不掉时继续奔向出口 | 1 | 12 | 7 |
+| 05 | 出口不可通行 | 农夫不能站上出口 | 1 | 14 | 7 |
+| 06 | 墙后的伏击 | 固定地形会遮挡视线 | 1 | 10 | 4 |
+| 07 | 出口前的拦截 | 抢在牛到达出口前拦截 | 1 | 9 | 4 |
+| 08 | 预判与撤销 | 路径预测与撤销 | 1 | 14 | 6 |
+| 09 | 苔藓高地 | 同时应对多头牛 | 2 | 27 | 19 |
+| 10 | 最后的牧场 | 多头牛与出口的双重压力 | 2 | 33 | 25 |
 
-- Levels 1–8 are teaching levels; 9–10 combine the mechanics.
-- Each level has a Chinese `learning_objective` and a list of `hint_text`
-  prompts. The objective and description appear in the left sidebar; the current
-  hint appears in a high-contrast card in the lower sidebar (the old rules slot),
-  with a page count, **下一条** button and progress dots. The card advances
-  automatically after 9 seconds of real play, whether or not the player is
-  moving, or manually through the button.
-- Completion unlocks the next level regardless of which mechanics were used.
-  There are no practice gates and no separate tutorial progress.
-- Teaching levels hide the S/A/B/C badge in the victory dialog; the internal
-  turn thresholds are kept for data compatibility but never block progress.
-- Clearing a level by another route always counts as a normal clear.
+- 第 1–8 关承担教学任务，第 9–10 关综合运用前面学到的机制。
+- 每关都有 `learning_objective` 和一组 `hint_text`。目标和说明显示在左侧栏，当前
+  提示显示在下方教学提示卡中，并带有页码、「下一条」按钮和进度圆点。提示每
+  9 秒自动翻到下一条，计时不受玩家移动或动画影响，也可以手动翻页。
+- 教学目标未完成，不会阻塞解锁，也不会要求重玩；任何合理通关都有效。
+- 教学关的胜利结算不显示 S/A/B/C 评价徽章；内部阈值仅用于数据兼容。
+- 没有独立教程入口、独立教程进度，也没有跳过或重置教程的界面。
 
-## Prediction, alerts and loops
+## 预测、警觉与循环
 
-The preview shows up to `prediction_steps` future cow poses while Farmer John
-stays at his current position and facing. It is drawn as translucent footprints
-and dashed paths, with a Chinese caption explaining the assumption. A predicted
-cow reaching an exit is marked in red. `0` disables the preview for that level.
+预测会显示牛接下来最多 `prediction_steps` 步的位置和朝向，前提是农夫保持当前
+位置与朝向不变。预测用半透明脚印和虚线绘制，并在画面上注明这一前提；如果牛
+会在预测中到达出口，终点会标成红色。`0` 表示该关关闭预测。
 
-The right-hand toolbar's **警觉** button toggles alert icons above fleeing cows;
-Settings also has a **显示教学目标与提示** switch for teaching guidance. The
-prediction caption sits below the right-hand board. During solution playback the
-preview is hidden so the replay stays easy to read.
+右侧工具栏的「警觉」按钮控制是否显示逃跑牛头顶的感叹号图标；设置页另有「显示
+教学目标与提示」开关。预测说明位于右侧棋盘下方。解法演示期间会隐藏预测脚印，
+避免干扰观看。
 
-If the complete pose — farmer position/facing, every cow position/facing and
-caught flags — repeats, a Chinese **局面进入循环** hint appears. It never loses
-the run; the player can continue and break the loop.
+当农夫和所有牛的位置、朝向以及被抓住状态与之前某刻完全相同时，界面会提示
+「局面进入循环」。这不会判负，玩家可以继续操作，打破循环。
 
-## Challenge, daily and achievements
+## 挑战、每日与成就
 
-- **Challenge:** five curated side levels with local best turns.
-- **Daily:** a meadow generated from the local date, checked with the shared
-  solver; falls back to campaign level 1 only if no candidate is winnable.
-- **Achievements:** `one_step`, `close_call`, `flawless`, `loop_free`,
-  `all_levels`.
-  - `one_step`: catch all cows in one turn.
-  - `close_call`: win on the last allowed turn.
-  - `flawless`: never bump a wall while moving forward.
-  - `loop_free`: never trigger the loop hint.
-  - `all_levels`: clear all ten campaign levels.
+- **挑战：** 5 个独立关卡，记录本地最好回合数。
+- **每日：** 以本地日期为种子生成牧场，并交给共享求解器验证；只有所有候选都
+  无法通关时，才回退到主线第一关。
+- **成就：** `one_step`、`close_call`、`flawless`、`loop_free`、`all_levels`。
+  - `one_step`：一回合抓住全部牛。
+  - `close_call`：在最后一个可用回合获胜。
+  - `flawless`：前进时从未撞墙。
+  - `loop_free`：从未触发循环提示。
+  - `all_levels`：通关全部 10 个主线关。
 
-## Level editor and solver
+## 编辑器与求解器
 
-- Paint grass, fence, hedge, tree or pond.
-- Place the farmer, move/add/remove up to three cows, and choose the active cow.
-- Use the exit tool to add/remove exits. Exits cannot hold the farmer, a cow or
-  a fixed obstacle.
-- Toggle fixed hay-bale obstacles.
-- Edit `max_turns`, `prediction_steps`, `sight_range` and `exit_sight_range`.
-- Cycle cow facing, exit/flee tiebreaks, `cows_block_sight` and
-  `cows_block_each_other`. Cow behaviour is always unified.
-- **Export validation:** before writing, the editor calls the same
-  `game.solver.solve_level` used by tests and playback. An exhausted search
-  rejects the export with a Chinese explanation. A search limit opens a dialog:
-  cancel, or export as **unverified**. Verified exports include
-  `verification: {status, shortest_turns}`; unverified files are marked and the
-  import screen warns about them.
-- **Playback versus export:** the editor uses a fresh bounded search for export
-  validation; the failure dialog uses the cached playback entry point. Both call
-  the same BFS over `Simulation`.
-- Import reads the first level from a bundle. The editor level name is fixed to
-  “我的牧场”; there is no text input.
+- 绘制草地、栅栏、树篱、树木和水塘。
+- 放置农夫，移动、添加或删除最多三头牛，并可切换当前选中的牛。
+- 用「出口格」工具添加或移除出口；出口不能与农夫、牛、墙或固定障碍重叠。
+- 用「固定障碍」工具添加或移除固定干草垛。
+- 调整回合上限、预测步数、视野距离和出口视野。
+- 切换牛朝向、出口平局方向、逃跑平局方向、牛挡视线和牛互相阻挡。所有牛共享
+  同一套行为，不再提供单独的行为开关。
+- **导出验证：** 导出前调用与游戏、测试相同的 `game.solver.solve_level`。如果
+  状态空间穷尽且无解，会拒绝导出并说明原因；如果搜索达到上限，弹窗允许玩家
+  选择「取消」或「仍然导出（未验证）」。已验证文件会记录
+  `verification: {status, shortest_turns}`；未验证文件在导入时会提示。
+- **导出与演示：** 编辑器导出使用一次新的有界搜索；失败弹窗使用带缓存的
+  `solve_level_cached`。两者都调用真实的 `Simulation` 和同一套 BFS。
+- 导入时只读取文件中的第一关。编辑器不能更改关卡名：新建关卡固定叫「我的牧场」，
+  导入的关卡则保留原关卡名。
 
-## Level data schema
+## 关卡数据格式
 
 ```json
 {
@@ -344,10 +302,10 @@ the run; the player can continue and break the loop.
     {
       "id": "level_01",
       "name": "朝哪走",
-      "grid": ["#######", "#.....#", "..."],
+      "grid": ["#######", "#F....#", "#..C..#", "#.....#", "#######"],
       "fj_start_direction": "north",
       "cow_facings": ["east"],
-      "exit_cells": [[1, 1]],
+      "exit_cells": [[3, 5]],
       "max_turns": 14,
       "prediction_steps": 5,
       "exit_sight_range": -1,
@@ -362,227 +320,203 @@ the run; the player can continue and break the loop.
       "learning_objective": "转向与前进：每回合必须转向或前进",
       "hint_text": ["W/↑ 朝上，S/↓ 朝下…", "空格前进…"],
       "hint": "先转向，再前进。",
-      "description": "七节短课的第一课。"
+      "description": "渐进式主线第一课。"
     }
   ]
 }
 ```
 
-| Field | Type | Default | Meaning |
+| 字段 | 类型 | 默认值 | 含义 |
 |---|---|---|---|
-| `id` | string | required | Unique level id |
-| `name` | string | id | Chinese display name |
-| `grid` | string[] | required | Terrain rows; `F` farmer, `C` cows |
-| `fj_start_direction` | string | `north` | Farmer's initial facing (`up/right/down/left` accepted) |
-| `cow_facings` | string[] | `east` | One facing per cow |
-| `exit_cells` | `[row,col][]` | required | At least one walkable exit; rejected if it overlaps a wall, fixed obstacle or the farmer |
-| `max_turns` | int | 30 | Turn budget |
-| `prediction_steps` | int | 5 | Preview depth; 0 disables |
-| `exit_sight_range` | int | -1 | Exit visibility range; -1 unlimited |
-| `sight_range` | int | -1 | Farmer visibility range; -1 unlimited |
-| `exit_tiebreak` / `flee_tiebreak` | `right` / `left` | `right` | Tie-breaking side |
-| `cows_block_sight` | bool | false | Cows block the farmer's line of sight |
-| `cows_block_each_other` | bool | false | Cows block each other's movement |
-| `walls` | `[row,col][]` | `[]` | Optional extra fence coordinates folded into the grid |
-| `obstacles` | `[row,col][]` | `[]` | Optional fixed hay-bale blockers |
-| `chapter` | string | group | Level-select chapter label |
-| `learning_objective` | string | `""` | Chinese teaching text; empty for ordinary levels |
-| `hint_text` | string or string[] | `[]` | Progressive Chinese hints |
-| `s/a/b_threshold` | int | derived | Grade thresholds in turns |
-| `hint` / `description` | string | `""` | Chinese UI text |
-| `verification` | object | absent | Editor-export solver metadata |
+| `id` | string | 必填 | 唯一关卡 id |
+| `name` | string | id | 关卡显示名称 |
+| `grid` | string[] | 必填 | 地形行；`F` 为农夫，`C` 为牛 |
+| `fj_start_direction` | string | `north` | 农夫初始朝向（也接受 `up/right/down/left`） |
+| `cow_facings` | string[] | `east` | 每头牛的初始朝向 |
+| `exit_cells` | `[row,col][]` | 必填 | 至少一个出口；不能与墙、固定障碍、农夫初始位置或牛重叠 |
+| `max_turns` | int | 30 | 回合上限 |
+| `prediction_steps` | int | 5 | 预测步数；0 表示关闭 |
+| `exit_sight_range` | int | -1 | 出口视野距离；-1 表示无限 |
+| `sight_range` | int | -1 | 农夫视野距离；-1 表示无限 |
+| `exit_tiebreak` / `flee_tiebreak` | `right` / `left` | `right` | 平局时优先转向的一侧 |
+| `cows_block_sight` | bool | false | 牛是否挡住农夫的视线 |
+| `cows_block_each_other` | bool | false | 牛是否互相阻挡移动 |
+| `walls` | `[row,col][]` | `[]` | 可选的额外栅栏坐标，会合并进网格 |
+| `obstacles` | `[row,col][]` | `[]` | 可选的固定干草垛 |
+| `chapter` | string | 关卡分组 | 关卡选择页显示的章节标签 |
+| `learning_objective` | string | `""` | 教学目标文本；普通关为空 |
+| `hint_text` | string 或 string[] | `[]` | 分步提示 |
+| `s/a/b_threshold` | int | 自动推导 | 按回合数计算的评价阈值 |
+| `hint` / `description` | string | `""` | 界面说明文本 |
+| `verification` | object | 无 | 编辑器导出的求解器验证信息 |
 
-Grid characters: `.` grass, `,` flowers, `#` fence, `T` tree, `~` pond,
-`H` hedge, `F` farmer, `C` cow. Legacy `D/G/S` cow characters are read as normal
-cows. A cow may not start on an exit; the farmer may never start on an exit.
+网格字符：`.` 草地、`,` 花、`#` 栅栏、`T` 树、`~` 水塘、`H` 树篱、`F` 农夫、
+`C` 牛。旧地图中的 `D/G/S` 仍按普通牛读取。牛不能出生在出口上，农夫也不能
+出生在出口上。
 
-**Backward compatibility.** Old fields `step_limit`, `obstacle_limit`,
-`initial_obstacles`, `win_condition`, `pen_cells`, `cow_behavior`,
-`cow_personalities`, item fields, tutorial `tips`/`practice`, and
-`speed`/`pause` are ignored; `step_limit` falls back to `max_turns`. If no exit
-is supplied, a deterministic far-away walkable cell is chosen and marked in
-`extra["legacy_exit"]`; old custom levels still load.
+**向后兼容：** 旧的 `step_limit`、`obstacle_limit`、`initial_obstacles`、
+`win_condition`、`pen_cells`、`cow_behavior`、牛性格和道具字段会被忽略；
+`step_limit` 作为 `max_turns` 的回退。旧的 `tips`/`practice` 教程字段也会被
+忽略。旧关卡没有出口时，会选择一个确定性的远端可走格作为默认出口，并在
+`extra["legacy_exit"]` 中标记。
 
-## Save data
+## 存档
 
-- Default: `~/.the_tamworth_chase/save.json`
-- Override: `TAMWORTH_CHASE_DATA`
-- The pre-rename environment variable is still read for compatibility.
-- On first launch after the rename, the old save is copied to the new location
-  and the old file is never deleted; a Chinese startup dialog reports this.
-- Save version **6** removes the independent `tutorial` section. Known completed
-  old tutorial lessons are mapped onto the corresponding main levels
-  (`basics_01`→`level_01`, …, `advanced_03`→`level_10`); unmapped or skipped
-  old tutorial records are ignored. Main records gain `cleared` so the normal
-  unlock chain continues.
-- Sections: `settings`, `main`, `achievements`, `challenges`, `daily`,
-  `custom`. Writes are atomic. The `hints` setting defaults to true.
+- 默认路径：`~/.the_tamworth_chase/save.json`
+- 可通过环境变量 `TAMWORTH_CHASE_DATA` 覆盖存档目录。
+- 存档版本为 **6**。版本 6 移除了独立的 `tutorial` 段；已知的旧教程完成状态
+  会按 `basics_01`→`level_01`、…、`advanced_03`→`level_10` 映射到对应的主线关，
+  无法映射的教程状态会被忽略。主线记录增加了 `cleared` 字段，以便继续使用正常
+  的解锁链。
+- 存档分区：`settings`、`main`、`achievements`、`challenges`、`daily`、`custom`。
+  写入采用原子替换；`hints` 设置默认开启。
+- 存档损坏时，游戏会提示并使用一份全新的存档，不会因此崩溃。
 
-## Fonts and licensing
+## 字体与许可
 
-- `assets/fonts/CEFFontsCJK-Regular.ttf` — bundled CEF Fonts CJK under the SIL
-  Open Font License 1.1; full text in `assets/fonts/OFL.txt`.
-- The font is loaded locally at runtime.
-- Digit runs use a system rounded font (SF Rounded, Avenir Next, Helvetica Neue,
-  DejaVu Sans, Arial) because CEF's `1` resembles a slash; Chinese and Latin keep
-  the handwritten face. Missing fonts fall back to system CJK faces.
+- `assets/fonts/CEFFontsCJK-Regular.ttf`：内置 CEF Fonts CJK，使用 SIL Open
+  Font License 1.1；完整文本见 `assets/fonts/OFL.txt`。
+- 字体在运行时从本地加载。
+- CEF 字体中的数字 `1` 形似斜杠，因此连续数字改用系统圆体（SF Rounded、Avenir
+  Next、Helvetica Neue、DejaVu Sans、Arial）渲染；中文和拉丁字母仍使用手写体。
+  如果字体缺失，会回退到系统中文字体。
 
-## Art and audio
+## 美术与音效
 
-- Terrain, fences, ponds, cows, the farmer, gates, hay bales and alert bubbles
-  are procedural. Tiles are drawn at a higher resolution and smoothed down.
-- No bitmap sprite sheets and no emoji game objects.
-- Sound cues are synthesised at start-up in `game/audio.py`.
-- Background music is “Meadow Thoughts” by Écrivain, a solo harp loop bundled
-  as `assets/music/meadow_thoughts.ogg` under CC0 1.0. Full credit is recorded
-  in `assets/music/README.md`.
-- Sound/music can be toggled and the master volume changed in Settings;
-  background music is mixed lower than the sound effects.
+- 地形、栅栏、水塘、牛、农夫、出口门、干草垛和警觉气泡全部程序化绘制；地块
+  先以较高分辨率绘制，再平滑缩小。
+- 没有位图精灵表，也没有用 emoji 充当游戏对象。
+- 音效在启动时由 `game/audio.py` 合成。
+- 背景音乐是 Écrivain 的《Meadow Thoughts》，一段竖琴独奏循环，以 CC0 1.0
+  授权随游戏打包在 `assets/music/meadow_thoughts.ogg`；完整署名见
+  `assets/music/README.md`。
+- 设置页可以统一开关音效和音乐，并调整总音量；背景音乐的混音音量低于音效。
 
-## Offline promise
+## 离线承诺
 
-- No network modules and no network requests at runtime.
-- No accounts, rooms, matchmaking, servers, WebSockets, cloud saves or online
-  leaderboards.
-- The binary assets are the bundled font and the CC0 background music; both
-  load from disk and no network requests are made at runtime.
-- Daily seeds come from the local date.
+- 运行时不导入网络模块，也不发起网络请求。
+- 没有账号、房间、匹配、服务器、WebSocket、云存档或在线排行榜。
+- 二进制资源只有内置字体和 CC0 背景音乐，两者都从本地磁盘加载。
+- 每日种子来自本地日期。
 
-## Tests
+## 测试
 
 ```bash
 .venv/bin/python -m pytest -q
 ```
 
-Coverage includes absolute-turn actions, same-direction invalidity, blocked
-moves, exit-blocked moves, initial-position validation, strict farmer-then-cow
-order, cow sight and range, unified flee priority, flee-to-exit fallback,
-boxed-in cows, exit seeking, exit/flee tiebreaks, all-caught wins, any-exit
-losses, multi-cow order and blocking, loop hints, prediction assumptions and
-exit marks, undo/restart, legacy fields, save version 6 migration, teaching
-objectives not gating clears, the mirrored play layout, dynamic board centering,
-key-labelled toolbar buttons, the sidebar teaching card and its next control,
-editor solver export checks, achievements, daily determinism, offline scanning
-and every scene's head-less render. Playback tests
-cover the failure-dialog button, ignored player input, pause/resume, early exit,
-automatic restore, the dedicated **演示结束** dialog, replay/restart from that
-dialog, no-solution notices, time limits and cache invalidation.
+测试覆盖绝对转向、同方向无效、撞墙、出口阻挡农夫、初始位置校验、农夫先于牛
+行动、牛视野与距离、统一的逃跑优先级、逃跑失败后回到出口逻辑、四邻全堵、
+奔向出口、出口与逃跑平局、抓住全部牛、任意出口导致的失败、多牛顺序与阻挡、
+循环提示、预测假设与出口标记、撤销与重开、旧字段兼容、存档 v6 迁移、教学目标
+不阻塞通关、镜像布局、动态棋盘居中、带键位的按钮、侧栏教学提示卡与
+「下一条」按钮、编辑器导出校验、成就、每日确定性、离线扫描，以及所有界面的
+无窗口渲染。
 
-Reference solutions live in `tests/solutions.json` and
-`tests/challenge_solutions.json`. The shared solver also powers the editor:
+解法演示还有专项测试，覆盖失败弹窗按钮、演示中忽略玩家操作、暂停与继续、
+提前退出、自动恢复、独立的「演示结束」弹窗、从该弹窗再次演示或重开、无解提示、
+超时提示、搜索限时和缓存失效。
+
+参考解位于 `tests/solutions.json` 和 `tests/challenge_solutions.json`。共享求解器
+也用于编辑器和命令行工具：
 
 ```bash
 .venv/bin/python tools/solve.py levels/levels.json
 ```
 
-## Project layout
+## 项目结构
 
 ```
-main.py                     Entry point
-LICENSE                     MIT project license
-THIRD_PARTY_NOTICES.md      Font and music license notices
+main.py                     入口
+LICENSE                     MIT 项目许可证
+THIRD_PARTY_NOTICES.md      字体与音乐许可说明
+README.md                   简体中文说明（默认）
+README_EN.md                英文说明
 game/
-  models.py                 Head-less models: Action, Level, TickResult
-  core.py                   Absolute steering, cow AI, exits, undo, prediction
-  solver.py                 Shared bounded BFS, limits and playback cache
-  levels.py                 Schema parsing, validation, serialisation
-  progress.py               Save sections, v6 tutorial merge
-  achievements.py           Achievement rules
-  editor.py                 Editor model and JSON exchange
-  daily.py                  Local daily seed + shared solver check
-  animation.py              One-turn interpolation
-  render.py                 Board, gates, alerts, prediction, effects
-  theme.py                  Palette, fonts, layout
-  ui.py                     Buttons, toggles, modals
-  art.py                    Procedural art
-  audio.py                  Synthesised cues and background music
-  app.py                    Window and scene routing
-  scenes/                   Menu, levels, play, challenge, daily, editor,
-                            achievements, settings
-levels/                     Campaign and challenge JSON
-assets/fonts/               Bundled CJK font and OFL text
-assets/music/               Bundled CC0 background loop and credit
-tests/                      Unit, integration and data tests
-tools/                      Solver CLI and screenshot helper
+  models.py                 无 pygame 的模型：Action、Level、TickResult
+  core.py                   绝对转向、牛 AI、出口、撤销、预测
+  solver.py                 共享有界 BFS、限时和演示缓存
+  levels.py                 数据格式、解析、校验、序列化
+  progress.py               存档分区与 v6 教程进度合并
+  achievements.py           成就规则
+  editor.py                 编辑器模型与 JSON 交换
+  daily.py                  本地每日种子与共享求解器校验
+  animation.py              单回合插值
+  render.py                 棋盘、出口门、警觉图标、预测、特效
+  theme.py                  配色、字体、布局
+  ui.py                     按钮、开关、弹窗
+  art.py                    程序化美术
+  audio.py                  合成音效与背景音乐
+  app.py                    窗口与场景路由
+  scenes/                   主菜单、选关、游玩、挑战、每日、编辑器、成就、设置
+levels/                     主线与挑战 JSON
+assets/fonts/               内置中文字体与 OFL 文本
+assets/music/               内置 CC0 背景音乐与署名
+tests/                      单元、集成与数据测试
+tools/                      求解器 CLI、截图工具
 ```
 
-`custom_levels/` and the save directory are not tracked by Git.
+`custom_levels/` 和存档目录都不会被 Git 跟踪。
 
-## Design notes and assumptions
+## 设计说明
 
-- **All cows must be caught; any exit loses.** Implemented literally for single-
-  and multi-cow levels.
-- **Turn limit** is a budget: reaching `max_turns` without a win fails. A
-  winning action on that same turn is checked first and is accepted.
-- **Same-direction turns** are invalid and free.
-- **Fleeing is temporary.** If neither forward nor either passable side can
-  increase the distance, the cow does not turn in place; it immediately seeks
-  the exit. If all adjacent cells are blocked, it holds still.
-- **Exit cells are cow-only.** The farmer's walkability check excludes exits;
-  the parser rejects an initial farmer/exit overlap. Cows can enter an exit and
-  immediately lose the run. This avoids trying to block a gate by standing on it.
-- **Exit line of sight** is strict: same row or column only.
-- **Caught cows leave the board.** Their positions remain in the undo snapshot
-  but are skipped by movement, sight, exit and rendering.
-- **Teaching objectives** are hints only. They never affect victory, ranking or
-  unlocking; only the normal win condition does.
-- **The play screen is mirrored, not every scene.** The editor keeps its board on
-  the left and its tool panel on the right.
-- **The old rules card is gone.** The turn limit stays in the compact top stats,
-  the prediction step count stays in the caption below the board, and the
-  one-line exit reminder remains in the sidebar. Shortcuts are printed on the
-  toolbar and footer.
-- **Teaching promotion rules:** levels with `hint_text` get a paged card; levels
-  with only `hint` get a compact single-hint card; levels with neither leave the
-  lower sidebar empty. Turning hints off hides the card.
-- **Fixed terrain** is the grid plus optional `walls` and `obstacles`.
-- **Prediction** covers cows only, with the farmer fixed. The optional
-  “candidate farmer action” preview is not implemented.
-- **Solver limits** are deterministic node caps plus an optional wall-clock
-  limit. Exhausted search is `unsolvable`; reaching a cap is `limit`, which the
-  editor treats as “unverified” and the failure dialog reports as
-  **暂时无法给出解法**.
-- **Solution playback is a teaching aid, not a skip.** It restores the failed
-  state afterwards and never records a clear, best time or achievement.
-- **Solution cache invalidation** uses `RULES_VERSION` and the rule-relevant
-  level data (terrain, actors, exits, obstacles, turn budget, sight and
-  tiebreaks), not the current attempt's position.
-- **Playback searches synchronously** with a three-second cap. The worst shipped
-  level currently takes about 1.4 s on the development machine; the interface
-  briefly blocks while the search runs.
-- **Fixed playback pace:** the action interval is deliberately constant; a
-  speed control is future work.
+- **全部抓住才获胜，任何一头牛到达出口都会失败。** 单牛关和多牛关都严格按此判定。
+- **回合上限是一笔预算。** 达到 `max_turns` 仍未获胜即失败；同一回合的获胜操作
+  会先结算，因此最后一回合仍可能获胜。
+- **同方向转向无效，也不消耗回合。**
+- **逃跑只是临时避让。** 如果前进、左转和右转都无法拉大与农夫的距离，牛会立即
+  回到出口逻辑；四邻全堵时则停在原地。
+- **出口只对牛开放。** 农夫的可行走判定排除出口，加载时会拒绝农夫与出口重叠。
+  牛可以进入出口，并立即导致失败，因此不存在「站在出口上堵牛」的玩法。
+- **出口视野是严格的直线视野。** 只有同行或同列才看得到出口；对角出口不可见，
+  牛会沿墙巡逻。
+- **被抓住的牛离开棋盘。** 快照仍保留它的位置用于撤销，但移动、视线、出口判断
+  和渲染都会跳过它。
+- **教学目标只用于提示。** 不影响胜负、评价和解锁。
+- **只有游玩页采用镜像布局。** 编辑器仍是左侧棋盘、右侧工具栏。
+- **界面不再有独立的「本关规则」卡片。** 回合上限显示在顶部紧凑状态中，预测
+  步数显示在棋盘下方的说明里，出口提醒显示为侧栏的一行文字；快捷键直接印在
+  按钮和页脚上。
+- **提示卡规则：** 有 `hint_text` 的关卡显示可翻页提示卡；只有 `hint` 的关卡
+  显示单条紧凑提示卡；两者都没有时，下方留空。关闭提示设置后，提示卡隐藏。
+- **地形固定**，由网格和可选的 `walls`、`obstacles` 组成。
+- **预测只模拟牛**，农夫固定不变；尚未实现「农夫候选动作」的进阶预测。
+- **求解器限制**由确定性节点上限和可选的墙钟限时组成。状态空间穷尽时结果为
+  `unsolvable`；达到限制时结果为 `limit`，编辑器会将其视为「未验证」，失败
+  弹窗则提示「暂时无法给出解法」。
+- **解法演示是教学辅助，不是跳过按钮。** 演示结束后会恢复失败局面，也不会记录
+  通关、最好成绩或成就。
+- **解法缓存按规则失效。** 缓存键使用 `RULES_VERSION` 和关卡的规则数据（地形、
+  角色、出口、障碍、回合上限、视野和平局方向），不使用当前尝试的局面。
+- **演示搜索同步执行**，时限为 3 秒。当前最复杂的主线关在开发机上约需 1.4 秒，
+  搜索期间界面会短暂停住。
+- **演示节奏固定**，动作间隔不变；调速和单步仍是后续工作。
 
-## Known limitations
+## 已知限制
 
-- The GUI is verified head-less with screenshots and injected events; it has not
-  been manually play-tested on a physical display here.
-- SFX are synthesised and the CC0 harp loop is bundled; both run here with a
-  dummy device and have not been auditioned on physical hardware.
-- The editor uses a fixed level name and a 10×10 canvas.
-- The daily generator falls back to campaign level 1 if no candidate is solvable.
-- Undo keeps at most 256 snapshots.
-- Challenge levels are intentionally tighter than the main teaching levels; two
-  have a shortest solution equal to their turn budget.
-- A fully boxed-in cow holds still, which is a safe fallback but not an
-  interesting puzzle state; shipped levels avoid it.
-- Large levels are limited to the editor's 10×10 canvas; the parser itself is
-  not limited to 10×10.
-- The solution search is synchronous, so a difficult custom level can pause the
-  interface for up to three seconds before reporting **暂时无法给出解法**.
-- Solution playback has a fixed pace and no step-by-step or speed controls.
+- 图形界面通过无窗口截图和注入事件验证，尚未在物理显示器上人工试玩。
+- 音效为程序合成，背景音乐为内置 CC0 竖琴循环；两者都只在 dummy 音频设备下
+  验证过，尚未在物理音频设备上进行听感验收。
+- 编辑器不能编辑关卡名，画布固定为 10×10。
+- 每日生成器的所有候选都无法通关时，会回退到主线第一关。
+- 每次尝试最多保留 256 个撤销快照。
+- 挑战关的容错更小，其中两关的最短解正好等于回合上限。
+- 四个相邻格都被堵住的牛会停在原地。这是安全兜底，不是有趣的谜题状态；
+  现有关卡避免这种设计。
+- 解析器本身不限制 10×10，限制来自编辑器的画布。
+- 显示解法时同步搜索，最多可能让界面停住约 3 秒，然后提示「暂时无法给出解法」。
+- 解法演示只有固定节奏，没有调速或单步控制。
 
-## License
+## 许可证
 
-The Tamworth Chase is released under the **MIT License**. See
-[LICENSE](LICENSE) for the full text.
+The Tamworth Chase 以 **MIT License** 发布，完整文本见 [LICENSE](LICENSE)。
 
-The MIT license covers the original source code and procedural artwork. Bundled
-third-party assets keep their own licenses:
+MIT 许可证覆盖项目自身的源代码和程序化美术；随游戏打包的第三方资源保留各自
+原有许可：
 
-- **CEF Fonts CJK** — SIL Open Font License 1.1; full text in
-  `assets/fonts/OFL.txt`.
-- **“Meadow Thoughts”** by Écrivain — CC0 1.0; source and SHA-256 in
-  `assets/music/README.md`.
+- **CEF Fonts CJK**：SIL Open Font License 1.1，全文见
+  `assets/fonts/OFL.txt`。
+- **《Meadow Thoughts》**（Écrivain）：CC0 1.0，来源和 SHA-256 见
+  `assets/music/README.md`。
 
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the complete notices.
+完整第三方声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
