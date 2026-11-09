@@ -1,19 +1,25 @@
-"""Procedurally generated sound effects.
+"""Procedural sound effects plus a bundled CC0 background loop.
 
-The game ships no audio files: every cue is synthesised at start-up from simple
-waveforms, which keeps the package tiny and fully offline.  Sound can be muted
-from the settings screen; a missing audio device is tolerated silently.
+The short cues are synthesised at start-up from simple waveforms; the gentle
+harp loop ships locally in ``assets/music``.  Sound and music share the settings
+master switch and volume.  A missing audio device or music file is tolerated
+silently.
 """
 
 from __future__ import annotations
 
 import math
 from array import array
-from typing import Dict, List, Sequence
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence
 
 import pygame
 
+from .paths import asset_path
+
 SAMPLE_RATE = 44100
+MUSIC_RELATIVE_PATH = ("music", "meadow_thoughts.ogg")
+MUSIC_GAIN = 0.30
 
 
 def _envelope(index: int, total: int, attack: float = 0.02, release: float = 0.4) -> float:
@@ -95,11 +101,24 @@ def _build_cues() -> Dict[str, bytes]:
 class AudioManager:
     """Tiny wrapper around ``pygame.mixer`` with graceful degradation."""
 
-    def __init__(self, enabled: bool = True, volume: float = 0.6) -> None:
+    def __init__(
+        self,
+        enabled: bool = True,
+        volume: float = 0.6,
+        music_path: Optional[Path] = None,
+    ) -> None:
         self.enabled = enabled
-        self.volume = volume
+        self.volume = max(0.0, min(1.0, volume))
         self.available = False
         self.sounds: Dict[str, pygame.mixer.Sound] = {}
+        self.music_path = (
+            Path(music_path)
+            if music_path is not None
+            else asset_path(*MUSIC_RELATIVE_PATH)
+        )
+        self.music_available = False
+        self.music_started = False
+        self.music_paused = False
         try:
             if not pygame.mixer.get_init():
                 pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=1, buffer=512)
@@ -111,18 +130,60 @@ class AudioManager:
             raw = _build_cues()
             for name, data in raw.items():
                 sound = pygame.mixer.Sound(buffer=data)
-                sound.set_volume(volume)
+                sound.set_volume(self.volume)
                 self.sounds[name] = sound
         except (pygame.error, ValueError):
             self.available = False
+            return
+        self._load_music()
+
+    def _load_music(self) -> None:
+        try:
+            if not self.music_path.is_file():
+                return
+            pygame.mixer.music.load(str(self.music_path))
+            pygame.mixer.music.set_volume(self.volume * MUSIC_GAIN)
+        except (pygame.error, OSError):
+            return
+        self.music_available = True
+        if self.enabled:
+            self._start_music(fade_ms=1200)
+
+    def _start_music(self, fade_ms: int = 600) -> None:
+        try:
+            pygame.mixer.music.play(loops=-1, fade_ms=fade_ms)
+        except pygame.error:
+            self.music_available = False
+            return
+        self.music_started = True
+        self.music_paused = False
 
     def set_enabled(self, enabled: bool) -> None:
         self.enabled = enabled
+        if not self.music_available:
+            return
+        try:
+            if enabled:
+                if self.music_paused:
+                    pygame.mixer.music.unpause()
+                    self.music_paused = False
+                elif not self.music_started:
+                    self._start_music()
+            elif self.music_started and not self.music_paused:
+                pygame.mixer.music.pause()
+                self.music_paused = True
+        except pygame.error:
+            pass
 
     def set_volume(self, volume: float) -> None:
         self.volume = max(0.0, min(1.0, volume))
         for sound in self.sounds.values():
             sound.set_volume(self.volume)
+        if self.music_available:
+            try:
+                pygame.mixer.music.set_volume(self.volume * MUSIC_GAIN)
+            except pygame.error:
+                pass
 
     def play(self, name: str) -> None:
         if not (self.available and self.enabled):

@@ -82,6 +82,8 @@ deleted.
 - **Procedural picture-book art.** Grass, fences, hedges, ponds, cows, the
   farmer, gates and alert bubbles are drawn in code. No emoji are used as game
   objects.
+- **Background music.** A bundled CC0 solo-harp loop, “Meadow Thoughts” by
+  Écrivain, plays quietly under the sound effects.
 
 ## Requirements
 
@@ -429,15 +431,20 @@ is supplied, a deterministic far-away walkable cell is chosen and marked in
 - Terrain, fences, ponds, cows, the farmer, gates, hay bales and alert bubbles
   are procedural. Tiles are drawn at a higher resolution and smoothed down.
 - No bitmap sprite sheets and no emoji game objects.
-- All sounds are synthesised at start-up in `game/audio.py`; no audio files are
-  shipped. Sound and volume can be changed in Settings.
+- Sound cues are synthesised at start-up in `game/audio.py`.
+- Background music is “Meadow Thoughts” by Écrivain, a solo harp loop bundled
+  as `assets/music/meadow_thoughts.ogg` under CC0 1.0. Full credit is recorded
+  in `assets/music/README.md`.
+- Sound/music can be toggled and the master volume changed in Settings;
+  background music is mixed lower than the sound effects.
 
 ## Offline promise
 
 - No network modules and no network requests at runtime.
 - No accounts, rooms, matchmaking, servers, WebSockets, cloud saves or online
   leaderboards.
-- The only binary asset is the bundled font.
+- The binary assets are the bundled font and the CC0 background music; both
+  load from disk and no network requests are made at runtime.
 - Daily seeds come from the local date.
 
 ## Tests
@@ -485,12 +492,13 @@ game/
   theme.py                  Palette, fonts, layout
   ui.py                     Buttons, toggles, modals
   art.py                    Procedural art
-  audio.py                  Synthesised cues
+  audio.py                  Synthesised cues and background music
   app.py                    Window and scene routing
   scenes/                   Menu, levels, play, challenge, daily, editor,
                             achievements, settings
 levels/                     Campaign and challenge JSON
 assets/fonts/               Bundled CJK font and OFL text
+assets/music/               Bundled CC0 background loop and credit
 tests/                      Unit, integration and data tests
 tools/                      Solver CLI and screenshot helper
 ```
@@ -546,7 +554,8 @@ tools/                      Solver CLI and screenshot helper
 
 - The GUI is verified head-less with screenshots and injected events; it has not
   been manually play-tested on a physical display here.
-- Audio is synthesised and runs with a dummy device; it has not been auditioned.
+- SFX are synthesised and the CC0 harp loop is bundled; both run here with a
+  dummy device and have not been auditioned on physical hardware.
 - The editor uses a fixed level name and a 10×10 canvas.
 - The daily generator falls back to campaign level 1 if no candidate is solvable.
 - Undo keeps at most 256 snapshots.

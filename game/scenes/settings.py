@@ -21,7 +21,7 @@ class SettingsScene(Scene):
     def on_enter(self) -> None:
         store = self.store
         self.sound_toggle = ui.Toggle(
-            pygame.Rect(118, 210, 520, 46), "音效", "sound", bool(store.get_setting("sound", True))
+            pygame.Rect(118, 210, 520, 46), "音效与音乐", "sound", bool(store.get_setting("sound", True))
         )
         self.volume_slider = ui.Slider(
             pygame.Rect(118, 262, 520, 54),
